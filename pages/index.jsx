@@ -76,8 +76,8 @@ const Home = () => {
       company: companyFilter,
       startStocks: stocks.start,
       endStocks: stocks.end,
-      lat: currCenter.lat,
-      lng: currCenter.lng,
+      // lat: currCenter.lat,
+      // lng: currCenter.lng,
     },
     mapLevel
   );
