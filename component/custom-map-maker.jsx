@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { MapMarker, CustomOverlayMap } from "react-kakao-maps-sdk";
-import styled from "styled-components";
-import { usePatchExcel } from "@/api/supabase";
-import Font from "./font";
-import Modal from "./modal";
-import GlobalSpinner from "@/component/global-spinner";
-import Button from "./button";
-import MakerPatchModalChildren from "./modal-children/maker-patch-modal-children";
-import DuplicateMakerPatchModalChildren from "./modal-children/duplicate-maker-patch-modal-children";
-import DuplicateMakerModalChildren from "./modal-children/duplicate-maker-modal-children";
+import React, { useEffect, useState } from 'react';
+import { MapMarker, CustomOverlayMap } from 'react-kakao-maps-sdk';
+import styled from 'styled-components';
+import { usePatchExcel } from '@/api/supabase';
+import Font from './font';
+import Modal from './modal';
+import GlobalSpinner from '@/component/global-spinner';
+import Button from './button';
+import MakerPatchModalChildren from './modal-children/maker-patch-modal-children';
+import DuplicateMakerPatchModalChildren from './modal-children/duplicate-maker-patch-modal-children';
+import DuplicateMakerModalChildren from './modal-children/duplicate-maker-modal-children';
 
 const CustomMapMarker = ({ excelData, makerData, userId }) => {
   // 인포윈도우
@@ -43,7 +43,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
   const {
     mutate: duplicateMakerDataMutate,
     isLoading: duplicateMakerDataMutateIsLoading,
-  } = usePatchExcel(duplicateMakerData?.id || "", userId);
+  } = usePatchExcel(duplicateMakerData?.id || '', userId);
 
   const findDuplicateLocation = () => {
     const result = [];
@@ -167,7 +167,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
               lng: `${makerData.lng}`,
             }}
             clickable={true}
-            yAnchor={1.1}
+            yAnchor={1.13}
             zIndex={100}
           >
             <InfoWindow>
@@ -178,61 +178,61 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
               />
 
               <InfoWrapper>
-                <Font fontSize="2.5rem">
+                <Font fontSize="16px">
                   주주번호 : {makerData.shareholder_number}
                 </Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem">이름 : {makerData.name}</Font>
+                <Font fontSize="16px">이름 : {makerData.name}</Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem">주식수 : {makerData.stocks}</Font>
+                <Font fontSize="16px">주식수 : {makerData.stocks}</Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem">
+                <Font fontSize="16px">
                   작년권리확정주식수 : {makerData.last_year_stocks}
                 </Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem" whiteSpace="pre-wrap" lineHeight={1.4}>
+                <Font fontSize="16px" whiteSpace="pre-wrap" lineHeight={1.4}>
                   주소 :{makerData.address}
                 </Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem">상태 : {makerData.status}</Font>
+                <Font fontSize="16px">상태 : {makerData.status}</Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem" whiteSpace="pre-wrap">
+                <Font fontSize="16px" whiteSpace="pre-wrap">
                   회사명 : {makerData.company}
                 </Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem" whiteSpace="pre-wrap">
+                <Font fontSize="16px" whiteSpace="pre-wrap">
                   메모 : {makerData.memo}
                 </Font>
               </InfoWrapper>
 
               <InfoWrapper>
-                <Font fontSize="2.5rem">변경이력 :</Font>
+                <Font fontSize="16px">변경이력 :</Font>
 
                 <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.3rem",
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.3rem',
                   }}
                 >
                   {makerData.history !== null &&
                     makerData.history.map((x) => {
                       return (
-                        <Font key={x} fontSize="2.5rem">
+                        <Font key={x} fontSize="16px">
                           {x}
                         </Font>
                       );
@@ -240,16 +240,19 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                 </div>
               </InfoWrapper>
 
-              <Button
-                fontSize="2.5rem"
-                margin="4rem 0 0 0"
-                backgroundColor="#5599FF"
-                border="1px solid #5599FF"
-                color="#fff"
-                onClick={() => setMakerDataUpdateIsModalOpen(patchDataState)}
-              >
-                수정하기
-              </Button>
+              <div style={{ marginTop: '3rem' }}>
+                <Button
+                  fontSize="14px"
+                  margin="0 auto"
+                  backgroundColor="#5599FF"
+                  border="1px solid #5599FF"
+                  borderRadius="5px"
+                  color="#fff"
+                  onClick={() => setMakerDataUpdateIsModalOpen(patchDataState)}
+                >
+                  수정하기
+                </Button>
+              </div>
             </InfoWindow>
           </CustomOverlayMap>
         )}
@@ -260,15 +263,15 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
 
 export default CustomMapMarker;
 
-const Frame = styled.div``;
+const Frame = styled.div`
+  max-width: 8rem;
+`;
 
 const InfoWindow = styled.div`
-  width: 100%;
-  min-width: 60rem;
-  padding: 2rem;
+  padding: 15px;
   background-color: #fff;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
-  border-radius: 20px;
+  border-radius: 5px;
 `;
 
 const InfoWrapper = styled.div`

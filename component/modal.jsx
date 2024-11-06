@@ -1,9 +1,9 @@
-import { useRef, useEffect } from "react";
-import styled from "styled-components";
-import useOnClickOutside from "hooks/useOnClickOutside";
-import Image from "next/image";
-import ImageWrapper from "./image-wrapper";
-import close from "@/public/svg/close.svg";
+import { useRef, useEffect } from 'react';
+import styled from 'styled-components';
+import useOnClickOutside from 'hooks/useOnClickOutside';
+import Image from 'next/image';
+import ImageWrapper from './image-wrapper';
+import close from '@/public/svg/close.svg';
 
 const Modal = ({ state, setState, isOverflow, children }) => {
   const moodalOpenInRef = useRef();
@@ -12,23 +12,23 @@ const Modal = ({ state, setState, isOverflow, children }) => {
     inRef: moodalOpenInRef,
     exceptRef: modalOpenExceptRef,
     handler: () => {
-      setState("");
+      setState('');
     },
   });
 
   useEffect(() => {
     if (state) {
-      document.body.style.overflowY = "hidden";
+      document.body.style.overflowY = 'hidden';
     } else {
-      document.body.style.overflowY = "unset";
+      document.body.style.overflowY = 'unset';
     }
   }, [state]);
 
   return (
-    <Frame className={state ? "slideUp" : "slideDown"}>
+    <Frame className={state ? 'slideUp' : 'slideDown'}>
       <DialogFrame
         ref={moodalOpenInRef}
-        className={state ? "slideUp" : "slideDown"}
+        className={state ? 'slideUp' : 'slideDown'}
         isOverflow={isOverflow}
       >
         <DialogWrapper>
@@ -91,15 +91,15 @@ const DialogFrame = styled.div`
   bottom: -300px;
   width: 100%;
   max-width: 600px;
-  max-height: 70rem;
-  min-height: 10rem;
-  padding: 8rem 5rem 16rem 5rem;
-  border-radius: 18px 18px 0px 0px;
+  max-height: 60rem;
+  min-height: 6rem;
+  padding: 5rem;
+  border-radius: 5px 5px 0px 0px;
   background-color: #fff;
   transition: all 0.2s ease-in-out;
   box-sizing: border-box;
   z-index: 10;
-  overflow-x: ${(props) => (props.isOverflow ? "auto" : "")};
+  overflow-x: ${(props) => (props.isOverflow ? 'auto' : '')};
   overflow-y: auto;
 
   &.slideUp {

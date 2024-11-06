@@ -1,8 +1,8 @@
-import { useRecoilState } from "recoil";
-import { toastStateAtom } from "atoms/index";
-import styled from "styled-components";
-import Font from "./font";
-import { useEffect } from "react";
+import { useRecoilState } from 'recoil';
+import { toastStateAtom } from 'atoms/index';
+import styled from 'styled-components';
+import Font from './font';
+import { useEffect } from 'react';
 
 const Toast = () => {
   const [toastState, setToastState] = useRecoilState(toastStateAtom);
@@ -34,8 +34,8 @@ const Toast = () => {
 export default Toast;
 
 const Frame = styled.div`
-  visibility: ${(props) => (props.active ? "visible" : "hidden")};
-  bottom: ${(props) => (props.active ? "12rem" : "-10rem")};
+  visibility: ${(props) => (props.active ? 'visible' : 'hidden')};
+  bottom: ${(props) => (props.active ? '12rem' : '-10rem')};
   transition: all 0.3s;
   /* opacity: ${(props) => (props.active ? 1 : 0)}; */
 
@@ -51,5 +51,5 @@ const Frame = styled.div`
   margin: 0 auto;
 
   background-color: #000;
-  border-radius: 10px;
+  border-radius: 5px;
 `;

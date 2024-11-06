@@ -1,14 +1,14 @@
-import React, { useState } from "react";
-import { usePostSignIn } from "@/api/auth";
-import { toastStateAtom } from "atoms";
-import { useRecoilState } from "recoil";
-import { useRouter } from "next/router";
-import useAuthCheck from "@/hooks/useAuthCheck";
-import styled from "styled-components";
-import Button from "@/component/button";
-import DotSpinner from "@/component/dot-spinner";
-import Font from "@/component/font";
-import Image from "next/image";
+import React, { useState } from 'react';
+import { usePostSignIn } from '@/api/auth';
+import { toastStateAtom } from 'atoms';
+import { useRecoilState } from 'recoil';
+import { useRouter } from 'next/router';
+import useAuthCheck from '@/hooks/useAuthCheck';
+import styled from 'styled-components';
+import Button from '@/component/button';
+import DotSpinner from '@/component/dot-spinner';
+import Font from '@/component/font';
+import Image from 'next/image';
 
 const SignIn = () => {
   const router = useRouter();
@@ -25,7 +25,7 @@ const SignIn = () => {
   );
 
   if (isLoggedIn) {
-    router.push("/");
+    router.push('/');
     return;
   }
 
@@ -34,24 +34,24 @@ const SignIn = () => {
       <SignInFrame>
         {signInIsLoading && <DotSpinner />}
 
-        <Font fontSize="2.5rem">로그인</Font>
+        <Font fontSize="22px">로그인</Font>
 
         <FormWrapper>
           <StyledInput
             type="text"
             name="email"
-            value={email || ""}
+            value={email || ''}
             placeholder="이메일"
             onChange={(e) => setEmail(e.target.value)}
           />
 
           <StyledInput
             type="password"
-            value={password || ""}
+            value={password || ''}
             placeholder="비밀번호"
             onChange={(e) => setPassword(e.target.value)}
             onKeyUp={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === 'Enter') {
                 signInMutate({ email, password });
               }
             }}
@@ -59,7 +59,7 @@ const SignIn = () => {
 
           <ButtonWrapper>
             <Button
-              fontSize="1.6rem"
+              fontSize="14px"
               onClick={() => signInMutate({ email, password })}
             >
               로그인
@@ -107,7 +107,7 @@ const SignInFrame = styled.div`
   margin-top: 10rem;
   padding: 6rem 6rem;
   border: 1px solid #c6c6c6;
-  border-radius: 10px;
+  border-radius: 5px;
 `;
 
 const FormWrapper = styled.form`
@@ -123,7 +123,7 @@ const StyledInput = styled.input`
   padding: 10px;
   border: 2px solid #ccc;
   border-radius: 5px;
-  font-size: 16px;
+  font-size: 14px;
   outline: none;
 
   &:focus {
@@ -133,7 +133,7 @@ const StyledInput = styled.input`
 
 const ButtonWrapper = styled.div`
   width: 15rem;
-  margin-top: 4rem;
+  margin-top: 2rem;
   display: flex;
   justify-content: center;
 `;

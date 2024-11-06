@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { Map, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk";
-import SearchAddressBounds from "@/component/search-address-bounds";
-import CustomMapMarker from "@/component/custom-map-maker";
-import { useGetExcel, useGetCompletedFilterMaker } from "@/api/supabase";
-import { useGetUserData, usePostSignOut } from "@/api/auth";
-import Font from "@/component/font";
-import Button from "@/component/button";
-import Modal from "@/component/modal";
-import GlobalSpinner from "@/component/global-spinner";
-import styled from "styled-components";
-import FilterModalChildren from "@/component/modal-children/filter-modal-children";
-import { toastStateAtom } from "atoms";
-import { useRecoilState } from "recoil";
-import { useRouter } from "next/router";
-import supabase from "@/config/supabaseClient";
-import withAuth from "@/hoc/withAuth";
+import React, { useEffect, useState } from 'react';
+import { Map, MapTypeControl, ZoomControl } from 'react-kakao-maps-sdk';
+import SearchAddressBounds from '@/component/search-address-bounds';
+import CustomMapMarker from '@/component/custom-map-maker';
+import { useGetExcel, useGetCompletedFilterMaker } from '@/api/supabase';
+import { useGetUserData, usePostSignOut } from '@/api/auth';
+import Font from '@/component/font';
+import Button from '@/component/button';
+import Modal from '@/component/modal';
+import GlobalSpinner from '@/component/global-spinner';
+import styled from 'styled-components';
+import FilterModalChildren from '@/component/modal-children/filter-modal-children';
+import { toastStateAtom } from 'atoms';
+import { useRecoilState } from 'recoil';
+import { useRouter } from 'next/router';
+import supabase from '@/config/supabaseClient';
+import withAuth from '@/hoc/withAuth';
 
 const Home = () => {
   const router = useRouter();
@@ -28,17 +28,17 @@ const Home = () => {
 
   // 주소 검색
   const [searchAddress, setSearchAddress] = useState({
-    keyWord: "",
-    lat: "",
-    lng: "",
+    keyWord: '',
+    lat: '',
+    lng: '',
   });
 
   // 필터 선택
   const [statusFilter, setStatusFilter] = useState([]);
   const [companyFilter, setCompanyFilter] = useState([]);
   const [stocks, setStocks] = useState({
-    start: "",
-    end: "",
+    start: '',
+    end: '',
   });
 
   // 현재 위도 경도
@@ -54,7 +54,7 @@ const Home = () => {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === "SIGNED_OUT") {
+        if (event === 'SIGNED_OUT') {
           router.reload();
         }
       }
@@ -147,16 +147,16 @@ const Home = () => {
           lng: 126.97228481049244,
         }}
         style={{
-          width: "100%",
-          height: "100vh",
+          width: '100%',
+          height: '100vh',
         }}
         level={mapLevel}
         onZoomChanged={handleZoomChange}
         onDragEnd={handleDragEnd}
       >
         {/* 컨트롤러 생성 */}
-        <MapTypeControl position={"TOPRIGHT"} />
-        <ZoomControl position={"RIGHT"} />
+        <MapTypeControl position={'TOPRIGHT'} />
+        <ZoomControl position={'RIGHT'} />
 
         {/* 로그아웃 */}
         <SignOutBtn onClick={() => mutate()}>로그아웃</SignOutBtn>
@@ -168,15 +168,17 @@ const Home = () => {
 
         {/* 필터 현황 */}
         <CompletedStocksWrapper>
-          <Button fontSize="1.5rem" padding="0.5rem" borderRadius="5px">
-            필터 현황
-          </Button>
+          <Font fontSize="13px" margin="0">
+            데이터 현황
+          </Font>
 
-          <Font fontSize="1.5rem">
+          <div style={{ border: '0.1px solid #000' }}></div>
+
+          <Font fontSize="13px" margin="0">
             마커 개수 : {completedFilterMakerData?.length}
           </Font>
 
-          <Font fontSize="1.5rem">
+          <Font fontSize="13px">
             주식수의 합 : {completedFilterMakerData?.sumCompletedStocks}
           </Font>
         </CompletedStocksWrapper>
@@ -232,17 +234,16 @@ const FilterBtn = styled.div`
   justify-content: center;
   align-items: center;
 
-  font-size: 1.5rem;
+  font-size: 13px;
   font-weight: 700;
 
   position: fixed;
-  left: 2rem;
-  top: 2rem;
+  left: 20px;
+  top: 20px;
 
-  height: 5rem;
-  padding: 2rem;
+  padding: 15px;
   border: 1px #000 solid;
-  border-radius: 10px;
+  border-radius: 5px;
   background-color: #fff;
   z-index: 5;
   cursor: pointer;
@@ -251,15 +252,15 @@ const FilterBtn = styled.div`
 const CompletedStocksWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.8rem;
 
   position: fixed;
-  left: 2rem;
-  top: 7.5rem;
+  left: 20px;
+  top: 70px;
 
-  padding: 1rem;
+  padding: 10px;
   border: 1px #000 solid;
-  border-radius: 10px;
+  border-radius: 5px;
   background-color: #fff;
   z-index: 5;
   cursor: pointer;
@@ -270,17 +271,21 @@ const SignOutBtn = styled.div`
   justify-content: center;
   align-items: center;
 
-  font-size: 1.5rem;
+  font-size: 13px;
   font-weight: 700;
 
   position: fixed;
-  right: 13rem;
-  top: 0.5rem;
+  right: 120px;
+  top: 5px;
 
-  height: 5rem;
-  padding: 2rem;
+  @media (max-width: 768px) {
+    right: 45px;
+    top: 50px;
+  }
+
+  padding: 10px;
   border: 1px #000 solid;
-  border-radius: 10px;
+  border-radius: 5px;
   background-color: #fff;
   z-index: 5;
   cursor: pointer;

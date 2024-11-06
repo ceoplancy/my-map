@@ -1,8 +1,8 @@
-import { useMap } from "react-kakao-maps-sdk";
-import Button from "@/component/button";
-import styled from "styled-components";
-import useDebounce from "@/hooks/useDebounce";
-import { useEffect } from "react";
+import { useMap } from 'react-kakao-maps-sdk';
+import Button from '@/component/button';
+import styled from 'styled-components';
+import useDebounce from '@/hooks/useDebounce';
+import { useEffect } from 'react';
 
 const SearchAddressBounds = ({ searchAddress, setSearchAddress }) => {
   const debouncedSearch = useDebounce(searchAddress.keyWord, 500);
@@ -58,7 +58,7 @@ const SearchAddressBounds = ({ searchAddress, setSearchAddress }) => {
 
   // 디바운스 객체가(검색어 onChange 0.5초 늦게적용) 바뀔 때마다 위도 경도 API 호출
   useEffect(() => {
-    if (debouncedSearch !== "") {
+    if (debouncedSearch !== '') {
       onChangeSearchAddress();
     }
   }, [debouncedSearch]);
@@ -75,15 +75,15 @@ const SearchAddressBounds = ({ searchAddress, setSearchAddress }) => {
       />
 
       <Button
-        fontSize="1.5rem"
+        fontSize="13px"
         backgroundColor="#5599FF"
         border="1px solid #5599FF"
         borderRadius="5px"
         color="#fff"
-        padding="0.5rem"
+        padding="5px"
         onClick={() => onClickboundsData()}
       >
-        주소검색
+        검색
       </Button>
     </SearchAddressWrapper>
   );
@@ -96,13 +96,12 @@ const SearchAddressWrapper = styled.div`
   gap: 1rem;
 
   position: fixed;
-  left: 10rem;
-  top: 2rem;
+  left: 80px;
+  top: 21px;
 
-  height: 5rem;
-  padding: 1rem;
+  padding: 7px;
   border: 1px #000 solid;
-  border-radius: 10px;
+  border-radius: 5px;
   background-color: #fff;
   z-index: 5;
   cursor: pointer;
