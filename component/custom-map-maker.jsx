@@ -453,7 +453,7 @@ const Frame = styled.div``;
 
 const InfoWindow = styled.div`
   width: 300px;
-  padding: 30px 15px;
+  padding: 8rem 4rem 4rem 4rem;
   background-color: #fff;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
   border-radius: 5px;
@@ -464,7 +464,7 @@ const CloseBtn = styled.img`
   height: 15px;
   position: absolute;
   right: 10px;
-  top: 10px;
+  top: 15px;
   cursor: pointer;
 `;
 

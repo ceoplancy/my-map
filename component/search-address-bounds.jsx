@@ -66,6 +66,7 @@ const SearchAddressBounds = ({ searchAddress, setSearchAddress }) => {
   return (
     <SearchAddressWrapper>
       <input
+        style={{ width: '100px' }}
         type="text"
         onChange={(e) => {
           setSearchAddress((prev) => {
@@ -97,7 +98,7 @@ const SearchAddressWrapper = styled.div`
 
   position: fixed;
   left: 160px;
-  top: 20px;
+  top: 105px;
 
   height: 40px;
   padding: 7px;

@@ -93,7 +93,7 @@ const DialogFrame = styled.div`
   max-width: 600px;
   max-height: 60rem;
   min-height: 6rem;
-  padding: 5rem;
+  padding: 8rem 5rem 5rem 5rem;
   border-radius: 5px 5px 0px 0px;
   background-color: #fff;
   transition: all 0.2s ease-in-out;
@@ -121,6 +121,6 @@ const DialogWrapper = styled.div`
 
 const CloseFrame = styled(ImageWrapper)`
   position: absolute;
-  top: -30px;
-  right: -30px;
+  top: -25px;
+  right: -15px;
 `;

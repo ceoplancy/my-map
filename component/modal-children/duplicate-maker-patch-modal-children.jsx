@@ -17,7 +17,7 @@ const DuplicateMakerPatchModalChildren = ({
   };
 
   return (
-    <>
+    <div style={{ width: '100%' }}>
       <table
         style={{
           border: '1px solid #ccc',
@@ -348,7 +348,7 @@ const DuplicateMakerPatchModalChildren = ({
           수정하기
         </Button>
       </div>
-    </>
+    </div>
   );
 };
 

@@ -14,7 +14,7 @@ const MakerPatchModalChildren = ({
   };
 
   return (
-    <>
+    <div style={{ width: '100%' }}>
       <table
         style={{
           border: '1px solid #ccc',
@@ -31,7 +31,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               주주번호
@@ -43,7 +43,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {makerData.id}
@@ -57,7 +57,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               이름
@@ -69,7 +69,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {makerData.name}
@@ -83,7 +83,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               주식수
@@ -95,7 +95,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {makerData.stocks}
@@ -109,7 +109,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
                 lineHeight: 1.4,
               }}
             >
@@ -122,7 +122,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
                 lineHeight: 1.4,
               }}
             >
@@ -137,7 +137,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               상태
@@ -149,7 +149,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {makerData.status}
@@ -163,7 +163,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               회사
@@ -175,7 +175,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {makerData.company}
@@ -189,7 +189,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               메모
@@ -201,7 +201,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               {makerData.memo}
@@ -215,7 +215,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               변경이력
@@ -227,7 +227,7 @@ const MakerPatchModalChildren = ({
                 padding: '10px',
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'pre-wrap',
               }}
             >
               <div
@@ -254,7 +254,7 @@ const MakerPatchModalChildren = ({
       <Line margin="2rem 0 2rem 0" />
 
       <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
+        <Font fontSize="14px" whiteSpace="pre-wrap">
           상태
         </Font>
 
@@ -279,7 +279,7 @@ const MakerPatchModalChildren = ({
       </InfoWrapper>
 
       <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
+        <Font fontSize="14px" whiteSpace="pre-wrap">
           메모
         </Font>
 
@@ -311,7 +311,7 @@ const MakerPatchModalChildren = ({
           수정하기
         </Button>
       </div>
-    </>
+    </div>
   );
 };
 
