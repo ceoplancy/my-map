@@ -62,7 +62,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
     for (let i = 0; i < str.length; i++) {
       hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return Math.abs(hash % 10) + 1; // 1부터 10까지의 숫자로 변환
+    return Math.abs(hash % 8) + 1; // 1부터 8까지의 숫자로 변환
   };
 
   const getImageSrc = (company) => {
