@@ -57,6 +57,19 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
     return result;
   };
 
+  const hashStringToNumber = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return Math.abs(hash % 10) + 1; // 1부터 10까지의 숫자로 변환
+  };
+
+  const getImageSrc = (company) => {
+    const imageNumber = hashStringToNumber(company);
+    return `/svg/maker${imageNumber}.svg`;
+  };
+
   useEffect(() => {
     setPatchDataState(makerData);
   }, [makerData]);
@@ -146,10 +159,11 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
           }
         }}
         image={{
-          src: `/svg/${makerData.maker}.svg`,
+          // src: `/svg/${makerData.maker}.svg`,
+          src: getImageSrc(makerData.company),
           size: {
-            width: 40,
-            height: 50,
+            width: 30,
+            height: 40,
           },
           // options: {
           //   offset: {
@@ -167,7 +181,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
               lng: `${makerData.lng}`,
             }}
             clickable={true}
-            yAnchor={1.13}
+            yAnchor={1.08}
             zIndex={100}
           >
             <InfoWindow>
@@ -177,68 +191,240 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                 onClick={() => setIsOpen(false)}
               />
 
-              <InfoWrapper>
-                <Font fontSize="16px">
-                  주주번호 : {makerData.shareholder_number}
-                </Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px">이름 : {makerData.name}</Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px">주식수 : {makerData.stocks}</Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px">
-                  작년권리확정주식수 : {makerData.last_year_stocks}
-                </Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px" whiteSpace="pre-wrap" lineHeight={1.4}>
-                  주소 :{makerData.address}
-                </Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px">상태 : {makerData.status}</Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px" whiteSpace="pre-wrap">
-                  회사명 : {makerData.company}
-                </Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px" whiteSpace="pre-wrap">
-                  메모 : {makerData.memo}
-                </Font>
-              </InfoWrapper>
-
-              <InfoWrapper>
-                <Font fontSize="16px">변경이력 :</Font>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.3rem',
-                  }}
-                >
-                  {makerData.history !== null &&
-                    makerData.history.map((x) => {
-                      return (
-                        <Font key={x} fontSize="16px">
-                          {x}
-                        </Font>
-                      );
-                    })}
-                </div>
-              </InfoWrapper>
+              <table
+                style={{
+                  border: '1px solid #ccc',
+                  borderCollapse: 'collapse',
+                  width: '100%',
+                }}
+              >
+                <tbody>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      주주번호
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {makerData.id}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      이름
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {makerData.name}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      주식수
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {makerData.stocks}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      주소
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {makerData.address}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      상태
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {makerData.status}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      회사명
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {makerData.company}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      메모
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {makerData.memo}
+                    </td>
+                  </tr>
+                  <tr style={{ border: '1px solid #ccc' }}>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      변경이력
+                    </td>
+                    <td
+                      style={{
+                        fontSize: '13px',
+                        border: '1px solid #ccc',
+                        padding: '10px',
+                        textAlign: 'center',
+                        verticalAlign: 'middle',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        {makerData.history !== null &&
+                          makerData.history.map((x) => {
+                            return (
+                              <Font key={x} fontSize="13px">
+                                {x}
+                              </Font>
+                            );
+                          })}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
 
               <div style={{ marginTop: '3rem' }}>
                 <Button
@@ -263,20 +449,14 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
 
 export default CustomMapMarker;
 
-const Frame = styled.div`
-  max-width: 8rem;
-`;
+const Frame = styled.div``;
 
 const InfoWindow = styled.div`
-  padding: 15px;
+  width: 300px;
+  padding: 30px 15px;
   background-color: #fff;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
   border-radius: 5px;
-`;
-
-const InfoWrapper = styled.div`
-  display: flex;
-  margin-top: 0.5rem;
 `;
 
 const CloseBtn = styled.img`

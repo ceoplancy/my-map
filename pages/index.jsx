@@ -169,17 +169,17 @@ const Home = () => {
         {/* 필터 현황 */}
         <CompletedStocksWrapper>
           <Font fontSize="13px" margin="0">
-            데이터 현황
+            의결권 현황
           </Font>
 
           <div style={{ border: '0.1px solid #000' }}></div>
 
           <Font fontSize="13px" margin="0">
-            마커 개수 : {completedFilterMakerData?.length}
+            [주주 수] {completedFilterMakerData?.length}
           </Font>
 
           <Font fontSize="13px">
-            주식수의 합 : {completedFilterMakerData?.sumCompletedStocks}
+            [총 주식수] {completedFilterMakerData?.sumCompletedStocks}
           </Font>
         </CompletedStocksWrapper>
 

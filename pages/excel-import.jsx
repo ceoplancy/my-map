@@ -1,28 +1,14 @@
-import { useState } from "react";
-import * as XLSX from "xlsx";
-import supabase from "@/config/supabaseClient";
-import Font from "@/component/font";
-import styled from "styled-components";
+import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import supabase from '@/config/supabaseClient';
+import Font from '@/component/font';
+import styled from 'styled-components';
 
 const ExcelImport = () => {
   const [failData, setFailData] = useState([]);
   const [failCount, setFailCount] = useState(0);
   const [excelFile, setExcelFile] = useState(null);
   const [typeError, setTypeError] = useState(null);
-
-  // submit state
-  // const [excelData, setExcelData] = useState(null);
-
-  //   const login = async () => {
-  //     await supabase.auth.signInWithPassword({
-  //       email: "",
-  //       password: "",
-  //     });
-  //   };
-
-  //   useEffect(() => {
-  //     login();
-  //   }, []);
 
   const convertToExportArray = (arr) => {
     const result = [];
@@ -42,9 +28,9 @@ const ExcelImport = () => {
 
   const handleFile = (e) => {
     let fileTypes = [
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "text/csv",
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
     ];
 
     let selectedFile = e.target.files[0];
@@ -58,11 +44,11 @@ const ExcelImport = () => {
           setExcelFile(e.target.result);
         };
       } else {
-        setTypeError("Please select only excel file types");
+        setTypeError('Please select only excel file types');
         setExcelFile(null);
       }
     } else {
-      console.log("Please select your file");
+      console.log('Please select your file');
     }
   };
 
@@ -70,17 +56,17 @@ const ExcelImport = () => {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(convertToExportArray(failData));
 
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
 
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 
-    const blob = new Blob([wbout], { type: "application/octet-stream" });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
 
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.style.display = "none";
+    const a = document.createElement('a');
+    a.style.display = 'none';
     a.href = url;
-    a.download = "주소변환실패현황.xlsx";
+    a.download = '주소변환실패현황.xlsx';
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -90,7 +76,7 @@ const ExcelImport = () => {
     e.preventDefault();
 
     if (excelFile !== null) {
-      const workbook = XLSX.read(excelFile, { type: "buffer" });
+      const workbook = XLSX.read(excelFile, { type: 'buffer' });
       const worksheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[worksheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
@@ -106,12 +92,13 @@ const ExcelImport = () => {
 
       const geocodeBatch = async (batchAddresses) => {
         const geocodingPromises = batchAddresses.map((x) => {
+          console.log(x);
           return new Promise((resolve) => {
             geocoder.addressSearch(x.latlngaddress, function (k, status) {
-              if (status === "ZERO_RESULT") {
+              if (status === 'ZERO_RESULT') {
                 setFailData((prev) => [
                   ...prev,
-                  { address: x.address, code: x.shareholder_number },
+                  { id: x.id, address: x.address },
                 ]);
                 setFailCount((prev) => prev + 1);
               }
@@ -158,14 +145,15 @@ const ExcelImport = () => {
             // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 다르면 DB 업로드 X
             if (result.length !== addresses.length) {
               alert(
-                "주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요."
+                '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
               );
               return;
             }
 
             // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 같으면 DB 업로드 O
             if (result.length === addresses.length) {
-              await supabase.from("excel").insert(result).select();
+              await supabase.from('excel').insert(result).select();
+              alert('업로드 성공');
               return;
             }
           }
@@ -210,7 +198,7 @@ const ExcelImport = () => {
           return (
             <FailWrapper key={index}>
               <Font fontSize="2rem">실패</Font>
-              <Font fontSize="2rem">{x.shareholder_number}</Font>
+              <Font fontSize="2rem">{x.id}</Font>
               <Font fontSize="2rem">{x.address}</Font>
             </FailWrapper>
           );

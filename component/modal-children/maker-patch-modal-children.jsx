@@ -15,91 +15,251 @@ const MakerPatchModalChildren = ({
 
   return (
     <>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          주주번호 :
-        </Font>
-        <Font fontSize="14px">{makerData.shareholder_number}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          이름 :
-        </Font>
-        <Font fontSize="14px">{makerData.name}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          주식수 :
-        </Font>
-        <Font fontSize="14px">{makerData.stocks}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          작년권리확정주식수 :
-        </Font>
-        <Font fontSize="14px">{makerData.last_year_stocks}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          주소 :
-        </Font>
-        <Font fontSize="14px" lineHeight={1.4}>
-          {makerData.address}
-        </Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          상태 :
-        </Font>
-        <Font fontSize="14px">{makerData.status}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          회사 :
-        </Font>
-        <Font fontSize="14px">{makerData.company}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          메모 :
-        </Font>
-        <Font fontSize="14px">{makerData.memo}</Font>
-      </InfoWrapper>
-
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          변경이력 :
-        </Font>
-
-        <div
-          style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}
-        >
-          {makerData?.history !== null &&
-            makerData?.history?.map((x) => {
-              return (
-                <Font key={x} fontSize="14px">
-                  {x}
-                </Font>
-              );
-            })}
-        </div>
-      </InfoWrapper>
+      <table
+        style={{
+          border: '1px solid #ccc',
+          borderCollapse: 'collapse',
+          width: '100%',
+        }}
+      >
+        <tbody>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              주주번호
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {makerData.id}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              이름
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {makerData.name}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              주식수
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {makerData.stocks}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.4,
+              }}
+            >
+              주소
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.4,
+              }}
+            >
+              {makerData.address}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              상태
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {makerData.status}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              회사
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {makerData.company}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              메모
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {makerData.memo}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              변경이력
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.3rem',
+                }}
+              >
+                {makerData?.history !== null &&
+                  makerData?.history?.map((x) => {
+                    return (
+                      <Font key={x} fontSize="14px">
+                        {x}
+                      </Font>
+                    );
+                  })}
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <Line margin="2rem 0 2rem 0" />
 
       <InfoWrapper>
         <Font fontSize="14px" whiteSpace="nowrap">
-          상태 :
+          상태
         </Font>
 
         <select
+          style={{ marginTop: '0.5rem' }}
           name="status-select"
           id="status-select"
           value={patchDataState.status}
@@ -112,7 +272,7 @@ const MakerPatchModalChildren = ({
             });
           }}
         >
-          <option value="선택">선택하세요</option>
+          <option value="미방문">미방문</option>
           <option value="완료">완료</option>
           <option value="실패">실패</option>
         </select>
@@ -120,10 +280,11 @@ const MakerPatchModalChildren = ({
 
       <InfoWrapper>
         <Font fontSize="14px" whiteSpace="nowrap">
-          메모 :
+          메모
         </Font>
 
         <textarea
+          style={{ marginTop: '0.5rem' }}
           value={removeTags(patchDataState.memo)}
           onChange={(e) => {
             setPatchDataState((prev) => {
@@ -158,5 +319,6 @@ export default MakerPatchModalChildren;
 
 const InfoWrapper = styled.div`
   display: flex;
-  margin-top: 0.5rem;
+  flex-direction: column;
+  margin-top: 2rem;
 `;

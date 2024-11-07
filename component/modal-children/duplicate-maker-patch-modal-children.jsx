@@ -31,7 +31,7 @@ const DuplicateMakerPatchModalChildren = ({
         <Font fontSize="14px" whiteSpace="nowrap">
           주주번호 :
         </Font>
-        <Font fontSize="14px">{duplicateMakerData.shareholder_number}</Font>
+        <Font fontSize="14px">{duplicateMakerData.id}</Font>
       </InfoWrapper>
       <InfoWrapper>
         <Font fontSize="14px" whiteSpace="nowrap">
@@ -44,12 +44,6 @@ const DuplicateMakerPatchModalChildren = ({
           주식수 :
         </Font>
         <Font fontSize="14px">{duplicateMakerData.stocks}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          작년권리확정주식수 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.last_year_stocks}</Font>
       </InfoWrapper>
       <InfoWrapper>
         <Font fontSize="14px" whiteSpace="nowrap">
@@ -128,10 +122,10 @@ const DuplicateMakerPatchModalChildren = ({
           }}
         >
           <option
-            value="선택"
-            // selected={makerData.status === "" ? true : false}
+            value="미방문"
+            // selected={makerData.status === "미방문" ? true : false}
           >
-            선택하세요
+            미방문
           </option>
 
           <option

@@ -1,4 +1,4 @@
-import Button from "../button";
+import Button from '../button';
 
 const DuplicateMakerModalChildren = ({
   findDuplicateLocation, // 중복 마커 찾기 함수
@@ -14,7 +14,7 @@ const DuplicateMakerModalChildren = ({
       {findDuplicateLocation()?.map((x) => {
         return (
           <Button
-            key={x.shareholder_number}
+            key={x.id}
             fontSize="2.5rem"
             lineHeight={1.2}
             margin="1.5rem 0 0 0"
