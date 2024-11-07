@@ -126,7 +126,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
         />
       </Modal>
 
-      {/* 중복 항복 마커 모달 */}
+      {/* 중복 항목 목록 마커 모달 */}
       <Modal
         state={duplicateMakerIsModalOpen}
         setState={setDuplicateMakerIsModalOpen}

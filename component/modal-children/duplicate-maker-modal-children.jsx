@@ -10,12 +10,13 @@ const DuplicateMakerModalChildren = ({
   setDuplicateMakerIsModalOpen, // 중복 마커 모달 열기/닫기 setState
 }) => {
   return (
-    <>
+    <div style={{ width: '100%' }}>
       {findDuplicateLocation()?.map((x) => {
         return (
           <Button
             key={x.id}
-            fontSize="2.5rem"
+            width="100%"
+            fontSize="14px"
             lineHeight={1.2}
             margin="1.5rem 0 0 0"
             onClick={() => {
@@ -35,7 +36,7 @@ const DuplicateMakerModalChildren = ({
           </Button>
         );
       })}
-    </>
+    </div>
   );
 };
 

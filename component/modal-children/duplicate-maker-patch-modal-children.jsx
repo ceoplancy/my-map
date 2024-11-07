@@ -18,93 +18,250 @@ const DuplicateMakerPatchModalChildren = ({
 
   return (
     <>
-      <Button
-        margin="0 0 1rem 0"
-        fontSize="14px"
-        color="#000"
-        padding="0.5rem"
-        borderRadius="5px"
+      <table
+        style={{
+          border: '1px solid #ccc',
+          borderCollapse: 'collapse',
+          width: '100%',
+        }}
       >
-        {`현재`}
-      </Button>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          주주번호 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.id}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          이름 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.name}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          주식수 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.stocks}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          주소 :
-        </Font>
-        <Font fontSize="14px" lineHeight={1.4}>
-          {duplicateMakerData.address}
-        </Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          상태 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.status}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          회사 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.company}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          메모 :
-        </Font>
-        <Font fontSize="14px">{duplicateMakerData.memo}</Font>
-      </InfoWrapper>
-      <InfoWrapper>
-        <Font fontSize="14px" whiteSpace="nowrap">
-          변경이력 :
-        </Font>
+        <tbody>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              주주번호
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {duplicateMakerData.id}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              이름
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {duplicateMakerData.name}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              주식수
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {duplicateMakerData.stocks}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              주소
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+                lineHeight: 1.4,
+              }}
+            >
+              {duplicateMakerData.address}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              상태
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {duplicateMakerData.status}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              회사
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {duplicateMakerData.company}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              메모
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {duplicateMakerData.memo}
+            </td>
+          </tr>
+          <tr style={{ border: '1px solid #ccc' }}>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              변경이력
+            </td>
+            <td
+              style={{
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                padding: '10px',
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.3rem',
+                }}
+              >
+                {duplicateMakerData?.history !== null &&
+                  duplicateMakerData?.history?.map((x) => {
+                    return (
+                      <Font key={x} fontSize="14px">
+                        {x}
+                      </Font>
+                    );
+                  })}
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        <div
-          style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}
-        >
-          {duplicateMakerData?.history !== null &&
-            duplicateMakerData?.history?.map((x) => {
-              return (
-                <Font key={x} fontSize="14px">
-                  {x}
-                </Font>
-              );
-            })}
-        </div>
-      </InfoWrapper>
       <Line margin="2rem 0 2rem 0" />
-      <Button
-        margin="0 0 1rem 0"
-        fontSize="14px"
-        color="#000"
-        padding="0.5rem"
-        borderRadius="5px"
-      >
-        {`수정`}
-      </Button>
+
       <InfoWrapper>
         <Font fontSize="14px" whiteSpace="nowrap">
-          상태 :
+          상태
         </Font>
 
         <select
+          style={{ marginTop: '0.5rem' }}
           name="status-select"
           id="status-select"
           value={duplicateMakerDataState?.status || ''}
@@ -143,12 +300,14 @@ const DuplicateMakerPatchModalChildren = ({
           </option>
         </select>
       </InfoWrapper>
+
       <InfoWrapper>
         <Font fontSize="14px" whiteSpace="nowrap">
-          메모 :
+          메모
         </Font>
 
         <textarea
+          style={{ marginTop: '0.5rem' }}
           value={removeTags(duplicateMakerDataState?.memo || '')}
           onChange={(e) => {
             setDuplicateMakerDataState((prev) => {
@@ -164,6 +323,7 @@ const DuplicateMakerPatchModalChildren = ({
           }}
         />
       </InfoWrapper>
+
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <Button
           fontSize="14px"
@@ -196,5 +356,6 @@ export default DuplicateMakerPatchModalChildren;
 
 const InfoWrapper = styled.div`
   display: flex;
-  margin-top: 0.5rem;
+  flex-direction: column;
+  margin-top: 2rem;
 `;

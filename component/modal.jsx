@@ -33,8 +33,8 @@ const Modal = ({ state, setState, isOverflow, children }) => {
       >
         <DialogWrapper>
           <CloseFrame
-            width={3}
-            height={3}
+            width={2.5}
+            height={2.5}
             cursor="pointer"
             onClick={() => {
               setState(false);
@@ -50,7 +50,7 @@ const Modal = ({ state, setState, isOverflow, children }) => {
           </CloseFrame>
         </DialogWrapper>
 
-        <div>{children}</div>
+        {children}
       </DialogFrame>
     </Frame>
   );
@@ -121,6 +121,6 @@ const DialogWrapper = styled.div`
 
 const CloseFrame = styled(ImageWrapper)`
   position: absolute;
-  top: -4rem;
-  right: -2rem;
+  top: -30px;
+  right: -30px;
 `;

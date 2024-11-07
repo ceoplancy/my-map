@@ -238,9 +238,10 @@ const FilterBtn = styled.div`
   font-weight: 700;
 
   position: fixed;
-  left: 20px;
+  left: 100px;
   top: 20px;
 
+  height: 40px;
   padding: 15px;
   border: 1px #000 solid;
   border-radius: 5px;
@@ -275,14 +276,10 @@ const SignOutBtn = styled.div`
   font-weight: 700;
 
   position: fixed;
-  right: 120px;
-  top: 5px;
+  left: 20px;
+  top: 20px;
 
-  @media (max-width: 768px) {
-    right: 45px;
-    top: 50px;
-  }
-
+  height: 40px;
   padding: 10px;
   border: 1px #000 solid;
   border-radius: 5px;

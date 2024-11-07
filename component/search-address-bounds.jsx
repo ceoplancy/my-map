@@ -96,9 +96,10 @@ const SearchAddressWrapper = styled.div`
   gap: 1rem;
 
   position: fixed;
-  left: 80px;
-  top: 21px;
+  left: 160px;
+  top: 20px;
 
+  height: 40px;
   padding: 7px;
   border: 1px #000 solid;
   border-radius: 5px;

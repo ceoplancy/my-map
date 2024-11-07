@@ -43,7 +43,7 @@ const ButtonComp = styled.div`
     props.backgroundColor ? props.backgroundColor : '#fff'};
   color: ${(props) => (props.color ? props.color : '#000')};
   line-height: ${(props) => (props.lineHeight ? props.lineHeight : 1.2)};
-  font-weight: ${(props) => (props.fontWeight ? props.fontWeight : 700)};
+  font-weight: ${(props) => (props.fontWeight ? props.fontWeight : 400)};
   cursor: pointer;
 `;
 
