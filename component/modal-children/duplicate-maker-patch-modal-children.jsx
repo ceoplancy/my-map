@@ -337,7 +337,7 @@ const DuplicateMakerPatchModalChildren = ({
               return {
                 ...duplicateMakerDataState,
                 history: [
-                  ...duplicateMakerDataState?.history,
+                  ...(duplicateMakerDataState?.history || []),
                   `${userId} ${format(new Date(), 'yyyy/MM/dd/ HH:mm:ss')}`,
                 ],
               };

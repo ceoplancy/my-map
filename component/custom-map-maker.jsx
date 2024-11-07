@@ -205,7 +205,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -217,7 +217,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -231,7 +231,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -243,7 +243,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -257,7 +257,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -269,7 +269,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -283,7 +283,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -295,7 +295,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                         lineHeight: 1.4,
@@ -310,7 +310,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -322,7 +322,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -336,7 +336,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -348,7 +348,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -362,7 +362,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -374,7 +374,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -388,7 +388,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
@@ -400,7 +400,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
                         fontSize: '13px',
                         border: '1px solid #ccc',
                         padding: '10px',
-                        textAlign: 'center',
+                        textAlign: 'left',
                         verticalAlign: 'middle',
                         whiteSpace: 'pre-wrap',
                       }}
