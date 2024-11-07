@@ -190,7 +190,18 @@ const Home = () => {
         />
 
         {/* 마커 생성 */}
-        {mapLevel >= 7 &&
+        {excelData?.map((x) => {
+          return (
+            <CustomMapMarker
+              key={x.id}
+              excelData={excelData}
+              makerData={x}
+              userId={user && user.user?.email}
+            />
+          );
+        })}
+
+        {/* {mapLevel >= 7 &&
           excelData?.slice(0, 50)?.map((x) => {
             return (
               <CustomMapMarker
@@ -201,6 +212,7 @@ const Home = () => {
               />
             );
           })}
+
         {mapLevel < 7 &&
           excelData?.map((x) => {
             return (
@@ -211,7 +223,7 @@ const Home = () => {
                 userId={user && user.user?.email}
               />
             );
-          })}
+          })} */}
       </Map>
     </>
   );

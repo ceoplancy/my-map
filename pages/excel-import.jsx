@@ -92,7 +92,6 @@ const ExcelImport = () => {
 
       const geocodeBatch = async (batchAddresses) => {
         const geocodingPromises = batchAddresses.map((x) => {
-          console.log(x);
           return new Promise((resolve) => {
             geocoder.addressSearch(x.latlngaddress, function (k, status) {
               if (status === 'ZERO_RESULT') {
@@ -121,7 +120,7 @@ const ExcelImport = () => {
       };
 
       const geocodeAddresses = async (addresses) => {
-        const batchSize = 400; // 한 번에 보낼 주소의 갯수
+        const batchSize = 200; // 한 번에 보낼 주소의 갯수
         const totalBatches = Math.ceil(addresses.length / batchSize);
 
         for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {

@@ -57,18 +57,18 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
     return result;
   };
 
-  const hashStringToNumber = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return Math.abs(hash % 8) + 1; // 1부터 8까지의 숫자로 변환
-  };
+  // const hashStringToNumber = (str) => {
+  //   let hash = 0;
+  //   for (let i = 0; i < str.length; i++) {
+  //     hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  //   }
+  //   return Math.abs(hash % 8) + 1; // 1부터 8까지의 숫자로 변환
+  // };
 
-  const getImageSrc = (company) => {
-    const imageNumber = hashStringToNumber(company);
-    return `/svg/maker${imageNumber}.svg`;
-  };
+  // const getImageSrc = (company) => {
+  //   const imageNumber = hashStringToNumber(company);
+  //   return `/svg/maker${imageNumber}.svg`;
+  // };
 
   useEffect(() => {
     setPatchDataState(makerData);
@@ -159,8 +159,8 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
           }
         }}
         image={{
-          // src: `/svg/${makerData.maker}.svg`,
-          src: getImageSrc(makerData.company),
+          src: `/svg/${makerData.maker}.svg`,
+          // src: getImageSrc(makerData.company),
           size: {
             width: 30,
             height: 40,
