@@ -169,6 +169,7 @@ const Home = () => {
             backgroundColor: '#fff',
             padding: '5px',
             borderRadius: '5px',
+            cursor: 'pointer',
           }}
           onClick={() => setIsVisibleMenu(!isVisibleMenu)}
         >
