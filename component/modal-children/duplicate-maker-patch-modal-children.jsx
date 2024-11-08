@@ -3,6 +3,7 @@ import Line from '../line';
 import Button from '../button';
 import Font from '../font';
 import { format } from 'date-fns';
+import ExcelDataTable from '../excel-data-table';
 
 const DuplicateMakerPatchModalChildren = ({
   duplicateMakerData, // 현재 중복 마커 state
@@ -18,7 +19,8 @@ const DuplicateMakerPatchModalChildren = ({
 
   return (
     <div style={{ width: '100%' }}>
-      <table
+      <ExcelDataTable data={duplicateMakerData} />
+      {/* <table
         style={{
           border: '1px solid #ccc',
           borderCollapse: 'collapse',
@@ -251,7 +253,7 @@ const DuplicateMakerPatchModalChildren = ({
             </td>
           </tr>
         </tbody>
-      </table>
+      </table> */}
 
       <Line margin="2rem 0 2rem 0" />
 

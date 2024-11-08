@@ -66,8 +66,9 @@ const SearchAddressBounds = ({ searchAddress, setSearchAddress }) => {
   return (
     <SearchAddressWrapper>
       <input
-        style={{ width: '100px' }}
+        style={{ width: '70px' }}
         type="text"
+        placeholder="주소검색"
         onChange={(e) => {
           setSearchAddress((prev) => {
             return { ...prev, keyWord: e.target.value };
@@ -94,11 +95,16 @@ export default SearchAddressBounds;
 
 const SearchAddressWrapper = styled.div`
   display: flex;
-  gap: 1rem;
+  gap: 10px;
 
   position: fixed;
-  left: 160px;
-  top: 105px;
+  left: 20px;
+  top: 165px;
+
+  @media (max-width: 768px) {
+    left: 20px;
+    top: 200px;
+  }
 
   height: 40px;
   padding: 7px;

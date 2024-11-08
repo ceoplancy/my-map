@@ -2,12 +2,14 @@ import styled from 'styled-components';
 import Line from '../line';
 import Button from '../button';
 import Font from '../font';
+import ExcelDataTable from '../excel-data-table';
 
 const MakerPatchModalChildren = ({
   makerData, // 현재 마커 데이터
   patchDataState, // 수정할 마커 데이터 state
   setPatchDataState, // 수정할 마커 데이터 setState
   makerDataMutate, // 마커 수정 API
+  setMakerDataUpdateIsModalOpen,
 }) => {
   const removeTags = (str) => {
     return str?.replace(/<\/?[^>]+(>|$)/g, '');
@@ -15,241 +17,7 @@ const MakerPatchModalChildren = ({
 
   return (
     <div style={{ width: '100%' }}>
-      <table
-        style={{
-          border: '1px solid #ccc',
-          borderCollapse: 'collapse',
-          width: '100%',
-        }}
-      >
-        <tbody>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              주주번호
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {makerData.id}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              이름
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {makerData.name}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              주식수
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {makerData.stocks}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.4,
-              }}
-            >
-              주소
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.4,
-              }}
-            >
-              {makerData.address}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              상태
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {makerData.status}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              회사
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {makerData.company}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              메모
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {makerData.memo}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              변경이력
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.3rem',
-                }}
-              >
-                {makerData?.history !== null &&
-                  makerData?.history?.map((x) => {
-                    return (
-                      <Font key={x} fontSize="14px">
-                        {x}
-                      </Font>
-                    );
-                  })}
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <ExcelDataTable data={makerData} />
 
       <Line margin="2rem 0 2rem 0" />
 
@@ -297,7 +65,7 @@ const MakerPatchModalChildren = ({
         />
       </InfoWrapper>
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
         <Button
           fontSize="14px"
           margin="4rem 0 0 0"
@@ -309,6 +77,18 @@ const MakerPatchModalChildren = ({
           }}
         >
           수정하기
+        </Button>
+
+        <Button
+          fontSize="14px"
+          margin="4rem 0 0 0"
+          backgroundColor="#fff"
+          border="1px solid #000"
+          onClick={() => {
+            setMakerDataUpdateIsModalOpen(false);
+          }}
+        >
+          닫기
         </Button>
       </div>
     </div>

@@ -15,10 +15,12 @@ import { useRecoilState } from 'recoil';
 import { useRouter } from 'next/router';
 import supabase from '@/config/supabaseClient';
 import withAuth from '@/hoc/withAuth';
+import Image from 'next/image';
 
 const Home = () => {
   const router = useRouter();
   const [toastState, setToastState] = useRecoilState(toastStateAtom);
+  const [isVisibleMenu, setIsVisibleMenu] = useState(false);
 
   // 현재 지도 확대 레벨.
   const [mapLevel, setMapLevel] = useState(4);
@@ -158,36 +160,55 @@ const Home = () => {
         <MapTypeControl position={'TOPRIGHT'} />
         <ZoomControl position={'RIGHT'} />
 
-        {/* 로그아웃 */}
-        <SignOutBtn onClick={() => mutate()}>로그아웃</SignOutBtn>
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '20px',
+            zIndex: '10',
+            backgroundColor: '#fff',
+            padding: '5px',
+            borderRadius: '5px',
+          }}
+          onClick={() => setIsVisibleMenu(!isVisibleMenu)}
+        >
+          <Image src="/svg/menu.svg" alt="menu" width={30} height={30} />
+        </div>
 
-        {/* 필터 버튼 */}
-        <FilterBtn onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}>
-          필터
-        </FilterBtn>
+        {isVisibleMenu && (
+          <>
+            {/* 주소 검색 */}
+            <SearchAddressBounds
+              searchAddress={searchAddress}
+              setSearchAddress={setSearchAddress}
+            />
 
-        {/* 필터 현황 */}
-        <CompletedStocksWrapper>
-          <Font fontSize="13px" margin="0">
-            의결권 현황
-          </Font>
+            {/* 로그아웃 */}
+            <SignOutBtn onClick={() => mutate()}>로그아웃</SignOutBtn>
 
-          <div style={{ border: '0.1px solid #000' }}></div>
+            {/* 필터 버튼 */}
+            <FilterBtn onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}>
+              필터
+            </FilterBtn>
 
-          <Font fontSize="13px" margin="0">
-            [주주 수] {completedFilterMakerData?.length}
-          </Font>
+            {/* 필터 현황 */}
+            <CompletedStocksWrapper>
+              <Font fontSize="13px" margin="0">
+                의결권 현황
+              </Font>
 
-          <Font fontSize="13px">
-            [총 주식수] {completedFilterMakerData?.sumCompletedStocks}
-          </Font>
-        </CompletedStocksWrapper>
+              <div style={{ border: '0.1px solid #000' }}></div>
 
-        {/* 주소 검색 */}
-        <SearchAddressBounds
-          searchAddress={searchAddress}
-          setSearchAddress={setSearchAddress}
-        />
+              <Font fontSize="13px" margin="0">
+                [주주 수] {completedFilterMakerData?.length}
+              </Font>
+
+              <Font fontSize="13px">
+                [총 주식수] {completedFilterMakerData?.sumCompletedStocks}
+              </Font>
+            </CompletedStocksWrapper>
+          </>
+        )}
 
         {/* 마커 생성 */}
         {excelData?.map((x) => {
@@ -251,7 +272,7 @@ const FilterBtn = styled.div`
 
   position: fixed;
   left: 100px;
-  top: 20px;
+  top: 70px;
 
   height: 40px;
   padding: 15px;
@@ -269,7 +290,7 @@ const CompletedStocksWrapper = styled.div`
 
   position: fixed;
   left: 20px;
-  top: 70px;
+  top: 120px;
 
   padding: 10px;
   border: 1px #000 solid;
@@ -289,7 +310,7 @@ const SignOutBtn = styled.div`
 
   position: fixed;
   left: 20px;
-  top: 20px;
+  top: 70px;
 
   height: 40px;
   padding: 10px;

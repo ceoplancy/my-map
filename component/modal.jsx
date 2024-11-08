@@ -1,9 +1,6 @@
 import { useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import useOnClickOutside from 'hooks/useOnClickOutside';
-import Image from 'next/image';
-import ImageWrapper from './image-wrapper';
-import close from '@/public/svg/close.svg';
 
 const Modal = ({ state, setState, isOverflow, children }) => {
   const moodalOpenInRef = useRef();
@@ -31,25 +28,6 @@ const Modal = ({ state, setState, isOverflow, children }) => {
         className={state ? 'slideUp' : 'slideDown'}
         isOverflow={isOverflow}
       >
-        <DialogWrapper>
-          <CloseFrame
-            width={2.5}
-            height={2.5}
-            cursor="pointer"
-            onClick={() => {
-              setState(false);
-            }}
-          >
-            <Image
-              src={close}
-              alt="close"
-              priority={true}
-              quality={100}
-              blurDataURL="data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVR42mN8//HLfwYiAOOoQvoqBABbWyZJf74GZgAAAABJRU5ErkJggg=="
-            />
-          </CloseFrame>
-        </DialogWrapper>
-
         {children}
       </DialogFrame>
     </Frame>
@@ -93,7 +71,7 @@ const DialogFrame = styled.div`
   max-width: 600px;
   max-height: 60rem;
   min-height: 6rem;
-  padding: 8rem 5rem 5rem 5rem;
+  padding: 20px;
   border-radius: 5px 5px 0px 0px;
   background-color: #fff;
   transition: all 0.2s ease-in-out;
@@ -111,16 +89,4 @@ const DialogFrame = styled.div`
   &.slideDown {
     opacity: 0;
   }
-`;
-
-const DialogWrapper = styled.div`
-  position: relative;
-  width: 100%;
-  height: 100%;
-`;
-
-const CloseFrame = styled(ImageWrapper)`
-  position: absolute;
-  top: -25px;
-  right: -15px;
 `;
