@@ -5,7 +5,6 @@ import CustomMapMarker from '@/component/custom-map-maker';
 import { useGetExcel, useGetCompletedFilterMaker } from '@/api/supabase';
 import { useGetUserData, usePostSignOut } from '@/api/auth';
 import Font from '@/component/font';
-import Button from '@/component/button';
 import Modal from '@/component/modal';
 import GlobalSpinner from '@/component/global-spinner';
 import styled from 'styled-components';
@@ -160,6 +159,33 @@ const Home = () => {
         <MapTypeControl position={'TOPRIGHT'} />
         <ZoomControl position={'RIGHT'} />
 
+        {/* 마커 생성 */}
+        {mapLevel <= 7
+          ? excelData?.map((x) => (
+              <CustomMapMarker
+                key={x.id}
+                excelData={excelData}
+                userId={user && user.user?.email}
+                makerData={x}
+                mapLevel={mapLevel}
+              />
+            ))
+          : // 맵레벨 7 초과 시 요약 데이터 렌더링
+            excelData &&
+            excelData.length > 0 && (
+              <CustomMapMarker
+                key={'summary'}
+                excelData={excelData}
+                userId={user && user.user?.email}
+                makerData={{
+                  lat: currCenter.lat,
+                  lng: currCenter.lng,
+                }}
+                mapLevel={mapLevel}
+                setMapLevel={setMapLevel}
+              />
+            )}
+
         <div
           style={{
             position: 'fixed',
@@ -210,42 +236,6 @@ const Home = () => {
             </CompletedStocksWrapper>
           </>
         )}
-
-        {/* 마커 생성 */}
-        {excelData?.map((x) => {
-          return (
-            <CustomMapMarker
-              key={x.id}
-              excelData={excelData}
-              makerData={x}
-              userId={user && user.user?.email}
-            />
-          );
-        })}
-
-        {/* {mapLevel >= 7 &&
-          excelData?.slice(0, 50)?.map((x) => {
-            return (
-              <CustomMapMarker
-                key={x.id}
-                excelData={excelData}
-                makerData={x}
-                userId={user && user.user?.email}
-              />
-            );
-          })}
-
-        {mapLevel < 7 &&
-          excelData?.map((x) => {
-            return (
-              <CustomMapMarker
-                key={x.id}
-                excelData={excelData}
-                makerData={x}
-                userId={user && user.user?.email}
-              />
-            );
-          })} */}
       </Map>
     </>
   );

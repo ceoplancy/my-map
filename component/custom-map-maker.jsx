@@ -10,9 +10,16 @@ import DuplicateMakerPatchModalChildren from './modal-children/duplicate-maker-p
 import DuplicateMakerModalChildren from './modal-children/duplicate-maker-modal-children';
 import ExcelDataTable from './excel-data-table';
 
-const CustomMapMarker = ({ excelData, makerData, userId }) => {
+const CustomMapMarker = ({
+  excelData,
+  makerData,
+  userId,
+  mapLevel,
+  setMapLevel,
+}) => {
   // 인포윈도우
   const [isOpen, setIsOpen] = useState(false);
+  const [summaryInfo, setSummaryInfo] = useState(null);
 
   // 마커 업데이트 모달
   const [makerDataUpdateIsModalOpen, setMakerDataUpdateIsModalOpen] =
@@ -73,6 +80,17 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
   useEffect(() => {
     setPatchDataState(makerData);
   }, [makerData]);
+
+  useEffect(() => {
+    if (mapLevel > 7) {
+      const summary = {
+        totalCount: excelData.length,
+        lat: makerData.lat,
+        lng: makerData.lng,
+      };
+      setSummaryInfo(summary);
+    }
+  }, [mapLevel, excelData, makerData]);
 
   return (
     <Frame>
@@ -146,81 +164,93 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
       </Modal>
 
       {/* 마커 */}
-      <MapMarker
-        position={{
-          lat: `${makerData.lat}`,
-          lng: `${makerData.lng}`,
-        }}
-        clickable={true}
-        onClick={() => {
-          if (findDuplicateLocation()?.length >= 2) {
-            setDuplicateMakerIsModalOpen(!duplicateMakerIsModalOpen);
-          } else {
-            setIsOpen(!isOpen);
-          }
-        }}
-        image={{
-          src: `/svg/${makerData.maker}.svg`,
-          // src: getImageSrc(makerData.company),
-          size: {
-            width: 30,
-            height: 40,
-          },
-          // options: {
-          //   offset: {
-          //     x: 20,
-          //     y: 69,
-          //   },
-          // },
-        }}
-      >
-        {/* 인포윈도우 */}
-        {isOpen && (
-          <CustomOverlayMap
-            position={{
-              lat: `${makerData.lat}`,
-              lng: `${makerData.lng}`,
-            }}
-            clickable={true}
-            yAnchor={1.1}
-            zIndex={100}
-          >
-            <InfoWindow>
-              <ExcelDataTable data={makerData} />
+      {mapLevel <= 7 ? (
+        <MapMarker
+          position={{
+            lat: `${makerData.lat}`,
+            lng: `${makerData.lng}`,
+          }}
+          clickable={true}
+          onClick={() => {
+            if (findDuplicateLocation()?.length >= 2) {
+              setDuplicateMakerIsModalOpen(!duplicateMakerIsModalOpen);
+            } else {
+              setIsOpen(!isOpen);
+            }
+          }}
+          image={{
+            src: `/svg/${makerData.maker}.svg`,
+            size: {
+              width: 30,
+              height: 40,
+            },
+          }}
+        >
+          {/* 인포윈도우 */}
+          {isOpen && (
+            <CustomOverlayMap
+              position={{
+                lat: `${makerData.lat}`,
+                lng: `${makerData.lng}`,
+              }}
+              clickable={true}
+              yAnchor={1.1}
+              zIndex={100}
+            >
+              <InfoWindow>
+                <ExcelDataTable data={makerData} />
 
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '1rem',
-                  justifyContent: 'center',
-                  marginTop: '3rem',
-                }}
-              >
-                <Button
-                  fontSize="14px"
-                  backgroundColor="#5599FF"
-                  border="1px solid #5599FF"
-                  borderRadius="5px"
-                  color="#fff"
-                  onClick={() => setMakerDataUpdateIsModalOpen(patchDataState)}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '1rem',
+                    justifyContent: 'center',
+                    marginTop: '3rem',
+                  }}
                 >
-                  수정하기
-                </Button>
+                  <Button
+                    fontSize="14px"
+                    backgroundColor="#5599FF"
+                    border="1px solid #5599FF"
+                    borderRadius="5px"
+                    color="#fff"
+                    onClick={() =>
+                      setMakerDataUpdateIsModalOpen(patchDataState)
+                    }
+                  >
+                    수정하기
+                  </Button>
 
-                <Button
-                  fontSize="14px"
-                  backgroundColor="#fff"
-                  border="1px solid #000"
-                  borderRadius="5px"
-                  onClick={() => setIsOpen(false)}
-                >
-                  닫기
-                </Button>
-              </div>
-            </InfoWindow>
-          </CustomOverlayMap>
-        )}
-      </MapMarker>
+                  <Button
+                    fontSize="14px"
+                    backgroundColor="#fff"
+                    border="1px solid #000"
+                    borderRadius="5px"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    닫기
+                  </Button>
+                </div>
+              </InfoWindow>
+            </CustomOverlayMap>
+          )}
+        </MapMarker>
+      ) : (
+        // 맵레벨 7 초과 시 요약 마커
+        <MapMarker
+          position={{
+            lat: `${makerData.lat}`,
+            lng: `${makerData.lng}`,
+          }}
+          clickable={true}
+          onClick={() => alert('확대해야 마커가 나타납니다.')}
+          // onClick={() => setMapLevel((prev) => prev - 1)}
+          image={{
+            src: `/svg/maker1.svg`,
+            size: { width: 40, height: 50 },
+          }}
+        ></MapMarker>
+      )}
     </Frame>
   );
 };

@@ -24,7 +24,8 @@ export const convertQueryString = (queryString, mapLevel) => {
     queryString.lat !== '' &&
     queryString.lng !== '' &&
     queryString.lat &&
-    queryString.lng
+    queryString.lng &&
+    mapLevel <= 7 // 맵레벨 7 이하일 때만 범위 제한
   ) {
     let latRange = 0;
     let lngRange = 0;
@@ -49,12 +50,33 @@ export const convertQueryString = (queryString, mapLevel) => {
     query = query.lte('lng', queryString.lng + lngRange);
   }
 
-  // if (queryString.lat && queryString.lat !== '') {
-  //   query = query.lte('lat', queryString.lat);
-  // }
+  // if (
+  //   queryString.lat !== '' &&
+  //   queryString.lng !== '' &&
+  //   queryString.lat &&
+  //   queryString.lng
+  // ) {
+  //   let latRange = 0;
+  //   let lngRange = 0;
 
-  // if (queryString.lng && queryString.lng !== '') {
-  //   query = query.lte('lng', queryString.lng);
+  //   if (mapLevel <= 7) {
+  //     latRange = 0.05; // 맵 확대 레벨 7 이하
+  //     lngRange = 0.05;
+  //   } else if (mapLevel > 7 && mapLevel <= 10) {
+  //     latRange = 0.07; // 맵 확대 레벨 8~10
+  //     lngRange = 0.07;
+  //   } else if (mapLevel > 10 && mapLevel <= 14) {
+  //     latRange = 0.12; // 맵 확대 레벨 11~14
+  //     lngRange = 0.1;
+  //   } else {
+  //     latRange = 0.2; // 맵 확대 레벨 15 이상 (최대 확대)
+  //     lngRange = 0.2;
+  //   }
+
+  //   query = query.gte('lat', queryString.lat - latRange);
+  //   query = query.lte('lat', queryString.lat + latRange);
+  //   query = query.gte('lng', queryString.lng - lngRange);
+  //   query = query.lte('lng', queryString.lng + lngRange);
   // }
 
   return query;
