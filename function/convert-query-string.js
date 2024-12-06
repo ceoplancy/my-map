@@ -19,29 +19,22 @@ export const convertQueryString = (queryString, mapLevel) => {
     query = query.lte('stocks', queryString.endStocks);
   }
 
-  // 위도와 경도 필터링 - 지도의 확대 레벨에 따라 조정
+  // 위도, 경도 필터링 (지도의 확대 레벨에 따라 조정)
   if (
     queryString.lat !== '' &&
     queryString.lng !== '' &&
     queryString.lat &&
-    queryString.lng &&
-    mapLevel <= 7 // 맵레벨 7 이하일 때만 범위 제한
+    queryString.lng
   ) {
     let latRange = 0;
     let lngRange = 0;
 
     if (mapLevel <= 7) {
-      latRange = 0.05; // 맵 확대 레벨 7 이하
+      latRange = 0.05;
       lngRange = 0.05;
-    } else if (mapLevel > 7 && mapLevel <= 10) {
-      latRange = 0.07; // 맵 확대 레벨 8~10
-      lngRange = 0.07;
-    } else if (mapLevel > 10 && mapLevel <= 14) {
-      latRange = 0.12; // 맵 확대 레벨 11~14
-      lngRange = 0.1;
-    } else {
-      latRange = 0.2; // 맵 확대 레벨 15 이상 (최대 확대)
-      lngRange = 0.2;
+    } else if (mapLevel > 7) {
+      latRange = 100;
+      lngRange = 100;
     }
 
     query = query.gte('lat', queryString.lat - latRange);
@@ -54,11 +47,13 @@ export const convertQueryString = (queryString, mapLevel) => {
   //   queryString.lat !== '' &&
   //   queryString.lng !== '' &&
   //   queryString.lat &&
-  //   queryString.lng
+  //   queryString.lng &&
+  //   mapLevel <= 7
   // ) {
   //   let latRange = 0;
   //   let lngRange = 0;
 
+  //   // mapLevel 조건 수정
   //   if (mapLevel <= 7) {
   //     latRange = 0.05; // 맵 확대 레벨 7 이하
   //     lngRange = 0.05;

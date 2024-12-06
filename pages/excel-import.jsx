@@ -3,12 +3,15 @@ import * as XLSX from 'xlsx';
 import supabase from '@/config/supabaseClient';
 import Font from '@/component/font';
 import styled from 'styled-components';
+import DotSpinner from '@/component/dot-spinner';
 
 const ExcelImport = () => {
   const [failData, setFailData] = useState([]);
   const [failCount, setFailCount] = useState(0);
   const [excelFile, setExcelFile] = useState(null);
   const [typeError, setTypeError] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const convertToExportArray = (arr) => {
     const result = [];
@@ -36,6 +39,8 @@ const ExcelImport = () => {
     let selectedFile = e.target.files[0];
 
     if (selectedFile) {
+      setFileName(selectedFile.name);
+
       if (selectedFile && fileTypes.includes(selectedFile.type)) {
         setTypeError(null);
         let reader = new FileReader();
@@ -44,12 +49,18 @@ const ExcelImport = () => {
           setExcelFile(e.target.result);
         };
       } else {
+        setFileName('');
         setTypeError('Please select only excel file types');
         setExcelFile(null);
       }
     } else {
       console.log('Please select your file');
     }
+  };
+
+  const clearFileName = () => {
+    setFileName('');
+    setExcelFile(null);
   };
 
   const handleExport = () => {
@@ -76,161 +87,189 @@ const ExcelImport = () => {
     e.preventDefault();
 
     if (excelFile !== null) {
-      const workbook = XLSX.read(excelFile, { type: 'buffer' });
-      const worksheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[worksheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet);
-      // setExcelData(data.slice(0, 10));
+      setLoading(true);
 
-      window.kakao.maps.load();
-      const geocoder = new window.kakao.maps.services.Geocoder();
-      const result = [];
+      try {
+        const workbook = XLSX.read(excelFile, { type: 'buffer' });
+        const worksheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[worksheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+        // setExcelData(data.slice(0, 10));
 
-      const delay = (ms) => {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-      };
+        window.kakao.maps.load();
+        const geocoder = new window.kakao.maps.services.Geocoder();
+        const result = [];
 
-      const geocodeBatch = async (batchAddresses) => {
-        const geocodingPromises = batchAddresses.map((x) => {
-          return new Promise((resolve) => {
-            geocoder.addressSearch(x.latlngaddress, function (k, status) {
-              if (status === 'ZERO_RESULT') {
-                setFailData((prev) => [
-                  ...prev,
-                  { id: x.id, address: x.address },
-                ]);
-                setFailCount((prev) => prev + 1);
-              }
+        const delay = (ms) => {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        };
 
-              if (status === window.kakao.maps.services.Status.OK) {
-                result.push({
-                  ...x,
-                  lat: k[0].y.toString(),
-                  lng: k[0].x.toString(),
-                });
-              }
+        const geocodeBatch = async (batchAddresses) => {
+          const geocodingPromises = batchAddresses.map((x) => {
+            return new Promise((resolve) => {
+              geocoder.addressSearch(x.latlngaddress, function (k, status) {
+                if (status === 'ZERO_RESULT') {
+                  setFailData((prev) => [
+                    ...prev,
+                    { id: x.id, address: x.address },
+                  ]);
+                  setFailCount((prev) => prev + 1);
+                }
 
-              resolve();
+                if (status === window.kakao.maps.services.Status.OK) {
+                  result.push({
+                    ...x,
+                    lat: k[0].y.toString(),
+                    lng: k[0].x.toString(),
+                  });
+                }
+
+                resolve();
+              });
             });
           });
-        });
 
-        // 모든 주소 검색 작업이 완료될 때까지 기다립니다.
-        await Promise.all(geocodingPromises);
-      };
+          // 모든 주소 검색 작업이 완료될 때까지 기다립니다.
+          await Promise.all(geocodingPromises);
+        };
 
-      const geocodeAddresses = async (addresses) => {
-        const batchSize = 200; // 한 번에 보낼 주소의 갯수
-        const totalBatches = Math.ceil(addresses.length / batchSize);
+        const geocodeAddresses = async (addresses) => {
+          const batchSize = 200; // 한 번에 보낼 주소의 갯수
+          const totalBatches = Math.ceil(addresses.length / batchSize);
 
-        for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-          const startIndex = batchIndex * batchSize;
-          const endIndex = Math.min(
-            (batchIndex + 1) * batchSize,
-            addresses.length
-          );
+          for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+            const startIndex = batchIndex * batchSize;
+            const endIndex = Math.min(
+              (batchIndex + 1) * batchSize,
+              addresses.length
+            );
 
-          const batchAddresses = addresses.slice(startIndex, endIndex);
+            const batchAddresses = addresses.slice(startIndex, endIndex);
 
-          await geocodeBatch(batchAddresses);
+            await geocodeBatch(batchAddresses);
 
-          // 작업중
-          if (batchIndex < totalBatches - 1) {
-            await delay(10000);
-          }
-
-          // 모든 작업이 끝나면
-          if (batchIndex >= totalBatches - 1) {
-            // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 다르면 DB 업로드 X
-            if (result.length !== addresses.length) {
-              alert(
-                '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
-              );
-              return;
+            // 작업중
+            if (batchIndex < totalBatches - 1) {
+              await delay(10000);
             }
 
-            // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 같으면 DB 업로드 O
-            if (result.length === addresses.length) {
-              await supabase.from('excel').insert(result).select();
-              alert('업로드 성공');
-              return;
+            // 모든 작업이 끝나면
+            if (batchIndex >= totalBatches - 1) {
+              // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 다르면 DB 업로드 X
+              if (result.length !== addresses.length) {
+                alert(
+                  '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
+                );
+                return;
+              }
+
+              // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 같으면 DB 업로드 O
+              if (result.length === addresses.length) {
+                await supabase.from('excel').insert(result).select();
+                alert('업로드 성공');
+                return;
+              }
             }
           }
-        }
 
-        return result;
-      };
+          return result;
+        };
 
-      // 주소 변환 후 DB업로드 실행
-      await geocodeAddresses(data);
+        // 주소 변환 후 DB업로드 실행
+        await geocodeAddresses(data);
+      } catch (error) {
+        console.error(error);
+        alert('주소 변환에 실패하였습니다. 다시 시도해주세요.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   return (
     <Frame>
-      <form onSubmit={handleFileSubmit}>
-        <input type="file" required onChange={handleFile} />
+      {loading && <DotSpinner />}
+      <div>
+        <Font fontSize="2.4rem" margin="4rem 0 0 0">
+          엑셀 데이터 불러오기
+        </Font>
 
-        <button type="submit">UPLOAD</button>
+        <div style={{ border: '1px solid #ccc', marginTop: '1rem' }}></div>
+      </div>
 
-        {typeError && <div role="alert">{typeError}</div>}
-      </form>
+      <StyledForm onSubmit={handleFileSubmit}>
+        {fileName === '' && (
+          <StyledLabel>
+            <span>엑셀 파일 업로드 시 주소 변환 작업이 진행됩니다.</span>
+            <StyledInput type="file" required onChange={handleFile} />
+          </StyledLabel>
+        )}
 
-      <FailFrame>
-        {failCount > 0 && (
-          <FailWrapper>
-            <Font fontSize="2rem">주소 변환 실패 갯수</Font>
-            <Font fontSize="2rem">{failCount}</Font>
-            <Font
-              fontSize="2rem"
-              cursor="pointer"
-              onClick={() => handleExport()}
-            >
-              export
+        {fileName && (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Font fontSize="1.6rem" margin="1rem 0 0 0">
+              {fileName}
             </Font>
-          </FailWrapper>
-        )}
-      </FailFrame>
-
-      <FailFrame>
-        {failData?.map((x, index) => {
-          return (
-            <FailWrapper key={index}>
-              <Font fontSize="2rem">실패</Font>
-              <Font fontSize="2rem">{x.id}</Font>
-              <Font fontSize="2rem">{x.address}</Font>
-            </FailWrapper>
-          );
-        })}
-      </FailFrame>
-
-      {/* <div className="viewer">
-        {excelData ? (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  {Object.keys(excelData[0]).map((key) => (
-                    <th key={key}>{key}</th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {excelData.map((individualExcelData, index) => (
-                  <tr key={index}>
-                    {Object.keys(individualExcelData).map((key) => (
-                      <td key={key}>{individualExcelData[key]}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <span
+              style={{
+                marginLeft: '0.7rem',
+                cursor: 'pointer',
+                color: '#000',
+                fontWeight: 'bold',
+              }}
+              onClick={clearFileName}
+            >
+              X
+            </span>
           </div>
-        ) : (
-          <div>No File is uploaded yet!</div>
         )}
-      </div> */}
+
+        <StyledButton type="submit">UPLOAD</StyledButton>
+        {typeError && <div role="alert">{typeError}</div>}
+      </StyledForm>
+
+      {failCount > 0 && (
+        <div
+          style={{ border: '1px solid #ccc', margin: '3rem 0', width: '50%' }}
+        ></div>
+      )}
+
+      {/* fail table */}
+      {failCount > 0 && (
+        <FailFrame>
+          <FailWrapper>
+            <Font fontSize="2rem">주소 변환 실패 갯수 : {failCount}</Font>
+
+            <StyledExportButton onClick={() => handleExport()}>
+              export
+            </StyledExportButton>
+          </FailWrapper>
+        </FailFrame>
+      )}
+
+      {failCount > 0 && (
+        <FailFrame>
+          <table style={{ marginTop: '2rem' }}>
+            <thead>
+              <tr>
+                <StyledTh>상태</StyledTh>
+                <StyledTh>검색ID</StyledTh>
+                <StyledTh>변환실패주소</StyledTh>
+              </tr>
+            </thead>
+
+            <tbody>
+              {failData?.map((x, index) => (
+                <tr key={index}>
+                  <StyledTd>실패</StyledTd>
+                  <StyledTd>{x.id}</StyledTd>
+                  <StyledTd>{x.address}</StyledTd>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </FailFrame>
+      )}
     </Frame>
   );
 };
@@ -247,11 +286,83 @@ const Frame = styled.div`
 const FailFrame = styled.div`
   display: flex;
   flex-direction: column;
-  margin-top: 4rem;
 `;
 
 const FailWrapper = styled.div`
   display: flex;
+  align-items: center;
   gap: 3rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
+`;
+
+const StyledTh = styled.th`
+  padding: 1rem;
+  font-size: 2rem;
+  text-align: center;
+  border: 1px solid #ccc;
+`;
+
+const StyledTd = styled.td`
+  padding: 1rem;
+  font-size: 2rem;
+  text-align: center;
+  border: 1px solid #ccc;
+`;
+
+const StyledForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  background-color: #f0f8ff;
+  border: 2px dashed #000;
+  border-radius: 10px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+`;
+
+const StyledInput = styled.input`
+  display: none;
+`;
+
+const StyledLabel = styled.label`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  padding: 1rem;
+  border: 2px solid #000;
+  border-radius: 10px;
+  background-color: white;
+  cursor: pointer;
+  transition: background-color 0.3s;
+
+  &:hover {
+    background-color: #e6f7ff;
+  }
+`;
+
+const StyledButton = styled.button`
+  margin-top: 2rem;
+  padding: 0.5rem 1rem;
+  background-color: #000;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+`;
+
+const StyledExportButton = styled.button`
+  padding: 0.5rem 1rem;
+  background-color: #000;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 `;

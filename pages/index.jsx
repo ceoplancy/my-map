@@ -15,7 +15,7 @@ import { useRouter } from 'next/router';
 import supabase from '@/config/supabaseClient';
 import withAuth from '@/hoc/withAuth';
 import Image from 'next/image';
-
+import MultipleMapMaker from '@/component/multiple-map-maker';
 const Home = () => {
   const router = useRouter();
   const [toastState, setToastState] = useRecoilState(toastStateAtom);
@@ -160,31 +160,38 @@ const Home = () => {
         <ZoomControl position={'RIGHT'} />
 
         {/* 마커 생성 */}
-        {mapLevel <= 7
-          ? excelData?.map((x) => (
+        {/* {excelData?.map((x) => (
+          <CustomMapMarker
+            key={x.id}
+            excelData={excelData}
+            userId={user && user.user?.email}
+            makerData={x}
+          />
+        ))} */}
+
+        {mapLevel > 7
+          ? excelData
+              ?.reduce((acc, curr, index) => {
+                if (index % 10 === 0) acc.push([]);
+                acc[acc.length - 1].push(curr);
+                return acc;
+              }, [])
+              .map((group, groupIndex) => {
+                return (
+                  <MultipleMapMaker
+                    key={`group-${groupIndex}`}
+                    markers={group}
+                  />
+                );
+              })
+          : excelData?.map((x) => (
               <CustomMapMarker
                 key={x.id}
                 excelData={excelData}
                 userId={user && user.user?.email}
                 makerData={x}
-                mapLevel={mapLevel}
               />
-            ))
-          : // 맵레벨 7 초과 시 요약 데이터 렌더링
-            excelData &&
-            excelData.length > 0 && (
-              <CustomMapMarker
-                key={'summary'}
-                excelData={excelData}
-                userId={user && user.user?.email}
-                makerData={{
-                  lat: currCenter.lat,
-                  lng: currCenter.lng,
-                }}
-                mapLevel={mapLevel}
-                setMapLevel={setMapLevel}
-              />
-            )}
+            ))}
 
         <div
           style={{
