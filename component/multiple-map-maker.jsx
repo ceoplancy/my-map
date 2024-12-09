@@ -1,18 +1,35 @@
 import React from 'react';
-import { MapMarker } from 'react-kakao-maps-sdk';
+import { MapMarker, useMap } from 'react-kakao-maps-sdk';
 import styled from 'styled-components';
 
 const MultipleMapMaker = ({ markers }) => {
-  if (!markers.length) return null; // 마커가 없을 경우 아무것도 렌더링하지 않음
+  const map = useMap();
+  console.log(markers);
 
-  const { lat, lng } = markers[0]; // 첫 번째 데이터에서 위도와 경도 추출
+  const onClickboundsData = () => {
+    const bounds = new kakao.maps.LatLngBounds();
+
+    if (Array.isArray(markers)) {
+      markers.forEach((point) => {
+        bounds.extend(new kakao.maps.LatLng(point.lat, point.lng));
+      });
+    }
+
+    map.setBounds(bounds);
+  };
+
+  if (!markers.length) return null;
 
   return (
     <Frame>
       <MapMarker
-        position={{ lat, lng }}
+        position={{
+          lat: markers[0].lat,
+          lng: markers[0].lng,
+        }}
         clickable={true}
-        onClick={() => alert('해당 구역으로 확대하면 마커가 나타납니다.')}
+        onClick={() => alert('해당 영역으로 확대하면 마커가 나타납니다.')}
+        // onClick={() => onClickboundsData()}
         image={{
           src: `/svg/maker1.svg`,
           size: {

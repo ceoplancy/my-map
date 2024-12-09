@@ -10,7 +10,7 @@ import DuplicateMakerPatchModalChildren from './modal-children/duplicate-maker-p
 import DuplicateMakerModalChildren from './modal-children/duplicate-maker-modal-children';
 import ExcelDataTable from './excel-data-table';
 
-const CustomMapMarker = ({ excelData, makerData, userId }) => {
+const CustomMapMarker = React.memo(({ excelData, makerData, userId }) => {
   // 인포윈도우
   const [isOpen, setIsOpen] = useState(false);
 
@@ -215,7 +215,7 @@ const CustomMapMarker = ({ excelData, makerData, userId }) => {
       </MapMarker>
     </Frame>
   );
-};
+});
 
 export default CustomMapMarker;
 

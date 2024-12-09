@@ -16,6 +16,7 @@ import supabase from '@/config/supabaseClient';
 import withAuth from '@/hoc/withAuth';
 import Image from 'next/image';
 import MultipleMapMaker from '@/component/multiple-map-maker';
+
 const Home = () => {
   const router = useRouter();
   const [toastState, setToastState] = useRecoilState(toastStateAtom);
@@ -50,21 +51,6 @@ const Home = () => {
 
   // 로그아웃
   const { mutate } = usePostSignOut(setToastState);
-
-  // 로그아웃 처리
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          router.reload();
-        }
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
 
   // 엑셀 데이터
   const {
@@ -113,6 +99,29 @@ const Home = () => {
     excelDataRefetch();
   }, [currCenter, mapLevel]);
 
+  // 로그아웃 처리
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          router.reload();
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const groupExcelData = (data) => {
+    return data?.reduce((acc, curr, index) => {
+      if (index % 10 === 0) acc.push([]);
+      acc[acc.length - 1].push(curr);
+      return acc;
+    }, []);
+  };
+
   return (
     <>
       {/* 스피너 */}
@@ -126,20 +135,6 @@ const Home = () => {
           />
         </SpinnerFrame>
       )}
-
-      {/* 필터 모달 */}
-      <Modal state={isFilterModalOpen} setState={setIsFilterModalOpen}>
-        <FilterModalChildren
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          companyFilter={companyFilter}
-          setCompanyFilter={setCompanyFilter}
-          setStocks={setStocks}
-          excelDataRefetch={excelDataRefetch}
-          completedFilterMakerDataRefetch={completedFilterMakerDataRefetch}
-          setIsFilterModalOpen={setIsFilterModalOpen}
-        />
-      </Modal>
 
       {/* 지도 */}
       <Map
@@ -160,30 +155,12 @@ const Home = () => {
         <ZoomControl position={'RIGHT'} />
 
         {/* 마커 생성 */}
-        {/* {excelData?.map((x) => (
-          <CustomMapMarker
-            key={x.id}
-            excelData={excelData}
-            userId={user && user.user?.email}
-            makerData={x}
-          />
-        ))} */}
-
         {mapLevel > 7
-          ? excelData
-              ?.reduce((acc, curr, index) => {
-                if (index % 10 === 0) acc.push([]);
-                acc[acc.length - 1].push(curr);
-                return acc;
-              }, [])
-              .map((group, groupIndex) => {
-                return (
-                  <MultipleMapMaker
-                    key={`group-${groupIndex}`}
-                    markers={group}
-                  />
-                );
-              })
+          ? groupExcelData(excelData).map((group, groupIndex) => {
+              return (
+                <MultipleMapMaker key={`group-${groupIndex}`} markers={group} />
+              );
+            })
           : excelData?.map((x) => (
               <CustomMapMarker
                 key={x.id}
@@ -241,6 +218,22 @@ const Home = () => {
                 [총 주식수] {completedFilterMakerData?.sumCompletedStocks}
               </Font>
             </CompletedStocksWrapper>
+
+            {/* 필터 모달 */}
+            <Modal state={isFilterModalOpen} setState={setIsFilterModalOpen}>
+              <FilterModalChildren
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                companyFilter={companyFilter}
+                setCompanyFilter={setCompanyFilter}
+                setStocks={setStocks}
+                excelDataRefetch={excelDataRefetch}
+                completedFilterMakerDataRefetch={
+                  completedFilterMakerDataRefetch
+                }
+                setIsFilterModalOpen={setIsFilterModalOpen}
+              />
+            </Modal>
           </>
         )}
       </Map>
