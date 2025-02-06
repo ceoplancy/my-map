@@ -1,0 +1,30 @@
+{
+  "name": "my-map",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.4",
+    "axios": "^1.6.7",
+    "babel-plugin-styled-components": "^2.1.4",
+    "date-fns": "^3.3.1",
+    "next": "14.1.0",
+    "next-intercept-stdout": "^1.0.1",
+    "prop-types": "^15.8.1",
+    "query-string": "^8.2.0",
+    "react": "^18",
+    "react-csv": "^2.2.2",
+    "react-dom": "^18",
+    "react-kakao-maps-sdk": "^1.1.26",
+    "react-query": "^3.39.3",
+    "recoil": "^0.7.7",
+    "styled-components": "^6.1.8",
+    "styled-reset": "^4.5.2",
+    "xlsx": "^0.18.5"
+  }
+}
