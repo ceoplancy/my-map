@@ -1,8 +1,9 @@
 import styled from 'styled-components';
 
-const CommonFont = styled.p`
-  color: ${(props) => (props.color ? props.color : '')};
-  font-size: ${(props) => (props.fontSize ? props.fontSize : '1.6rem')};
+const StyledFont = styled.span`
+  font-size: ${({ $size }) => ($size ? `${$size}px` : '16px')};
+  color: ${({ $color }) => $color || '#000'};
+  margin: ${({ $margin }) => $margin || '0'};
   letter-spacing: ${(props) => (props.letterSpacing ? props.letterSpacing : 0)};
   line-height: ${(props) => (props.lineHeight ? props.lineHeight : '')};
   white-space: ${(props) => (props.whiteSpace ? props.whiteSpace : '')};
@@ -11,7 +12,6 @@ const CommonFont = styled.p`
   text-align: ${(props) => (props.textAlign ? props.textAlign : '')};
   text-decoration: ${(props) =>
     props.textDecoration ? props.textDecoration : ''};
-  margin: ${({ margin }) => margin};
   cursor: ${(props) => (props.cursor ? props.cursor : '')};
   transform: translateY(
     ${(props) => {
@@ -20,8 +20,12 @@ const CommonFont = styled.p`
   );
 `;
 
-const Font = (props) => {
-  return <CommonFont {...props}>{props.children}</CommonFont>;
+const Font = ({ children, size, color, margin, ...props }) => {
+  return (
+    <StyledFont $size={size} $color={color} $margin={margin} {...props}>
+      {children}
+    </StyledFont>
+  );
 };
 
 export default Font;
