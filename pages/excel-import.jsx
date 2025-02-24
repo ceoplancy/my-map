@@ -83,6 +83,58 @@ const ExcelImport = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const waitForKakaoMaps = () => {
+    return new Promise((resolve, reject) => {
+      const checkKakao = () => {
+        console.log('Checking Kakao Maps status:', {
+          kakao: !!window.kakao,
+          maps: !!window.kakao?.maps,
+          services: !!window.kakao?.maps?.services,
+          loaded: !!window.kakaoMapsLoaded,
+        });
+
+        if (window.kakaoMapsLoaded && window.kakao?.maps?.services) {
+          console.log('Kakao Maps is ready');
+          return true;
+        }
+        return false;
+      };
+
+      // 즉시 체크
+      if (checkKakao()) {
+        resolve();
+        return;
+      }
+
+      // 재시도 로직
+      let retryCount = 0;
+      const maxRetries = 50; // 5초 동안 시도
+
+      const interval = setInterval(() => {
+        retryCount++;
+
+        if (checkKakao()) {
+          clearInterval(interval);
+          resolve();
+          return;
+        }
+
+        if (retryCount >= maxRetries) {
+          clearInterval(interval);
+          reject(new Error('Kakao Maps SDK 로드 실패: 타임아웃'));
+        }
+      }, 100);
+
+      // 백업 타임아웃
+      setTimeout(() => {
+        clearInterval(interval);
+        if (!checkKakao()) {
+          reject(new Error('Kakao Maps SDK 로드 실패: 최종 타임아웃'));
+        }
+      }, 10000);
+    });
+  };
+
   const handleFileSubmit = async (e) => {
     e.preventDefault();
 
@@ -90,6 +142,11 @@ const ExcelImport = () => {
       setLoading(true);
 
       try {
+        // SDK 로드 대기
+        console.log('Waiting for Kakao Maps SDK...');
+        await waitForKakaoMaps();
+        console.log('Kakao Maps SDK is ready');
+
         const workbook = XLSX.read(excelFile, { type: 'buffer' });
         const worksheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[worksheetName];
@@ -97,30 +154,6 @@ const ExcelImport = () => {
 
         // delay 함수 정의
         const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-        // Kakao Maps SDK 로드 확인 및 대기
-        const waitForKakaoMaps = () => {
-          return new Promise((resolve, reject) => {
-            if (window.kakao?.maps?.services) {
-              resolve();
-            } else {
-              const interval = setInterval(() => {
-                if (window.kakao?.maps?.services) {
-                  clearInterval(interval);
-                  resolve();
-                }
-              }, 100);
-
-              setTimeout(() => {
-                clearInterval(interval);
-                reject(new Error('Kakao Maps SDK 로드 실패'));
-              }, 10000);
-            }
-          });
-        };
-
-        // SDK 로드 대기
-        await waitForKakaoMaps();
 
         const geocoder = new window.kakao.maps.services.Geocoder();
         const result = [];

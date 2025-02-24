@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlobalStyle from 'styles/global-style';
 import Head from 'next/head';
 import { Hydrate, QueryClient, QueryClientProvider } from 'react-query';
@@ -14,6 +14,17 @@ import Script from 'next/script';
 const App = ({ Component, pageProps }) => {
   const [queryClient] = useState(() => new QueryClient());
   const loading = usePageLoading();
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    if (window.kakao && !mapLoaded) {
+      window.kakao.maps.load(() => {
+        console.log('Kakao Maps API loaded successfully');
+        setMapLoaded(true);
+        window.kakaoMapsLoaded = true;
+      });
+    }
+  }, [mapLoaded]);
 
   return (
     <StyleSheetManager shouldForwardProp={isPropValid}>
@@ -55,9 +66,15 @@ const App = ({ Component, pageProps }) => {
         strategy="beforeInteractive"
         src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_APP_KEY}&libraries=services&autoload=false`}
         onLoad={() => {
-          window.kakao.maps.load(() => {
-            console.log('Kakao Maps API loaded successfully');
-          });
+          try {
+            window.kakao.maps.load(() => {
+              console.log('Initial Kakao Maps load');
+              window.kakaoMapsLoaded = true;
+              setMapLoaded(true);
+            });
+          } catch (error) {
+            console.error('Kakao Maps load error:', error);
+          }
         }}
       />
     </StyleSheetManager>
