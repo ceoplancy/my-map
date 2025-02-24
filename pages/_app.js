@@ -9,6 +9,7 @@ import GlobalSpinner from '@/component/global-spinner';
 import Toast from '@/component/toast';
 import { StyleSheetManager } from 'styled-components';
 import isPropValid from '@emotion/is-prop-valid';
+import Script from 'next/script';
 
 const App = ({ Component, pageProps }) => {
   const [queryClient] = useState(() => new QueryClient());
@@ -49,6 +50,16 @@ const App = ({ Component, pageProps }) => {
 
         <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
       </QueryClientProvider>
+
+      <Script
+        strategy="beforeInteractive"
+        src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_APP_KEY}&libraries=services&autoload=false`}
+        onLoad={() => {
+          window.kakao.maps.load(() => {
+            console.log('Kakao Maps API loaded successfully');
+          });
+        }}
+      />
     </StyleSheetManager>
   );
 };

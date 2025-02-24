@@ -94,21 +94,39 @@ const ExcelImport = () => {
         const worksheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[worksheetName];
         const data = XLSX.utils.sheet_to_json(worksheet);
-        // setExcelData(data.slice(0, 10));
 
-        window.kakao.maps.load();
+        // Kakao Maps SDK 로드 확인 및 대기
+        const waitForKakaoMaps = () => {
+          return new Promise((resolve, reject) => {
+            if (window.kakao?.maps?.services) {
+              resolve();
+            } else {
+              const interval = setInterval(() => {
+                if (window.kakao?.maps?.services) {
+                  clearInterval(interval);
+                  resolve();
+                }
+              }, 100);
+
+              setTimeout(() => {
+                clearInterval(interval);
+                reject(new Error('Kakao Maps SDK 로드 실패'));
+              }, 10000);
+            }
+          });
+        };
+
+        // SDK 로드 대기
+        await waitForKakaoMaps();
+
         const geocoder = new window.kakao.maps.services.Geocoder();
         const result = [];
-
-        const delay = (ms) => {
-          return new Promise((resolve) => setTimeout(resolve, ms));
-        };
 
         const geocodeBatch = async (batchAddresses) => {
           const geocodingPromises = batchAddresses.map((x) => {
             return new Promise((resolve) => {
-              geocoder.addressSearch(x.latlngaddress, function (k, status) {
-                if (status === 'ZERO_RESULT') {
+              geocoder.addressSearch(x.latlngaddress, (k, status) => {
+                if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
                   setFailData((prev) => [
                     ...prev,
                     { id: x.id, address: x.address },
@@ -129,7 +147,6 @@ const ExcelImport = () => {
             });
           });
 
-          // 모든 주소 검색 작업이 완료될 때까지 기다립니다.
           await Promise.all(geocodingPromises);
         };
 
@@ -178,7 +195,7 @@ const ExcelImport = () => {
         // 주소 변환 후 DB업로드 실행
         await geocodeAddresses(data);
       } catch (error) {
-        console.error(error);
+        console.error('Error:', error);
         alert('주소 변환에 실패하였습니다. 다시 시도해주세요.');
       } finally {
         setLoading(false);

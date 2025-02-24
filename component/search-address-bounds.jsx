@@ -99,7 +99,7 @@ const SearchAddressWrapper = styled.div`
 
   position: fixed;
   left: 20px;
-  top: 212px;
+  top: 220px;
 
   @media (max-width: 768px) {
     left: 20px;

@@ -4,7 +4,6 @@ import styled from 'styled-components';
 
 const MultipleMapMaker = ({ markers }) => {
   const map = useMap();
-  console.log(markers);
 
   const onClickboundsData = () => {
     const bounds = new kakao.maps.LatLngBounds();
