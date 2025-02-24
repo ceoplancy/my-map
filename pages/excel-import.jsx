@@ -95,6 +95,9 @@ const ExcelImport = () => {
         const worksheet = workbook.Sheets[worksheetName];
         const data = XLSX.utils.sheet_to_json(worksheet);
 
+        // delay 함수 정의
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
         // Kakao Maps SDK 로드 확인 및 대기
         const waitForKakaoMaps = () => {
           return new Promise((resolve, reject) => {
@@ -125,24 +128,31 @@ const ExcelImport = () => {
         const geocodeBatch = async (batchAddresses) => {
           const geocodingPromises = batchAddresses.map((x) => {
             return new Promise((resolve) => {
-              geocoder.addressSearch(x.latlngaddress, (k, status) => {
+              geocoder.addressSearch(x.latlngaddress, function (k, status) {
                 if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
                   setFailData((prev) => [
                     ...prev,
                     { id: x.id, address: x.address },
                   ]);
                   setFailCount((prev) => prev + 1);
-                }
-
-                if (status === window.kakao.maps.services.Status.OK) {
+                  resolve();
+                } else if (status === window.kakao.maps.services.Status.OK) {
                   result.push({
                     ...x,
                     lat: k[0].y.toString(),
                     lng: k[0].x.toString(),
                   });
+                  resolve();
+                } else {
+                  // 에러 상태 처리
+                  console.error('Geocoding error:', status);
+                  setFailData((prev) => [
+                    ...prev,
+                    { id: x.id, address: x.address },
+                  ]);
+                  setFailCount((prev) => prev + 1);
+                  resolve();
                 }
-
-                resolve();
               });
             });
           });
@@ -151,7 +161,7 @@ const ExcelImport = () => {
         };
 
         const geocodeAddresses = async (addresses) => {
-          const batchSize = 200; // 한 번에 보낼 주소의 갯수
+          const batchSize = 30; // 한 번에 보낼 주소의 갯수를 줄임
           const totalBatches = Math.ceil(addresses.length / batchSize);
 
           for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
@@ -160,35 +170,29 @@ const ExcelImport = () => {
               (batchIndex + 1) * batchSize,
               addresses.length
             );
-
             const batchAddresses = addresses.slice(startIndex, endIndex);
 
             await geocodeBatch(batchAddresses);
 
-            // 작업중
+            // 작업중 - 딜레이를 2초로 줄임
             if (batchIndex < totalBatches - 1) {
-              await delay(10000);
+              await delay(2000);
             }
 
-            // 모든 작업이 끝나면
-            if (batchIndex >= totalBatches - 1) {
-              // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 다르면 DB 업로드 X
-              if (result.length !== addresses.length) {
-                alert(
-                  '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
-                );
-                return;
-              }
-
-              // 최초 업로드한 배열의 길이와 작업 후의 배열의 길이가 같으면 DB 업로드 O
-              if (result.length === addresses.length) {
-                await supabase.from('excel').insert(result).select();
-                alert('업로드 성공');
-                return;
-              }
-            }
+            // 진행상황 로깅
+            console.log(`Batch ${batchIndex + 1}/${totalBatches} completed`);
           }
 
+          // 모든 작업이 끝난 후 결과 처리
+          if (result.length !== addresses.length) {
+            alert(
+              '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
+            );
+            return result;
+          }
+
+          await supabase.from('excel').insert(result).select();
+          alert('업로드 성공');
           return result;
         };
 
