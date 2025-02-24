@@ -194,7 +194,7 @@ const ExcelImport = () => {
         };
 
         const geocodeAddresses = async (addresses) => {
-          const batchSize = 30; // 한 번에 보낼 주소의 갯수를 줄임
+          const batchSize = 10; // 더 작은 배치 사이즈로 조정
           const totalBatches = Math.ceil(addresses.length / batchSize);
 
           for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
@@ -205,18 +205,32 @@ const ExcelImport = () => {
             );
             const batchAddresses = addresses.slice(startIndex, endIndex);
 
-            await geocodeBatch(batchAddresses);
+            try {
+              await geocodeBatch(batchAddresses);
 
-            // 작업중 - 딜레이를 2초로 줄임
-            if (batchIndex < totalBatches - 1) {
-              await delay(2000);
+              // 각 주소 검색 사이에 더 긴 딜레이 추가
+              if (batchIndex < totalBatches - 1) {
+                console.log(
+                  `Waiting between batches... (${
+                    batchIndex + 1
+                  }/${totalBatches})`
+                );
+                await delay(3000); // 3초 딜레이로 증가
+              }
+
+              // 진행상황 로깅
+              console.log(`Batch ${batchIndex + 1}/${totalBatches} completed`);
+            } catch (error) {
+              console.error(`Error in batch ${batchIndex + 1}:`, error);
+              // 에러 발생 시 더 긴 딜레이 추가
+              await delay(5000);
+              // 현재 배치 재시도
+              batchIndex--;
+              continue;
             }
-
-            // 진행상황 로깅
-            console.log(`Batch ${batchIndex + 1}/${totalBatches} completed`);
           }
 
-          // 모든 작업이 끝난 후 결과 처리
+          // 결과 처리
           if (result.length !== addresses.length) {
             alert(
               '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
