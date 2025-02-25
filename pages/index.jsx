@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Map, MapTypeControl, ZoomControl } from 'react-kakao-maps-sdk';
 import SearchAddressBounds from '@/component/search-address-bounds';
 import CustomMapMarker from '@/component/custom-map-maker';
@@ -52,6 +52,20 @@ const Home = () => {
   // 로그아웃
   const { mutate } = usePostSignOut(setToastState);
 
+  // 현재 지도 바운드
+  const [mapBounds, setMapBounds] = useState({
+    sw: { lat: 0, lng: 0 },
+    ne: { lat: 0, lng: 0 },
+  });
+
+  const groupExcelData = (data) => {
+    return data?.reduce((acc, curr, index) => {
+      if (index % 10 === 0) acc.push([]);
+      acc[acc.length - 1].push(curr);
+      return acc;
+    }, []);
+  };
+
   // 엑셀 데이터
   const {
     data: excelData,
@@ -65,6 +79,7 @@ const Home = () => {
       endStocks: stocks.end,
       lat: currCenter.lat,
       lng: currCenter.lng,
+      bounds: mapBounds, // 바운드 정보 추가
     },
     mapLevel
   );
@@ -80,10 +95,35 @@ const Home = () => {
     endStocks: stocks.end,
   });
 
+  // Memoize grouped excel data
+  const groupedExcelData = useMemo(
+    () => groupExcelData(excelData),
+    [excelData]
+  );
+
+  // Memoize visible markers based on map level
+  const visibleMarkers = useMemo(() => {
+    if (!excelData) return [];
+    return mapLevel > 7 ? groupedExcelData : excelData;
+  }, [excelData, mapLevel, groupedExcelData]);
+
   // 지도 확대 레벨 트리거 핸들러
   const handleZoomChange = (map) => {
     const currentLevel = map.getLevel();
     setMapLevel(currentLevel);
+
+    // 현재 지도 영역의 바운드 정보 업데이트
+    const bounds = map.getBounds();
+    setMapBounds({
+      sw: {
+        lat: bounds.getSouthWest().getLat(),
+        lng: bounds.getSouthWest().getLng(),
+      },
+      ne: {
+        lat: bounds.getNorthEast().getLat(),
+        lng: bounds.getNorthEast().getLng(),
+      },
+    });
   };
 
   // 지도 드래그 트리거 핸들러
@@ -92,6 +132,19 @@ const Home = () => {
     const lat = latlng.getLat();
     const lng = latlng.getLng();
     setCurrCenter({ lat, lng });
+
+    // 현재 지도 영역의 바운드 정보 업데이트
+    const bounds = map.getBounds();
+    setMapBounds({
+      sw: {
+        lat: bounds.getSouthWest().getLat(),
+        lng: bounds.getSouthWest().getLng(),
+      },
+      ne: {
+        lat: bounds.getNorthEast().getLat(),
+        lng: bounds.getNorthEast().getLng(),
+      },
+    });
   };
 
   // 지도 드래그, 확대 레벨 트리거
@@ -113,14 +166,6 @@ const Home = () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
-
-  const groupExcelData = (data) => {
-    return data?.reduce((acc, curr, index) => {
-      if (index % 10 === 0) acc.push([]);
-      acc[acc.length - 1].push(curr);
-      return acc;
-    }, []);
-  };
 
   return (
     <>
@@ -149,6 +194,20 @@ const Home = () => {
         level={mapLevel}
         onZoomChanged={handleZoomChange}
         onDragEnd={handleDragEnd}
+        onBoundsChanged={(map) => {
+          // 지도 이동 시에도 바운드 정보 업데이트
+          const bounds = map.getBounds();
+          setMapBounds({
+            sw: {
+              lat: bounds.getSouthWest().getLat(),
+              lng: bounds.getSouthWest().getLng(),
+            },
+            ne: {
+              lat: bounds.getNorthEast().getLat(),
+              lng: bounds.getNorthEast().getLng(),
+            },
+          });
+        }}
       >
         {/* 컨트롤러 생성 */}
         <MapTypeControl position={'TOPRIGHT'} />
@@ -156,17 +215,14 @@ const Home = () => {
 
         {/* 마커 생성 */}
         {mapLevel > 7
-          ? groupExcelData(excelData).map((group, groupIndex) => {
-              return (
-                <MultipleMapMaker key={`group-${groupIndex}`} markers={group} />
-              );
-            })
-          : excelData?.map((x) => (
+          ? visibleMarkers.map((group, groupIndex) => (
+              <MultipleMapMaker key={`group-${groupIndex}`} markers={group} />
+            ))
+          : visibleMarkers.map((marker) => (
               <CustomMapMarker
-                key={x.id}
-                excelData={excelData}
-                userId={user && user.user?.email}
-                makerData={x}
+                key={marker.id}
+                userId={user?.user?.email}
+                makerData={marker}
               />
             ))}
 

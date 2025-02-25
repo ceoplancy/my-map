@@ -1,7 +1,7 @@
-import supabase from "@/config/supabaseClient";
-import { useQuery, useMutation, useQueryClient } from "react-query";
-import { format } from "date-fns";
-import { convertQueryString } from "@/function/convert-query-string";
+import supabase from '@/config/supabaseClient';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { format } from 'date-fns';
+import { convertQueryString } from '@/function/convert-query-string';
 
 // =======================================
 // ============== get 엑셀 데이터 ===============
@@ -15,14 +15,30 @@ const getExcel = async (queryString, mapLevel) => {
 };
 
 export const useGetExcel = (queryString, mapLevel) => {
-  return useQuery(["excel"], () => getExcel(queryString, mapLevel), {
+  // Create a query key that includes all relevant parameters
+  const queryKey = [
+    'excel',
+    mapLevel,
+    queryString.lat,
+    queryString.lng,
+    queryString.bounds?.sw?.lat,
+    queryString.bounds?.sw?.lng,
+    queryString.bounds?.ne?.lat,
+    queryString.bounds?.ne?.lng,
+    queryString.status,
+    queryString.company,
+    queryString.startStocks,
+    queryString.endStocks,
+  ];
+
+  return useQuery(queryKey, () => getExcel(queryString, mapLevel), {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     enabled: true,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.");
+      alert('네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.');
     },
   });
 };
@@ -31,7 +47,7 @@ export const useGetExcel = (queryString, mapLevel) => {
 // ============== patch 마커 정보 업데이트 ============
 // =========================================
 const patchExcel = async (excelId, userId, patchData) => {
-  const makeHistory = `${userId} ${format(new Date(), "yyyy/MM/dd/ HH:mm:ss")}`;
+  const makeHistory = `${userId} ${format(new Date(), 'yyyy/MM/dd/ HH:mm:ss')}`;
 
   if (patchData.history !== null) {
     const newArr = [...patchData.history, makeHistory];
@@ -43,9 +59,9 @@ const patchExcel = async (excelId, userId, patchData) => {
     };
 
     const { error } = await supabase
-      .from("excel")
+      .from('excel')
       .update(result)
-      .eq("id", excelId)
+      .eq('id', excelId)
       .select();
 
     if (error) throw new Error(error);
@@ -59,9 +75,9 @@ const patchExcel = async (excelId, userId, patchData) => {
     };
 
     const { error } = await supabase
-      .from("excel")
+      .from('excel')
       .update(result)
-      .eq("id", excelId)
+      .eq('id', excelId)
       .select();
 
     if (error) throw new Error(error);
@@ -75,12 +91,12 @@ export const usePatchExcel = (excelId, userId) => {
 
   return useMutation((patchData) => patchExcel(excelId, userId, patchData), {
     onSuccess: () => {
-      queryClient.invalidateQueries(["excel"]);
-      queryClient.invalidateQueries(["filterMenu"]);
-      queryClient.invalidateQueries(["completedStocks"]);
+      queryClient.invalidateQueries(['excel']);
+      queryClient.invalidateQueries(['filterMenu']);
+      queryClient.invalidateQueries(['completedStocks']);
     },
     onError: () => {
-      alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.");
+      alert('네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.');
     },
   });
 };
@@ -89,7 +105,7 @@ export const usePatchExcel = (excelId, userId) => {
 // ============== get 필터 메뉴 ================
 // =======================================
 const getFilterMenu = async () => {
-  const { data, error } = await supabase.from("excel").select();
+  const { data, error } = await supabase.from('excel').select();
 
   if (error) throw new Error(error);
 
@@ -106,14 +122,14 @@ const getFilterMenu = async () => {
 };
 
 export const useGetFilterMenu = () => {
-  return useQuery(["filterMenu"], () => getFilterMenu(), {
+  return useQuery(['filterMenu'], () => getFilterMenu(), {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     enabled: true,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.");
+      alert('네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.');
     },
   });
 };
@@ -141,7 +157,7 @@ const getCompletedFilterMaker = async (queryString) => {
 
 export const useGetCompletedFilterMaker = (queryString) => {
   return useQuery(
-    ["completedFilterMaker"],
+    ['completedFilterMaker'],
     () => getCompletedFilterMaker(queryString),
     {
       refetchOnMount: false,
@@ -150,7 +166,7 @@ export const useGetCompletedFilterMaker = (queryString) => {
       enabled: true,
       staleTime: 1000 * 60 * 5,
       onError: () => {
-        alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.");
+        alert('네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.');
       },
     }
   );

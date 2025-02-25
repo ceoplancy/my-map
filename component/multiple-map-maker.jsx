@@ -1,22 +1,8 @@
 import React from 'react';
-import { MapMarker, useMap } from 'react-kakao-maps-sdk';
+import { MapMarker } from 'react-kakao-maps-sdk';
 import styled from 'styled-components';
 
 const MultipleMapMaker = ({ markers }) => {
-  const map = useMap();
-
-  const onClickboundsData = () => {
-    const bounds = new kakao.maps.LatLngBounds();
-
-    if (Array.isArray(markers)) {
-      markers.forEach((point) => {
-        bounds.extend(new kakao.maps.LatLng(point.lat, point.lng));
-      });
-    }
-
-    map.setBounds(bounds);
-  };
-
   if (!markers.length) return null;
 
   return (
@@ -28,7 +14,6 @@ const MultipleMapMaker = ({ markers }) => {
         }}
         clickable={true}
         onClick={() => alert('해당 영역으로 확대하면 마커가 나타납니다.')}
-        // onClick={() => onClickboundsData()}
         image={{
           src: `/svg/maker1.svg`,
           size: {
@@ -44,13 +29,3 @@ const MultipleMapMaker = ({ markers }) => {
 export default MultipleMapMaker;
 
 const Frame = styled.div``;
-
-const SpinnerFrame = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 100;
-  background-color: rgba(0, 0, 0, 0.5);
-`;

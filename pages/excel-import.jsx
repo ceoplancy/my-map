@@ -12,6 +12,7 @@ const ExcelImport = () => {
   const [typeError, setTypeError] = useState(null);
   const [fileName, setFileName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const convertToExportArray = (arr) => {
     const result = [];
@@ -174,10 +175,10 @@ const ExcelImport = () => {
                     ...x,
                     lat: k[0].y.toString(),
                     lng: k[0].x.toString(),
+                    stocks: x.stocks || 0,
                   });
                   resolve();
                 } else {
-                  // 에러 상태 처리
                   console.error('Geocoding error:', status);
                   setFailData((prev) => [
                     ...prev,
@@ -194,8 +195,9 @@ const ExcelImport = () => {
         };
 
         const geocodeAddresses = async (addresses) => {
-          const batchSize = 10; // 더 작은 배치 사이즈로 조정
+          const batchSize = 10;
           const totalBatches = Math.ceil(addresses.length / batchSize);
+          setProgress({ current: 0, total: totalBatches });
 
           for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
             const startIndex = batchIndex * batchSize;
@@ -208,17 +210,16 @@ const ExcelImport = () => {
             try {
               await geocodeBatch(batchAddresses);
 
-              // 각 주소 검색 사이에 더 긴 딜레이 추가
               if (batchIndex < totalBatches - 1) {
                 console.log(
                   `Waiting between batches... (${
                     batchIndex + 1
                   }/${totalBatches})`
                 );
-                await delay(3000); // 3초 딜레이로 증가
+                setProgress((prev) => ({ ...prev, current: batchIndex + 1 }));
+                await delay(3000);
               }
 
-              // 진행상황 로깅
               console.log(`Batch ${batchIndex + 1}/${totalBatches} completed`);
             } catch (error) {
               console.error(`Error in batch ${batchIndex + 1}:`, error);
@@ -233,13 +234,24 @@ const ExcelImport = () => {
           // 결과 처리
           if (result.length !== addresses.length) {
             alert(
-              '주소 변환에 실패한 주소가 있습니다. 수정 후 다시 업로드 해주세요.'
+              '일부 주소 변환에 실패했습니다. 실패한 주소는 아래 목록에서 확인할 수 있습니다.'
             );
-            return result;
           }
 
-          await supabase.from('excel').insert(result).select();
-          alert('업로드 성공');
+          console.log('result', result);
+          console.log('failData', failData);
+
+          if (result.length > 0) {
+            try {
+              await supabase.from('excel').insert(result).select();
+              alert(
+                `${result.length}개의 데이터가 성공적으로 업로드되었습니다.`
+              );
+            } catch (error) {
+              console.error('Database upload error:', error);
+              alert('데이터 업로드 중 오류가 발생했습니다.');
+            }
+          }
           return result;
         };
 
@@ -256,7 +268,6 @@ const ExcelImport = () => {
 
   return (
     <Frame>
-      {loading && <DotSpinner />}
       <div>
         <Font fontSize="2.4rem" margin="4rem 0 0 0">
           엑셀 데이터 불러오기
@@ -302,7 +313,23 @@ const ExcelImport = () => {
         ></div>
       )}
 
-      {/* fail table */}
+      {loading && (
+        <div className="flex flex-col items-center gap-2">
+          <DotSpinner />
+          {progress.total > 0 && (
+            <div>
+              <Font fontSize="1.6rem" margin="0 0 0.5rem 0">
+                주소 변환 진행 중...
+              </Font>
+
+              <Font fontSize="1.6rem">
+                {progress.current}/{progress.total}
+              </Font>
+            </div>
+          )}
+        </div>
+      )}
+
       {failCount > 0 && (
         <FailFrame>
           <FailWrapper>
