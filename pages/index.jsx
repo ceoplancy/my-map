@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Map, MapTypeControl, ZoomControl } from 'react-kakao-maps-sdk';
 import SearchAddressBounds from '@/component/search-address-bounds';
 import CustomMapMarker from '@/component/custom-map-maker';
@@ -16,6 +16,7 @@ import supabase from '@/config/supabaseClient';
 import withAuth from '@/hoc/withAuth';
 import Image from 'next/image';
 import MultipleMapMaker from '@/component/multiple-map-maker';
+import { debounce } from 'lodash';
 
 const Home = () => {
   const router = useRouter();
@@ -107,50 +108,55 @@ const Home = () => {
     return mapLevel > 7 ? groupedExcelData : excelData;
   }, [excelData, mapLevel, groupedExcelData]);
 
-  // 지도 확대 레벨 트리거 핸들러
-  const handleZoomChange = (map) => {
-    const currentLevel = map.getLevel();
-    setMapLevel(currentLevel);
+  // 지도 이벤트 최적화를 위한 디바운스 적용
+  const debouncedMapUpdate = useCallback(
+    debounce((map) => {
+      const bounds = map.getBounds();
+      const latlng = map.getCenter();
 
-    // 현재 지도 영역의 바운드 정보 업데이트
-    const bounds = map.getBounds();
-    setMapBounds({
-      sw: {
-        lat: bounds.getSouthWest().getLat(),
-        lng: bounds.getSouthWest().getLng(),
-      },
-      ne: {
-        lat: bounds.getNorthEast().getLat(),
-        lng: bounds.getNorthEast().getLng(),
-      },
-    });
-  };
+      setCurrCenter({
+        lat: latlng.getLat(),
+        lng: latlng.getLng(),
+      });
+
+      setMapBounds({
+        sw: {
+          lat: bounds.getSouthWest().getLat(),
+          lng: bounds.getSouthWest().getLng(),
+        },
+        ne: {
+          lat: bounds.getNorthEast().getLat(),
+          lng: bounds.getNorthEast().getLng(),
+        },
+      });
+    }, 500),
+    []
+  );
+
+  // 지도 확대 레벨 트리거 핸들러
+  const handleZoomChange = useCallback(
+    (map) => {
+      const currentLevel = map.getLevel();
+      setMapLevel(currentLevel);
+      debouncedMapUpdate(map);
+    },
+    [debouncedMapUpdate]
+  );
 
   // 지도 드래그 트리거 핸들러
-  const handleDragEnd = (map) => {
-    const latlng = map.getCenter();
-    const lat = latlng.getLat();
-    const lng = latlng.getLng();
-    setCurrCenter({ lat, lng });
-
-    // 현재 지도 영역의 바운드 정보 업데이트
-    const bounds = map.getBounds();
-    setMapBounds({
-      sw: {
-        lat: bounds.getSouthWest().getLat(),
-        lng: bounds.getSouthWest().getLng(),
-      },
-      ne: {
-        lat: bounds.getNorthEast().getLat(),
-        lng: bounds.getNorthEast().getLng(),
-      },
-    });
-  };
+  const handleDragEnd = useCallback(
+    (map) => {
+      debouncedMapUpdate(map);
+    },
+    [debouncedMapUpdate]
+  );
 
   // 지도 드래그, 확대 레벨 트리거
   useEffect(() => {
-    excelDataRefetch();
-  }, [currCenter, mapLevel]);
+    if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
+      excelDataRefetch();
+    }
+  }, [mapBounds, mapLevel]);
 
   // 로그아웃 처리
   useEffect(() => {
@@ -194,20 +200,6 @@ const Home = () => {
         level={mapLevel}
         onZoomChanged={handleZoomChange}
         onDragEnd={handleDragEnd}
-        onBoundsChanged={(map) => {
-          // 지도 이동 시에도 바운드 정보 업데이트
-          const bounds = map.getBounds();
-          setMapBounds({
-            sw: {
-              lat: bounds.getSouthWest().getLat(),
-              lng: bounds.getSouthWest().getLng(),
-            },
-            ne: {
-              lat: bounds.getNorthEast().getLat(),
-              lng: bounds.getNorthEast().getLng(),
-            },
-          });
-        }}
       >
         {/* 컨트롤러 생성 */}
         <MapTypeControl position={'TOPRIGHT'} />
@@ -306,7 +298,6 @@ const SpinnerFrame = styled.div`
   width: 100%;
   height: 100%;
   z-index: 100;
-  background-color: rgba(0, 0, 0, 0.5);
 `;
 
 const FilterBtn = styled.div`
