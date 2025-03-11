@@ -4,9 +4,11 @@ import Head from "next/head"
 import { Hydrate, QueryClient, QueryClientProvider } from "react-query"
 import { ReactQueryDevtools } from "react-query/devtools"
 import { RecoilRoot } from "recoil"
+
 import usePageLoading from "@/hooks/usePageLoading"
 import GlobalSpinner from "@/component/global-spinner"
 import Toast from "@/component/toast"
+
 import { StyleSheetManager } from "styled-components"
 import isPropValid from "@emotion/is-prop-valid"
 import Script from "next/script"

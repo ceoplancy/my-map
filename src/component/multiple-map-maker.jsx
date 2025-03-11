@@ -4,13 +4,15 @@ import styled from "styled-components"
 
 const MultipleMapMaker = ({ markers }) => {
   if (!markers.length) return null
-
+  
   return (
     <Frame>
-      <MapMarker
-        position={{
-          lat: markers[0].lat,
-          lng: markers[0].lng,
+      {markers.map((marker) => (
+        <MapMarker
+          key={marker.id}
+          position={{
+            lat: marker.lat,
+            lng: marker.lng,
         }}
         clickable={true}
         onClick={() => alert("해당 영역으로 확대하면 마커가 나타납니다.")}
@@ -22,6 +24,7 @@ const MultipleMapMaker = ({ markers }) => {
           },
         }}
       />
+      ))}
     </Frame>
   )
 }

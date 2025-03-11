@@ -16,20 +16,7 @@ const getExcel = async (queryString, mapLevel) => {
 
 export const useGetExcel = (queryString, mapLevel) => {
   // Create a query key that includes all relevant parameters
-  const queryKey = [
-    "excel",
-    mapLevel,
-    queryString.lat,
-    queryString.lng,
-    queryString.bounds?.sw?.lat,
-    queryString.bounds?.sw?.lng,
-    queryString.bounds?.ne?.lat,
-    queryString.bounds?.ne?.lng,
-    queryString.status,
-    queryString.company,
-    queryString.startStocks,
-    queryString.endStocks,
-  ]
+  const queryKey = ["excel"]
 
   return useQuery(queryKey, () => getExcel(queryString, mapLevel), {
     refetchOnMount: false,

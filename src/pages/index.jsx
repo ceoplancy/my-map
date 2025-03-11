@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react"
-import { Map, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
+import { Map, MapMarker, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
 import SearchAddressBounds from "@/component/search-address-bounds"
 import CustomMapMarker from "@/component/custom-map-maker"
 import { useGetExcel, useGetCompletedFilterMaker } from "@/api/supabase"
@@ -47,9 +47,6 @@ const Home = () => {
   // 현재 위도 경도
   const [currCenter, setCurrCenter] = useState({ lat: 37.5665, lng: 126.978 })
 
-  // 유저 정보
-  const { data: user } = useGetUserData(setToastState, router)
-
   // 로그아웃
   const { mutate } = usePostSignOut(setToastState)
 
@@ -58,15 +55,6 @@ const Home = () => {
     sw: { lat: 0, lng: 0 },
     ne: { lat: 0, lng: 0 },
   })
-
-  const groupExcelData = (data) => {
-    return data?.reduce((acc, curr, index) => {
-      if (index % 10 === 0) acc.push([])
-      acc[acc.length - 1].push(curr)
-
-      return acc
-    }, [])
-  }
 
   // 엑셀 데이터
   const {
@@ -97,38 +85,30 @@ const Home = () => {
     endStocks: stocks.end,
   })
 
-  // Memoize grouped excel data
-  const groupedExcelData = useMemo(() => groupExcelData(excelData), [excelData])
-
-  // Memoize visible markers based on map level
-  const visibleMarkers = useMemo(() => {
-    if (!excelData) return []
-
-    return mapLevel > 7 ? groupedExcelData : excelData
-  }, [excelData, mapLevel, groupedExcelData])
-
   // 지도 이벤트 최적화를 위한 디바운스 적용
-  const debouncedMapUpdate = useCallback(
-    debounce((map) => {
-      const bounds = map.getBounds()
-      const latlng = map.getCenter()
+  const debouncedMapUpdate = useMemo(
+    () =>
+      debounce((map) => {
+        const bounds = map.getBounds()
+        const latlng = map.getCenter()
 
-      setCurrCenter({
-        lat: latlng.getLat(),
-        lng: latlng.getLng(),
-      })
+        // 한 번에 상태 업데이트
+        setCurrCenter({
+          lat: latlng.getLat(),
+          lng: latlng.getLng(),
+        })
 
-      setMapBounds({
-        sw: {
-          lat: bounds.getSouthWest().getLat(),
-          lng: bounds.getSouthWest().getLng(),
-        },
-        ne: {
-          lat: bounds.getNorthEast().getLat(),
-          lng: bounds.getNorthEast().getLng(),
-        },
-      })
-    }, 500),
+        setMapBounds({
+          sw: {
+            lat: bounds.getSouthWest().getLat(),
+            lng: bounds.getSouthWest().getLng(),
+          },
+          ne: {
+            lat: bounds.getNorthEast().getLat(),
+            lng: bounds.getNorthEast().getLng(),
+          },
+        })
+      }, 500),
     [],
   )
 
@@ -136,10 +116,12 @@ const Home = () => {
   const handleZoomChange = useCallback(
     (map) => {
       const currentLevel = map.getLevel()
-      setMapLevel(currentLevel)
-      debouncedMapUpdate(map)
+      if (mapLevel !== currentLevel) {
+        setMapLevel(currentLevel)
+        debouncedMapUpdate(map)
+      }
     },
-    [debouncedMapUpdate],
+    [debouncedMapUpdate, mapLevel],
   )
 
   // 지도 드래그 트리거 핸들러
@@ -150,12 +132,12 @@ const Home = () => {
     [debouncedMapUpdate],
   )
 
-  // 지도 드래그, 확대 레벨 트리거
+  // mapBounds와 mapLevel 변경에 대한 단일 useEffect
   useEffect(() => {
     if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
       excelDataRefetch()
     }
-  }, [mapBounds, mapLevel])
+  }, [mapBounds, mapLevel, excelDataRefetch])
 
   // 로그아웃 처리
   useEffect(() => {
@@ -171,6 +153,10 @@ const Home = () => {
       authListener.subscription.unsubscribe()
     }
   }, [])
+
+  if(!excelData) return null
+
+  console.info(mapLevel)
 
   return (
     <>
@@ -189,8 +175,8 @@ const Home = () => {
       {/* 지도 */}
       <Map
         center={{
-          lat: 37.552839406975586,
-          lng: 126.97228481049244,
+          lat: currCenter.lat,
+          lng: currCenter.lng,
         }}
         style={{
           width: "100%",
@@ -202,19 +188,8 @@ const Home = () => {
         {/* 컨트롤러 생성 */}
         <MapTypeControl position={"TOPRIGHT"} />
         <ZoomControl position={"RIGHT"} />
-
         {/* 마커 생성 */}
-        {mapLevel > 7
-          ? visibleMarkers.map((group, groupIndex) => (
-              <MultipleMapMaker key={`group-${groupIndex}`} markers={group} />
-            ))
-          : visibleMarkers.map((marker) => (
-              <CustomMapMarker
-                key={marker.id}
-                userId={user?.user?.email}
-                makerData={marker}
-              />
-            ))}
+        <MultipleMapMaker markers={excelData} />
 
         <div
           style={{

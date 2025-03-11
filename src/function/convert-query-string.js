@@ -1,7 +1,7 @@
 import supabase from "@/config/supabaseClient"
 
 export const convertQueryString = (queryString, mapLevel) => {
-  let query = supabase.from("excel").select()
+  let query = supabase.from("excel").select("*", { count: "exact" })
 
   if (queryString.status && queryString.status.length > 0) {
     query = query.in("status", queryString.status)
@@ -29,12 +29,58 @@ export const convertQueryString = (queryString, mapLevel) => {
     let latRange = 0
     let lngRange = 0
 
-    if (mapLevel <= 7) {
-      latRange = 0.05
-      lngRange = 0.05
-    } else if (mapLevel > 7) {
-      latRange = 100
-      lngRange = 100
+    switch (mapLevel) {
+      case 1:
+        latRange = 0.003
+        lngRange = 0.003
+        break
+      case 2:
+        latRange = 0.006
+        lngRange = 0.006
+        break
+      case 3:
+        latRange = 0.02
+        lngRange = 0.02
+        break
+      case 4:
+        latRange = 0.03
+        lngRange = 0.03
+        break
+      case 5:
+        latRange = 0.05
+        lngRange = 0.05
+        break
+      case 6:
+        latRange = 0.09
+        lngRange = 0.09
+        break
+      case 7:
+        latRange = 0.16
+        lngRange = 0.16
+        break
+      case 8:
+        latRange = 0.6
+        lngRange = 0.6
+        break
+      case 9:
+        latRange = 0.75
+        lngRange = 0.75
+        break
+      case 10:
+        latRange = 1
+        lngRange = 1
+        break
+      case 11:
+        latRange = 1.8
+        lngRange = 1.8
+        break
+      case 12:
+        latRange = 2.2
+        lngRange = 2.2
+        break
+      default:
+        latRange = 3
+        lngRange = 3
     }
 
     query = query.gte("lat", queryString.lat - latRange)
