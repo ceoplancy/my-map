@@ -1,19 +1,27 @@
 {
   "name": "my-map",
   "version": "0.1.0",
+  "engines": {
+    "node": "20.x"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prepare": "husky",
+    "typegen": "supabase gen types typescript --project-id dovcidsnxtvxwlbquvin --schema public > ./src/features/db/types.ts",
+    "supabase:typegen": "supabase gen types typescript --project-id dovcidsnxtvxwlbquvin --schema public > ./src/features/db/types.ts"
   },
   "dependencies": {
+    "@next/bundle-analyzer": "^15.1.5",
+    "@next/third-parties": "^15.0.1",
     "@supabase/supabase-js": "^2.39.4",
     "axios": "^1.6.7",
     "babel-plugin-styled-components": "^2.1.4",
     "date-fns": "^3.3.1",
-    "next": "14.1.0",
+    "next": "^15.1.5",
     "next-intercept-stdout": "^1.0.1",
     "prop-types": "^15.8.1",
     "query-string": "^8.2.0",
@@ -26,5 +34,32 @@
     "styled-components": "^6.1.8",
     "styled-reset": "^4.5.2",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.0",
+    "@eslint/js": "^9.22.0",
+    "@types/node": "^22.8.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^8.12.1",
+    "@typescript-eslint/parser": "^8.12.1",
+    "babel-loader": "^9.2.1",
+    "eslint": "^9.13.0",
+    "eslint-config-next": "^15.0.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-import-helpers": "^2.0.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-promise": "^7.1.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "3.3.3",
+    "supabase": "^2.15.8",
+    "typescript": "5.8.2"
   }
 }
