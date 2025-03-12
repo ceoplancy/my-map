@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    forceSwcTransforms: false,
+  },
   trailingSlash: true,
   reactStrictMode: true,
   images: {
@@ -7,13 +10,6 @@ const nextConfig = {
   },
   eslint: {
     dirs: ["."], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
-  },
-  compiler: {
-    styledComponents: {
-      ssr: true,
-      displayName: true,
-      preprocess: false,
-    },
   },
 }
 

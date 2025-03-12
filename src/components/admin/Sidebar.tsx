@@ -69,7 +69,7 @@ export default function Sidebar() {
   const menuItems = [
     { title: "대시보드", path: "/admin", icon: "📊" },
     { title: "사용자 관리", path: "/admin/users", icon: "👥" },
-    // 추가 메뉴 항목들...
+    { title: "주주명부 관리", path: "/admin/shareholders", icon: "📑" },
   ]
 
   return (

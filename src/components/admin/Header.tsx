@@ -1,5 +1,5 @@
 import { useGetUserData } from "@/api/auth"
-import supabase from "@/config/supabaseClient"
+import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
 import { useRouter } from "next/router"
 import { useState, useRef, useEffect } from "react"
@@ -287,7 +287,13 @@ export default function Header() {
               <span key={path}>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 {index === array.length - 1 ? (
-                  <BreadcrumbCurrent>{path}</BreadcrumbCurrent>
+                  <BreadcrumbCurrent>
+                    {path === "shareholders"
+                      ? "주주명부"
+                      : path === "users"
+                        ? "사용자 관리"
+                        : path}
+                  </BreadcrumbCurrent>
                 ) : (
                   <BreadcrumbItem
                     onClick={() =>
@@ -295,7 +301,11 @@ export default function Header() {
                         `/admin/${array.slice(0, index + 1).join("/")}`,
                       )
                     }>
-                    {path}
+                    {path === "shareholders"
+                      ? "주주명부"
+                      : path === "users"
+                        ? "사용자 관리"
+                        : path}
                   </BreadcrumbItem>
                 )}
               </span>

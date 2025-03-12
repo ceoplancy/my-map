@@ -10,8 +10,7 @@ import styled from "styled-components"
 import FilterModalChildren from "@/component/modal-children/filter-modal-children"
 
 import { useRouter } from "next/router"
-import supabase from "@/config/supabaseClient"
-import withAuth from "@/hoc/withAuth"
+import supabase from "@/lib/supabase/supabaseClient"
 import Image from "next/image"
 import MultipleMapMaker from "@/component/multiple-map-maker"
 import { debounce } from "lodash"
@@ -259,7 +258,7 @@ const Home = () => {
   )
 }
 
-export default withAuth(Home)
+export default Home
 
 const SpinnerFrame = styled.div`
   position: fixed;

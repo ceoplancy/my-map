@@ -1,5 +1,5 @@
-import supabase from "@/config/supabaseClient"
-import supabaseAdmin from "@/config/supabaseAdminClient"
+import supabase from "@/lib/supabase/supabaseClient"
+import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
 import { useQuery, useMutation, useQueryClient } from "react-query"
 import { format } from "date-fns"
 import { getCoordinateRanges } from "@/lib/utils"
@@ -9,27 +9,27 @@ import { Excel } from "@/types/excel"
 // =======================================
 // ============== get 엑셀 데이터 ===============
 // =======================================
-const getExcel = async (mapLevel = 14, params: FilterParams) => {
+const getExcel = async (mapLevel = 14, params?: FilterParams) => {
   let query = supabase.from("excel").select("*", { count: "exact" })
 
-  if (params.status && params.status.length > 0) {
+  if (params?.status && params.status.length > 0) {
     query = query.in("status", params.status)
   }
 
-  if (params.company && params.company.length > 0) {
+  if (params?.company && params.company.length > 0) {
     query = query.in("company", params.company)
   }
 
-  if (params.startStocks && params.startStocks > 0) {
+  if (params?.startStocks && params.startStocks > 0) {
     query = query.gte("stocks", params.startStocks)
   }
 
-  if (params.endStocks && params.endStocks > 0) {
+  if (params?.endStocks && params.endStocks > 0) {
     query = query.lte("stocks", params.endStocks)
   }
 
   // 위도, 경도 필터링 (지도의 확대 레벨에 따라 조정)
-  if (params.lat && params.lng) {
+  if (params?.lat && params?.lng) {
     const { latRange, lngRange } = getCoordinateRanges(mapLevel)
 
     query = query.gte("lat", params.lat - latRange)
@@ -45,7 +45,7 @@ const getExcel = async (mapLevel = 14, params: FilterParams) => {
   return data
 }
 
-export const useGetExcel = (mapLevel: number, params: FilterParams) => {
+export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
   // Create a query key that includes all relevant parameters
   const queryKey = ["excel"]
 
@@ -235,12 +235,40 @@ export const useGetCompletedFilterMaker = (
 // ============== 사용자 관리 기능 ===============
 // =======================================
 
-// 사용자 목록 조회
-const getUsers = async () => {
-  const { data: users, error } = await supabaseAdmin.auth.admin.listUsers()
+// 페이지네이션이 적용된 사용자 목록 조회
+const getUsers = async (page: number = 1, limit: number = 10) => {
+  const {
+    data: { users },
+    error,
+  } = await supabaseAdmin.auth.admin.listUsers({
+    page: page - 1, // Supabase는 0-based pagination
+    perPage: limit,
+  })
+
   if (error) throw new Error(error.message)
 
-  return users
+  return {
+    users,
+    metadata: {
+      currentPage: page,
+      perPage: limit,
+      // Supabase Admin API에서 전체 사용자 수를 제공하지 않아 임시로 처리
+      totalPages: Math.ceil(users.length / limit),
+      hasMore: users.length === limit,
+    },
+  }
+}
+
+export const useGetUsers = (page: number = 1, limit: number = 10) => {
+  return useQuery(["users", page, limit], () => getUsers(page, limit), {
+    keepPreviousData: true, // 페이지 전환 시 이전 데이터 유지
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+    onError: () => {
+      alert("사용자 목록을 불러오는데 실패했습니다.")
+    },
+  })
 }
 
 // 특정 사용자 조회
@@ -289,18 +317,6 @@ const updateUser = async (userId: string, updates: object) => {
 const deleteUser = async (userId: string) => {
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
   if (error) throw new Error(error.message)
-}
-
-// React Query Hooks
-export const useGetUsers = () => {
-  return useQuery(["users"], getUsers, {
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 5,
-    onError: () => {
-      alert("사용자 목록을 불러오는데 실패했습니다.")
-    },
-  })
 }
 
 export const useGetUser = (userId: string) => {

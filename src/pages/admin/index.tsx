@@ -277,7 +277,13 @@ export default function AdminDashboard() {
     <AdminLayout>
       {/* 환영 섹션 */}
       <WelcomeSection>
-        <WelcomeTitle>안녕하세요, {user?.user.email} 님 👋</WelcomeTitle>
+        <WelcomeTitle>
+          안녕하세요,{" "}
+          {user?.user.user_metadata.name
+            ? user?.user.user_metadata.name
+            : user?.user.email}
+          님 👋
+        </WelcomeTitle>
         <WelcomeText>
           관리자 대시보드에 오신 것을 환영합니다. 여기에서 서비스의 모든 측면을
           관리하실 수 있습니다.
@@ -288,7 +294,7 @@ export default function AdminDashboard() {
         {/* 통계 카드 */}
         <StatCard variant="blue">
           <StatTitle>전체 사용자</StatTitle>
-          <StatValue>{users?.length || 0}</StatValue>
+          <StatValue>{users.users.length || 0}</StatValue>
         </StatCard>
 
         <StatCard variant="green">
@@ -359,6 +365,33 @@ export default function AdminDashboard() {
                 <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
               </ActionIcon>
               <ActionText>사용자 관리</ActionText>
+            </ActionButton>
+
+            <ActionButton href="/admin/shareholders">
+              <ActionIcon
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </ActionIcon>
+              <ActionText>주주명부 관리</ActionText>
+            </ActionButton>
+
+            {/* <ActionButton href="/admin/shareholders?upload=true"> */}
+            <ActionButton href="/excel-import">
+              <ActionIcon
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+              </ActionIcon>
+              <ActionText>엑셀 업로드</ActionText>
             </ActionButton>
 
             <SettingsButton onClick={() => alert("준비 중인 기능입니다.")}>

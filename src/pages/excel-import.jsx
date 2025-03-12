@@ -1,6 +1,6 @@
 import { useState } from "react"
 import * as XLSX from "xlsx"
-import supabase from "@/config/supabaseClient"
+import supabase from "@/lib/supabase/supabaseClient"
 import Font from "@/component/font"
 import styled from "styled-components"
 import DotSpinner from "@/component/dot-spinner"
