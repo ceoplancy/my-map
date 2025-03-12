@@ -2,30 +2,37 @@ import { useRef, useEffect } from "react"
 import styled from "styled-components"
 import useOnClickOutside from "@/hooks/useOnClickOutside"
 
-const Modal = ({ state, setState, isOverflow, children }) => {
-  const moodalOpenInRef = useRef()
+interface ModalProps {
+  open: boolean
+  setOpen: (open: boolean) => void
+  isOverflow?: boolean
+  children: React.ReactNode
+}
+
+const Modal = ({ open, setOpen, isOverflow = true, children }: ModalProps) => {
+  const moodalOpenInRef = useRef<HTMLDivElement>(null)
   const modalOpenExceptRef = useRef()
   useOnClickOutside({
     inRef: moodalOpenInRef,
     exceptRef: modalOpenExceptRef,
     handler: () => {
-      setState("")
+      setOpen(false)
     },
   })
 
   useEffect(() => {
-    if (state) {
+    if (open) {
       document.body.style.overflowY = "hidden"
     } else {
       document.body.style.overflowY = "unset"
     }
-  }, [state])
+  }, [open])
 
   return (
-    <Frame className={state ? "slideUp" : "slideDown"}>
+    <Frame className={open ? "slideUp" : "slideDown"}>
       <DialogFrame
         ref={moodalOpenInRef}
-        className={state ? "slideUp" : "slideDown"}
+        className={open ? "slideUp" : "slideDown"}
         isOverflow={isOverflow}>
         {children}
       </DialogFrame>
@@ -59,7 +66,11 @@ const Frame = styled.div`
   }
 `
 
-const DialogFrame = styled.div`
+interface DialogFrameProps {
+  isOverflow: boolean
+}
+
+const DialogFrame = styled.div<DialogFrameProps>`
   display: flex;
   flex-direction: column;
 

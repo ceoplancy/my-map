@@ -1,9 +1,16 @@
 import styled from "styled-components"
 
-const DotSpinner = ({ width, height, dotColor }) => {
+interface DotSpinnerProps {
+  width?: string
+  height?: string
+  dotColor?: string
+  marginRight?: string
+}
+
+const DotSpinner = (props: DotSpinnerProps) => {
   return (
     <SpinnerFrame>
-      <Spinner width={width} height={height} dotColor={dotColor}>
+      <Spinner {...props}>
         <div className="bounce1"></div>
         <div className="bounce2"></div>
         <div className="bounce3"></div>
@@ -28,7 +35,7 @@ const SpinnerFrame = styled.div`
   background-color: rgba(0, 0, 0, 0.5);
 `
 
-const Spinner = styled.div`
+const Spinner = styled.div<DotSpinnerProps>`
   margin: 0 auto;
   text-align: center;
 
@@ -37,7 +44,7 @@ const Spinner = styled.div`
     height: ${(props) => (props.height ? props.height : "3rem")};
     background-color: ${({ dotColor }) => (dotColor ? dotColor : "#114784")};
     &:not(&:last-child) {
-      margin-right: ${({ marginRight }) => `${marginRight}px`};
+      margin-right: ${(props) => (props.marginRight ? props.marginRight : "0")};
     }
 
     border-radius: 100%;

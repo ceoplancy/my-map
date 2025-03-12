@@ -1,10 +1,16 @@
 import styled from "styled-components"
 
-const Line = ({ margin, width, border }) => {
-  return <LineComp margin={margin} width={width} border={border} />
+interface LineProps {
+  margin?: string
+  width?: string
+  border?: string
 }
 
-const LineComp = styled.div`
+const Line = (props: LineProps) => {
+  return <LineComp {...props} />
+}
+
+const LineComp = styled.div<LineProps>`
   width: ${(props) => (props.width ? props.width : "100%")};
   margin: ${(props) => props.margin && props.margin};
   border: ${(props) => (props.border ? props.border : "0.5px solid #ccc")};

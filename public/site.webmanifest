@@ -1,0 +1,8 @@
+{
+  "name": "ANTRE",
+  "short_name": "ANTRE",
+  "icons": [],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

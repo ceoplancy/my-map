@@ -1,36 +1,34 @@
 import styled from "styled-components"
 
-const Button = ({
-  margin,
-  width,
-  fontSize,
-  border,
-  padding,
-  borderRadius,
-  backgroundColor,
-  color,
-  lineHeight,
-  onClick,
-  children,
-}) => {
+interface ButtonProps {
+  type?: "button" | "submit"
+  margin?: string
+  width?: string
+  fontSize?: string
+  border?: string
+  padding?: string
+  borderRadius?: string
+  backgroundColor?: string
+  cursor?: string
+  color?: string
+  lineHeight?: string
+  onClick?: () => void
+  children?: React.ReactNode
+}
+
+const Button = ({ children, ...props }: ButtonProps) => {
   return (
-    <ButtonComp
-      margin={margin}
-      width={width}
-      fontSize={fontSize}
-      border={border}
-      borderRadius={borderRadius}
-      padding={padding}
-      backgroundColor={backgroundColor}
-      color={color}
-      lineHeight={lineHeight}
-      onClick={onClick}>
+    <ButtonComp type="button" {...props}>
       {children}
     </ButtonComp>
   )
 }
 
-const ButtonComp = styled.div`
+interface ButtonCompProps extends ButtonProps {
+  fontWeight?: number
+}
+
+const ButtonComp = styled.button<ButtonCompProps>`
   font-size: ${(props) => (props.fontSize ? props.fontSize : "1.6rem")};
   width: ${(props) => (props.width ? props.width : "fit-content")};
   margin: ${(props) => props.margin && props.margin};

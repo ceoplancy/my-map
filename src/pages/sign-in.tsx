@@ -1,7 +1,5 @@
 import React, { useState } from "react"
 import { usePostSignIn } from "@/api/auth"
-import { toastStateAtom } from "@/atoms"
-import { useRecoilState } from "recoil"
 import { useRouter } from "next/router"
 import useAuthCheck from "@/hooks/useAuthCheck"
 import styled from "styled-components"
@@ -14,15 +12,10 @@ const SignIn = () => {
   const router = useRouter()
   const isLoggedIn = useAuthCheck()
 
-  const [email, setEmail] = useState()
-  const [password, setPassword] = useState()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
-  const [toastState, setToastState] = useRecoilState(toastStateAtom)
-
-  const { mutate: signInMutate, isLoading: signInIsLoading } = usePostSignIn(
-    setToastState,
-    router,
-  )
+  const { mutate: signInMutate, isLoading: signInIsLoading } = usePostSignIn()
 
   if (isLoggedIn) {
     router.push("/")

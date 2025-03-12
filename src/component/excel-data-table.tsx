@@ -1,7 +1,10 @@
 import styled from "styled-components"
 import Font from "./font"
+import { Excel } from "@/types/excel"
 
-const ExcelDataTable = ({ data }) => {
+const ExcelDataTable = ({ data }: { data: Excel }) => {
+  if (!data) return null
+
   return (
     <StyledTable>
       <tbody>
@@ -39,8 +42,8 @@ const ExcelDataTable = ({ data }) => {
             <HistoryContainer>
               {Array.isArray(data.history) &&
                 data.history.map((x) => (
-                  <Font key={x} fontSize="13px">
-                    {x}
+                  <Font key={x as string} fontSize="13px">
+                    {x as string}
                   </Font>
                 ))}
             </HistoryContainer>
@@ -59,7 +62,7 @@ const StyledTable = styled.table`
   width: 100%;
 `
 
-const StyledTitleTd = styled.td`
+const StyledTitleTd = styled.td<{ lineHeight?: number }>`
   width: 40%;
   font-size: 13px;
   text-align: center;
@@ -70,7 +73,7 @@ const StyledTitleTd = styled.td`
   line-height: ${(props) => (props.lineHeight ? props.lineHeight : "normal")};
 `
 
-const StyledContentTd = styled.td`
+const StyledContentTd = styled.td<{ lineHeight?: number }>`
   width: 60%;
   font-size: 13px;
   border: 1px solid #ccc;

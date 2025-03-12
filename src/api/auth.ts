@@ -1,40 +1,40 @@
 import supabase from "@/config/supabaseClient"
+import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
 import { useQuery, useMutation, useQueryClient } from "react-query"
 
 // =========================================
 // ============== post sign in
 // =========================================
-const postSignIn = async (data) => {
+const postSignIn = async (data: { email: string; password: string }) => {
   const { error } = await supabase.auth.signInWithPassword({
     email: data.email,
     password: data.password,
   })
 
-  if (error) throw new Error(error)
+  if (error) throw new Error(error.message)
 }
 
-export const usePostSignIn = (setToastState, router) => {
+export const usePostSignIn = () => {
+  const router = useRouter()
   const queryClient = useQueryClient()
 
-  return useMutation((data) => postSignIn(data), {
-    onSuccess: () => {
-      queryClient.invalidateQueries(["userData"])
+  return useMutation(
+    (data: { email: string; password: string }) => postSignIn(data),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(["userData"])
 
-      setToastState({
-        isOpen: true,
-        value: "정상적으로 로그인 되었습니다.",
-      })
-      router.push("/")
-    },
+        toast.success("정상적으로 로그인 되었습니다.")
+        router.push("/")
+      },
 
-    onError: (error) => {
-      console.log(error)
-      setToastState({
-        isOpen: true,
-        value: "이메일 또는 비밀번호가 다릅니다.",
-      })
+      onError: (error) => {
+        console.log(error)
+        toast.error("이메일 또는 비밀번호가 다릅니다.")
+      },
     },
-  })
+  )
 }
 
 // =========================================
@@ -43,19 +43,16 @@ export const usePostSignIn = (setToastState, router) => {
 const postSignOut = async () => {
   const { error } = await supabase.auth.signOut()
 
-  if (error) throw new Error(error)
+  if (error) throw new Error(error.message)
 }
 
-export const usePostSignOut = (setToastState) => {
+export const usePostSignOut = () => {
   const queryClient = useQueryClient()
 
   return useMutation(() => postSignOut(), {
     onSuccess: () => {
       queryClient.invalidateQueries(["userData"])
-      setToastState({
-        isOpen: true,
-        value: "정상적으로 로그아웃 되었습니다.",
-      })
+      toast.success("정상적으로 로그아웃 되었습니다.")
     },
 
     onError: (error) => {
@@ -71,12 +68,14 @@ export const usePostSignOut = (setToastState) => {
 const getUserData = async () => {
   const { data, error } = await supabase.auth.getUser()
 
-  if (error) throw new Error(error)
+  if (error) throw new Error(error.message)
 
   return data
 }
 
-export const useGetUserData = (setToastState, router, redirect = true) => {
+export const useGetUserData = (redirect = true) => {
+  const router = useRouter()
+
   return useQuery(["userData"], () => getUserData(), {
     retry: 1,
     refetchOnMount: false,
@@ -87,10 +86,7 @@ export const useGetUserData = (setToastState, router, redirect = true) => {
 
     onError: (error) => {
       if (redirect) {
-        setToastState({
-          isOpen: true,
-          value: "로그인 후 이용해 주세요.",
-        })
+        toast.error("로그인 후 이용해 주세요.")
         router.push("/sign-in")
       }
 

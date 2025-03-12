@@ -1,8 +1,19 @@
-import React from "react"
+import { Dispatch, SetStateAction } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
 import Font from "@/component/font"
 import Button from "@/component/button"
 import styled from "styled-components"
+
+interface FilterModalChildrenProps {
+  statusFilter: string[]
+  setStatusFilter: Dispatch<SetStateAction<string[]>>
+  companyFilter: string[]
+  setCompanyFilter: Dispatch<SetStateAction<string[]>>
+  setStocks: Dispatch<SetStateAction<{ start: number; end: number }>>
+  excelDataRefetch: () => void
+  completedFilterMakerDataRefetch: () => void
+  setIsFilterModalOpen: Dispatch<SetStateAction<boolean>>
+}
 
 const FilterModalChildren = ({
   statusFilter, // status 선택 상태
@@ -13,7 +24,7 @@ const FilterModalChildren = ({
   excelDataRefetch, // 엑셀 데이터 refetch
   completedFilterMakerDataRefetch, // 필터 완료된 데이터 refetch
   setIsFilterModalOpen, // 모달 열기/닫기 상태
-}) => {
+}: FilterModalChildrenProps) => {
   const { data: filterMenu } = useGetFilterMenu()
 
   return (
@@ -26,6 +37,8 @@ const FilterModalChildren = ({
         {filterMenu?.statusMenu?.map((x) => {
           const isExist = statusFilter?.find((y) => y === x) || false
 
+          if (!x) return null
+
           return (
             <li key={x}>
               <FilterLabel>
@@ -33,14 +46,14 @@ const FilterModalChildren = ({
                   type="checkbox"
                   id={`status${x}`}
                   name={`status${x}`}
-                  onChange={(e) => {
+                  onChange={() => {
                     if (isExist) {
                       setStatusFilter(() => statusFilter.filter((k) => k !== x))
                     } else {
                       setStatusFilter((prev) => [...prev, x])
                     }
                   }}
-                  checked={isExist}
+                  checked={!!isExist}
                 />
 
                 {x}
@@ -58,6 +71,8 @@ const FilterModalChildren = ({
         {filterMenu?.companyMenu?.map((x) => {
           const isExist = companyFilter?.find((y) => y === x) || false
 
+          if (!x) return null
+
           return (
             <li key={x}>
               <FilterLabel htmlFor={`company${x}`}>
@@ -65,7 +80,7 @@ const FilterModalChildren = ({
                   type="checkbox"
                   id={`company${x}`}
                   name={`company${x}`}
-                  onChange={(e) => {
+                  onChange={() => {
                     if (isExist) {
                       setCompanyFilter(() =>
                         companyFilter.filter((k) => k !== x),
@@ -74,7 +89,7 @@ const FilterModalChildren = ({
                       setCompanyFilter((prev) => [...prev, x])
                     }
                   }}
-                  checked={isExist}
+                  checked={!!isExist}
                 />
                 {x}
               </FilterLabel>
@@ -94,7 +109,7 @@ const FilterModalChildren = ({
             setStocks((prev) => {
               return {
                 ...prev,
-                start: e.target.value,
+                start: Number(e.target.value),
               }
             })
           }}
@@ -108,7 +123,7 @@ const FilterModalChildren = ({
             setStocks((prev) => {
               return {
                 ...prev,
-                end: e.target.value,
+                end: Number(e.target.value),
               }
             })
           }}

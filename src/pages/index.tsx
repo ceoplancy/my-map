@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react"
-import { Map, MapMarker, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
+import { useEffect, useState, useMemo, useCallback } from "react"
+import { Map, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
 import SearchAddressBounds from "@/component/search-address-bounds"
-import CustomMapMarker from "@/component/custom-map-maker"
 import { useGetExcel, useGetCompletedFilterMaker } from "@/api/supabase"
 import { useGetUserData, usePostSignOut } from "@/api/auth"
 import Font from "@/component/font"
@@ -9,8 +8,7 @@ import Modal from "@/component/modal"
 import GlobalSpinner from "@/component/global-spinner"
 import styled from "styled-components"
 import FilterModalChildren from "@/component/modal-children/filter-modal-children"
-import { toastStateAtom } from "@/atoms"
-import { useRecoilState } from "recoil"
+
 import { useRouter } from "next/router"
 import supabase from "@/config/supabaseClient"
 import withAuth from "@/hoc/withAuth"
@@ -20,38 +18,43 @@ import { debounce } from "lodash"
 
 const Home = () => {
   const router = useRouter()
-  const [toastState, setToastState] = useRecoilState(toastStateAtom)
+  // 유저 정보
+  const { data: user } = useGetUserData()
+
   const [isVisibleMenu, setIsVisibleMenu] = useState(false)
-
   // 현재 지도 확대 레벨.
-  const [mapLevel, setMapLevel] = useState(4)
-
+  const [mapLevel, setMapLevel] = useState(8)
   // 필터 모달
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
-
   // 주소 검색
-  const [searchAddress, setSearchAddress] = useState({
+  const [searchAddress, setSearchAddress] = useState<{
+    keyWord: string
+    lat: number
+    lng: number
+  }>({
     keyWord: "",
-    lat: "",
-    lng: "",
+    lat: 0,
+    lng: 0,
   })
-
   // 필터 선택
-  const [statusFilter, setStatusFilter] = useState([])
-  const [companyFilter, setCompanyFilter] = useState([])
-  const [stocks, setStocks] = useState({
-    start: "",
-    end: "",
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [companyFilter, setCompanyFilter] = useState<string[]>([])
+  const [stocks, setStocks] = useState<{ start: number; end: number }>({
+    start: 0,
+    end: 0,
   })
-
   // 현재 위도 경도
-  const [currCenter, setCurrCenter] = useState({ lat: 37.5665, lng: 126.978 })
-
+  const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
+    lat: 37.5665,
+    lng: 126.978,
+  })
   // 로그아웃
-  const { mutate } = usePostSignOut(setToastState)
-
+  const { mutate: logout } = usePostSignOut()
   // 현재 지도 바운드
-  const [mapBounds, setMapBounds] = useState({
+  const [mapBounds, setMapBounds] = useState<{
+    sw: { lat: number; lng: number }
+    ne: { lat: number; lng: number }
+  }>({
     sw: { lat: 0, lng: 0 },
     ne: { lat: 0, lng: 0 },
   })
@@ -61,24 +64,21 @@ const Home = () => {
     data: excelData,
     refetch: excelDataRefetch,
     isLoading: excelIsLoading,
-  } = useGetExcel(
-    {
-      status: statusFilter,
-      company: companyFilter,
-      startStocks: stocks.start,
-      endStocks: stocks.end,
-      lat: currCenter.lat,
-      lng: currCenter.lng,
-      bounds: mapBounds, // 바운드 정보 추가
-    },
-    mapLevel,
-  )
+  } = useGetExcel(mapLevel, {
+    status: statusFilter,
+    company: companyFilter,
+    startStocks: stocks.start,
+    endStocks: stocks.end,
+    lat: currCenter.lat,
+    lng: currCenter.lng,
+    bounds: mapBounds, // 바운드 정보 추가
+  })
 
   // 현재 필터 상황
   const {
     data: completedFilterMakerData,
     refetch: completedFilterMakerDataRefetch,
-  } = useGetCompletedFilterMaker({
+  } = useGetCompletedFilterMaker(14, {
     status: statusFilter,
     company: companyFilter,
     startStocks: stocks.start,
@@ -88,9 +88,9 @@ const Home = () => {
   // 지도 이벤트 최적화를 위한 디바운스 적용
   const debouncedMapUpdate = useMemo(
     () =>
-      debounce((map) => {
-        const bounds = map.getBounds()
-        const latlng = map.getCenter()
+      debounce((target: kakao.maps.Map) => {
+        const bounds = target.getBounds()
+        const latlng = target.getCenter()
 
         // 한 번에 상태 업데이트
         setCurrCenter({
@@ -114,11 +114,11 @@ const Home = () => {
 
   // 지도 확대 레벨 트리거 핸들러
   const handleZoomChange = useCallback(
-    (map) => {
-      const currentLevel = map.getLevel()
+    (target: kakao.maps.Map) => {
+      const currentLevel = target.getLevel()
       if (mapLevel !== currentLevel) {
         setMapLevel(currentLevel)
-        debouncedMapUpdate(map)
+        debouncedMapUpdate(target)
       }
     },
     [debouncedMapUpdate, mapLevel],
@@ -126,8 +126,8 @@ const Home = () => {
 
   // 지도 드래그 트리거 핸들러
   const handleDragEnd = useCallback(
-    (map) => {
-      debouncedMapUpdate(map)
+    (target: kakao.maps.Map) => {
+      debouncedMapUpdate(target)
     },
     [debouncedMapUpdate],
   )
@@ -154,9 +154,7 @@ const Home = () => {
     }
   }, [])
 
-  if(!excelData) return null
-
-  console.info(mapLevel)
+  if (!excelData || !user?.user.email) return null
 
   return (
     <>
@@ -189,7 +187,7 @@ const Home = () => {
         <MapTypeControl position={"TOPRIGHT"} />
         <ZoomControl position={"RIGHT"} />
         {/* 마커 생성 */}
-        <MultipleMapMaker markers={excelData} />
+        <MultipleMapMaker markers={excelData} userId={user.user.email} />
 
         <div
           style={{
@@ -215,7 +213,7 @@ const Home = () => {
             />
 
             {/* 로그아웃 */}
-            <SignOutBtn onClick={() => mutate()}>로그아웃</SignOutBtn>
+            <SignOutBtn onClick={() => logout()}>로그아웃</SignOutBtn>
 
             {/* 필터 버튼 */}
             <FilterBtn onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}>
@@ -240,7 +238,7 @@ const Home = () => {
             </CompletedStocksWrapper>
 
             {/* 필터 모달 */}
-            <Modal state={isFilterModalOpen} setState={setIsFilterModalOpen}>
+            <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
               <FilterModalChildren
                 statusFilter={statusFilter}
                 setStatusFilter={setStatusFilter}
