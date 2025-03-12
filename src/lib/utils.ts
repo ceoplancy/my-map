@@ -22,3 +22,9 @@ export const getCoordinateRanges = (mapLevel: number) => {
 
   return { latRange: range, lngRange: range }
 }
+
+export const removeTags = (str: string | null) => {
+  if (!str) return ""
+
+  return str.replace(/<\/?[^>]+(>|$)/g, "")
+}

@@ -10,6 +10,7 @@ import MakerPatchModalChildren from "./modal-children/maker-patch-modal-children
 import ExcelDataTable from "./excel-data-table"
 import Button from "./button"
 import GlobalSpinner from "./global-spinner"
+import Portal from "./portal"
 
 interface CustomMapMakerProps {
   marker: Excel
@@ -35,21 +36,14 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
   // 중복 항목 마커 업데이트 모달
   const [duplicateMakerUpdateIsModalOpen, setDuplicateMakerUpdateIsModalOpen] =
     useState(false)
-
-  // 마커 데이터 변경 상태
-  const [patchDataState, setPatchDataState] = useState<Excel | null>(null)
-
   // 마커 데이터 업데이트
   const { mutate: makerDataMutate, isLoading: makerDataMutateIsLoading } =
     usePatchExcel(userId)
-
   // 중복 항목 마커 데이터 업데이트
   const {
     mutate: duplicateMakerDataMutate,
     isLoading: duplicateMakerDataMutateIsLoading,
   } = usePatchExcel(userId)
-
-  if (!marker) return null
 
   return (
     <Frame>
@@ -81,7 +75,6 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
         }}
         clickable={true}
         onClick={() => {
-          console.info(marker)
           setIsOpen(!isOpen)
         }}
         image={{
@@ -94,48 +87,51 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
       />
       {/* 인포윈도우 */}
       {isOpen && (
-        <CustomOverlayMap
-          position={{
-            lat: marker.lat || 0,
-            lng: marker.lng || 0,
-          }}
-          clickable={true}
-          yAnchor={1.1}
-          zIndex={100}>
-          <InfoWindow>
-            <ExcelDataTable data={marker} />
+        <Portal>
+          <CustomOverlayMap
+            position={{
+              lat: marker.lat || 0,
+              lng: marker.lng || 0,
+            }}
+            clickable={true}
+            yAnchor={1.1}
+            zIndex={100}>
+            <InfoWindow>
+              <ExcelDataTable data={marker} />
 
-            <div
-              style={{
-                display: "flex",
-                gap: "1rem",
-                justifyContent: "center",
-                marginTop: "3rem",
-              }}>
-              <Button
-                fontSize="14px"
-                backgroundColor="#5599FF"
-                border="1px solid #5599FF"
-                borderRadius="5px"
-                color="#fff"
-                onClick={() => setMakerDataUpdateIsModalOpen(true)}>
-                수정하기
-              </Button>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1rem",
+                  justifyContent: "center",
+                  marginTop: "3rem",
+                }}>
+                <Button
+                  fontSize="14px"
+                  backgroundColor="#5599FF"
+                  border="1px solid #5599FF"
+                  borderRadius="5px"
+                  color="#fff"
+                  onClick={() => setMakerDataUpdateIsModalOpen(true)}>
+                  수정하기
+                </Button>
 
-              <Button
-                fontSize="14px"
-                backgroundColor="#fff"
-                border="1px solid #000"
-                borderRadius="5px"
-                onClick={() => setIsOpen(false)}>
-                닫기
-              </Button>
-            </div>
-          </InfoWindow>
-        </CustomOverlayMap>
+                <Button
+                  fontSize="14px"
+                  backgroundColor="#fff"
+                  border="1px solid #000"
+                  borderRadius="5px"
+                  onClick={() => setIsOpen(false)}>
+                  닫기
+                </Button>
+              </div>
+            </InfoWindow>
+          </CustomOverlayMap>
+        </Portal>
       )}
       {/* 마커 데이터 수정하기 모달 */}
       <Modal
+        position="bottom"
         open={makerDataUpdateIsModalOpen}
         setOpen={setMakerDataUpdateIsModalOpen}>
         <MakerPatchModalChildren
@@ -182,7 +178,7 @@ export default CustomMapMaker
 const Frame = styled.div``
 
 const InfoWindow = styled.div`
-  width: 50rem;
+  width: 600px;
   max-height: 50rem;
   overflow-y: auto;
 
@@ -190,6 +186,14 @@ const InfoWindow = styled.div`
   background-color: #fff;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
   border-radius: 5px;
+
+  @media (max-width: 600px) {
+    width: 400px;
+  }
+
+  @media (max-width: 450px) {
+    width: 280px;
+  }
 `
 
 const SpinnerFrame = styled.div`

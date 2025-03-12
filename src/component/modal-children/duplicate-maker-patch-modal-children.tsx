@@ -7,6 +7,7 @@ import ExcelDataTable from "../excel-data-table"
 import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction } from "react"
 import { UseMutateFunction } from "react-query"
+import { removeTags } from "@/lib/utils"
 
 interface DuplicateMakerPatchModalChildrenProps {
   duplicateMakerData: Excel | null
@@ -33,249 +34,11 @@ const DuplicateMakerPatchModalChildren = ({
   duplicateMakerDataMutate, // 중복 마커 patch API
   userId, // 현재 로그인 유저 아이디
 }: DuplicateMakerPatchModalChildrenProps) => {
-  const removeTags = (str: string) => {
-    return str?.replace(/<\/?[^>]+(>|$)/g, "")
-  }
-
   if (!duplicateMakerData) return null
 
   return (
     <div style={{ width: "100%" }}>
       <ExcelDataTable data={duplicateMakerData} />
-      {/* <table
-        style={{
-          border: '1px solid #ccc',
-          borderCollapse: 'collapse',
-          width: '100%',
-        }}
-      >
-        <tbody>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              주주번호
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {duplicateMakerData.id}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              이름
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {duplicateMakerData.name}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              주식수
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {duplicateMakerData.stocks}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              주소
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.4,
-              }}
-            >
-              {duplicateMakerData.address}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              상태
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {duplicateMakerData.status}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              회사
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {duplicateMakerData.company}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              메모
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {duplicateMakerData.memo}
-            </td>
-          </tr>
-          <tr style={{ border: '1px solid #ccc' }}>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              변경이력
-            </td>
-            <td
-              style={{
-                fontSize: '14px',
-                border: '1px solid #ccc',
-                padding: '10px',
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.3rem',
-                }}
-              >
-                {duplicateMakerData?.history !== null &&
-                  duplicateMakerData?.history?.map((x) => {
-                    return (
-                      <Font key={x} fontSize="14px">
-                        {x}
-                      </Font>
-                    );
-                  })}
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table> */}
 
       <Line margin="2rem 0 2rem 0" />
 
@@ -300,26 +63,9 @@ const DuplicateMakerPatchModalChildren = ({
               return { ...prev, status: e.target.value }
             })
           }}>
-          <option
-            value="미방문"
-            // selected={makerData.status === "미방문" ? true : false}
-          >
-            미방문
-          </option>
-
-          <option
-            value="완료"
-            // selected={makerData.status === "완료" ? true : false}
-          >
-            완료
-          </option>
-
-          <option
-            value="실패"
-            // selected={makerData.status === "실패" ? true : false}
-          >
-            실패
-          </option>
+          <option value="미방문">미방문</option>
+          <option value="완료">완료</option>
+          <option value="실패">실패</option>
         </select>
       </InfoWrapper>
 
@@ -357,9 +103,18 @@ const DuplicateMakerPatchModalChildren = ({
           color="#fff"
           onClick={() => {
             if (duplicateMakerDataState) {
+              const updated = {
+                ...duplicateMakerDataState,
+                status: duplicateMakerDataState.status,
+                memo: duplicateMakerDataState.memo,
+                history: [
+                  ...(duplicateMakerDataState.history as string[]),
+                  `${userId} ${format(new Date(), "yyyy/MM/dd/ HH:mm:ss")}`,
+                ],
+              }
               duplicateMakerDataMutate({
                 id: duplicateMakerDataState.id,
-                patchData: duplicateMakerDataState,
+                patchData: updated,
               })
             }
             setDuplicateMakerData(() => {

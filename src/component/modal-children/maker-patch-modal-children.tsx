@@ -7,6 +7,7 @@ import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction } from "react"
 import { UseMutateFunction } from "react-query"
 import { useFormik } from "formik"
+import { removeTags } from "@/lib/utils"
 
 interface MakerPatchModalChildrenProps {
   makerData: Excel
@@ -30,18 +31,12 @@ const MakerPatchModalChildren = ({
   const formik = useFormik({
     initialValues: makerData,
     onSubmit: (values) => {
-      console.log(values)
       makerDataMutate({
         id: makerData.id,
         patchData: values,
       })
     },
   })
-
-  console.log(formik)
-  const removeTags = (str: string) => {
-    return str?.replace(/<\/?[^>]+(>|$)/g, "")
-  }
 
   return (
     <div style={{ width: "100%" }}>
@@ -82,7 +77,7 @@ const MakerPatchModalChildren = ({
           <textarea
             style={{ marginTop: "0.5rem" }}
             name="memo"
-            value={removeTags(formik.values.memo || "")}
+            value={removeTags(formik.values.memo)}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
           />
@@ -98,7 +93,6 @@ const MakerPatchModalChildren = ({
             color="#fff">
             수정하기
           </Button>
-
           <Button
             type="button"
             fontSize="14px"

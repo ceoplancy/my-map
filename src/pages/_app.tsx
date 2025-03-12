@@ -34,7 +34,7 @@ const App = ({
   useEffect(() => {
     if (window.kakao && !mapLoaded) {
       window.kakao.maps.load(() => {
-        console.log("Kakao Maps API loaded successfully")
+        console.info("Kakao Maps API loaded successfully")
         setMapLoaded(true)
         window.kakaoMapsLoaded = true
       })
@@ -115,6 +115,7 @@ const App = ({
               <Component {...pageProps} />
             )}
             <Toaster position="top-center" />
+            <div id="portal" />
           </RecoilRoot>
         </Hydrate>
 
@@ -127,7 +128,7 @@ const App = ({
         onLoad={() => {
           try {
             window.kakao.maps.load(() => {
-              console.log("Initial Kakao Maps load")
+              console.info("Initial Kakao Maps load")
               window.kakaoMapsLoaded = true
               setMapLoaded(true)
             })

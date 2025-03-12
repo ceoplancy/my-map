@@ -1,4 +1,5 @@
 import supabase from "@/config/supabaseClient"
+import supabaseAdmin from "@/config/supabaseAdminClient"
 import { useQuery, useMutation, useQueryClient } from "react-query"
 import { format } from "date-fns"
 import { getCoordinateRanges } from "@/lib/utils"
@@ -68,10 +69,11 @@ const patchExcel = async (
   userId: string,
   patchData: Excel,
 ) => {
-  const makeHistory = `${userId} ${format(new Date(), "yyyy/MM/dd/ HH:mm:ss")}`
+  const makeHistory = `${userId} ${format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")}`
 
   if (patchData.history !== null) {
     const newArr = [...(patchData.history as string[]), makeHistory]
+    console.info(newArr)
 
     const result = {
       status: patchData.status,
@@ -227,4 +229,161 @@ export const useGetCompletedFilterMaker = (
       },
     },
   )
+}
+
+// =======================================
+// ============== 사용자 관리 기능 ===============
+// =======================================
+
+// 사용자 목록 조회
+const getUsers = async () => {
+  const { data: users, error } = await supabaseAdmin.auth.admin.listUsers()
+  if (error) throw new Error(error.message)
+
+  return users
+}
+
+// 특정 사용자 조회
+const getUser = async (userId: string) => {
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.admin.getUserById(userId)
+  if (error) throw new Error(error.message)
+
+  return user
+}
+
+// 사용자 생성
+const createUser = async (
+  email: string,
+  password: string,
+  userData?: object,
+) => {
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: userData,
+  })
+  if (error) throw new Error(error.message)
+
+  return user
+}
+
+// 사용자 정보 수정
+const updateUser = async (userId: string, updates: object) => {
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
+  if (error) throw new Error(error.message)
+
+  return user
+}
+
+// 사용자 삭제
+const deleteUser = async (userId: string) => {
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+  if (error) throw new Error(error.message)
+}
+
+// React Query Hooks
+export const useGetUsers = () => {
+  return useQuery(["users"], getUsers, {
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+    onError: () => {
+      alert("사용자 목록을 불러오는데 실패했습니다.")
+    },
+  })
+}
+
+export const useGetUser = (userId: string) => {
+  return useQuery(["user", userId], () => getUser(userId), {
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5,
+    onError: () => {
+      alert("사용자 정보를 불러오는데 실패했습니다.")
+    },
+  })
+}
+
+export const useCreateUser = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation(
+    ({
+      email,
+      password,
+      userData,
+    }: {
+      email: string
+      password: string
+      userData?: object
+    }) => createUser(email, password, userData),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(["users"])
+        alert("사용자가 성공적으로 생성되었습니다.")
+      },
+      onError: () => {
+        alert("사용자 생성에 실패했습니다.")
+      },
+    },
+  )
+}
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation(
+    ({ userId, updates }: { userId: string; updates: object }) =>
+      updateUser(userId, updates),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries(["users"])
+        queryClient.invalidateQueries(["user"])
+        alert("사용자 정보가 성공적으로 수정되었습니다.")
+      },
+      onError: () => {
+        alert("사용자 정보 수정에 실패했습니다.")
+      },
+    },
+  )
+}
+
+export const useDeleteUser = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation((userId: string) => deleteUser(userId), {
+    onSuccess: () => {
+      queryClient.invalidateQueries(["users"])
+      alert("사용자가 성공적으로 삭제되었습니다.")
+    },
+    onError: () => {
+      alert("사용자 삭제에 실패했습니다.")
+    },
+  })
+}
+
+// 사용자 권한 설정 함수
+export const setUserRole = async (userId: string, role: "admin" | "user") => {
+  try {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: { role },
+    })
+
+    if (error) throw error
+
+    return { success: true }
+  } catch (error) {
+    console.error("사용자 권한 설정 중 오류:", error)
+
+    return { success: false, error }
+  }
 }

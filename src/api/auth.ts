@@ -30,7 +30,7 @@ export const usePostSignIn = () => {
       },
 
       onError: (error) => {
-        console.log(error)
+        console.info(error)
         toast.error("이메일 또는 비밀번호가 다릅니다.")
       },
     },
@@ -56,7 +56,7 @@ export const usePostSignOut = () => {
     },
 
     onError: (error) => {
-      console.log(error)
+      console.info(error)
       alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.")
     },
   })
@@ -90,7 +90,7 @@ export const useGetUserData = (redirect = true) => {
         router.push("/sign-in")
       }
 
-      console.log(error)
+      console.info(error)
     },
   })
 }

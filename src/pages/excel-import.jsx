@@ -55,7 +55,7 @@ const ExcelImport = () => {
         setExcelFile(null)
       }
     } else {
-      console.log("Please select your file")
+      console.info("Please select your file")
     }
   }
 
@@ -87,7 +87,7 @@ const ExcelImport = () => {
   const waitForKakaoMaps = () => {
     return new Promise((resolve, reject) => {
       const checkKakao = () => {
-        console.log("Checking Kakao Maps status:", {
+        console.info("Checking Kakao Maps status:", {
           kakao: !!window.kakao,
           maps: !!window.kakao?.maps,
           services: !!window.kakao?.maps?.services,
@@ -95,7 +95,7 @@ const ExcelImport = () => {
         })
 
         if (window.kakaoMapsLoaded && window.kakao?.maps?.services) {
-          console.log("Kakao Maps is ready")
+          console.info("Kakao Maps is ready")
 
           return true
         }
@@ -148,9 +148,9 @@ const ExcelImport = () => {
 
       try {
         // SDK 로드 대기
-        console.log("Waiting for Kakao Maps SDK...")
+        console.info("Waiting for Kakao Maps SDK...")
         await waitForKakaoMaps()
-        console.log("Kakao Maps SDK is ready")
+        console.info("Kakao Maps SDK is ready")
 
         const workbook = XLSX.read(excelFile, { type: "buffer" })
         const worksheetName = workbook.SheetNames[0]
@@ -215,7 +215,7 @@ const ExcelImport = () => {
               await geocodeBatch(batchAddresses)
 
               if (batchIndex < totalBatches - 1) {
-                console.log(
+                console.info(
                   `Waiting between batches... (${
                     batchIndex + 1
                   }/${totalBatches})`,
@@ -224,7 +224,7 @@ const ExcelImport = () => {
                 await delay(3000)
               }
 
-              console.log(`Batch ${batchIndex + 1}/${totalBatches} completed`)
+              console.info(`Batch ${batchIndex + 1}/${totalBatches} completed`)
             } catch (error) {
               console.error(`Error in batch ${batchIndex + 1}:`, error)
               // 에러 발생 시 더 긴 딜레이 추가
@@ -242,8 +242,8 @@ const ExcelImport = () => {
             )
           }
 
-          console.log("result", result)
-          console.log("failData", failData)
+          console.info("result", result)
+          console.info("failData", failData)
 
           if (result.length > 0) {
             try {
