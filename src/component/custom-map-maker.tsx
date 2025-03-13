@@ -4,11 +4,8 @@ import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
 import Modal from "./modal"
-import DuplicateMakerModalChildren from "./modal-children/duplicate-maker-modal-children"
-import DuplicateMakerPatchModalChildren from "./modal-children/duplicate-maker-patch-modal-children"
 import MakerPatchModalChildren from "./modal-children/maker-patch-modal-children"
 import ExcelDataTable from "./excel-data-table"
-import Button from "./button"
 import GlobalSpinner from "./global-spinner"
 import Portal from "./portal"
 import { toast } from "react-toastify"
@@ -26,27 +23,9 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
   // 마커 업데이트 모달
   const [makerDataUpdateIsModalOpen, setMakerDataUpdateIsModalOpen] =
     useState(false)
-  // 중복 항목 모달
-  const [duplicateMakerIsModalOpen, setDuplicateMakerIsModalOpen] =
-    useState(false)
-  // 중복 항목 데이터
-  const [duplicateMakerData, setDuplicateMakerData] = useState<Excel | null>(
-    null,
-  )
-  // 중복 항목 데이터 변경 상태
-  const [duplicateMakerDataState, setDuplicateMakerDataState] =
-    useState<Excel | null>(null)
-  // 중복 항목 마커 업데이트 모달
-  const [duplicateMakerUpdateIsModalOpen, setDuplicateMakerUpdateIsModalOpen] =
-    useState(false)
-  // 마커 데이터 업데이트
+
   const { mutate: makerDataMutate, isLoading: makerDataMutateIsLoading } =
-    usePatchExcel(userId)
-  // 중복 항목 마커 데이터 업데이트
-  const {
-    mutate: duplicateMakerDataMutate,
-    isLoading: duplicateMakerDataMutateIsLoading,
-  } = usePatchExcel(userId)
+    usePatchExcel()
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -66,17 +45,6 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
           />
         </SpinnerFrame>
       )}
-      {duplicateMakerDataMutateIsLoading && (
-        <SpinnerFrame>
-          <GlobalSpinner
-            width={18}
-            height={18}
-            marginRight={18}
-            dotColor="#8536FF"
-          />
-        </SpinnerFrame>
-      )}
-
       <MapMarker
         position={{
           lat: marker.lat || 0,
@@ -142,35 +110,6 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
           makerData={marker}
           makerDataMutate={makerDataMutate}
           setMakerDataUpdateIsModalOpen={setMakerDataUpdateIsModalOpen}
-        />
-      </Modal>
-      {/* 중복 항목 마커 데이터 수정하기 모달 */}
-      <Modal
-        open={duplicateMakerUpdateIsModalOpen}
-        setOpen={setDuplicateMakerUpdateIsModalOpen}>
-        <DuplicateMakerPatchModalChildren
-          duplicateMakerData={duplicateMakerData}
-          setDuplicateMakerData={setDuplicateMakerData}
-          duplicateMakerDataState={duplicateMakerDataState}
-          setDuplicateMakerDataState={setDuplicateMakerDataState}
-          duplicateMakerDataMutate={duplicateMakerDataMutate}
-          userId={userId}
-        />
-      </Modal>
-      {/* 중복 항목 목록 마커 모달 */}
-      <Modal
-        open={duplicateMakerIsModalOpen}
-        setOpen={setDuplicateMakerIsModalOpen}>
-        <DuplicateMakerModalChildren
-          findDuplicateLocation={() => []}
-          setDuplicateMakerData={setDuplicateMakerData}
-          setDuplicateMakerDataState={setDuplicateMakerDataState}
-          duplicateMakerUpdateIsModalOpen={duplicateMakerUpdateIsModalOpen}
-          setDuplicateMakerUpdateIsModalOpen={
-            setDuplicateMakerUpdateIsModalOpen
-          }
-          duplicateMakerIsModalOpen={duplicateMakerIsModalOpen}
-          setDuplicateMakerIsModalOpen={setDuplicateMakerIsModalOpen}
         />
       </Modal>
     </Frame>

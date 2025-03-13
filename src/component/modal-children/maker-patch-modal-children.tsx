@@ -8,6 +8,9 @@ import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
 import ExcelDataTable from "../excel-data-table"
 import { toast } from "react-toastify"
+import { Json } from "@/types/db"
+import { useGetUserData } from "@/api/auth"
+import { format } from "date-fns"
 
 interface MakerPatchModalChildrenProps {
   makerData: Excel
@@ -23,18 +26,65 @@ interface MakerPatchModalChildrenProps {
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 }
 
+const findDifferences = (original: any, modified: any) => {
+  const differences: Record<string, { original: any; modified: any }> = {}
+
+  Object.keys(modified).forEach((key) => {
+    if (original[key] !== modified[key]) {
+      differences[key] = {
+        original: original[key],
+        modified: modified[key],
+      }
+    }
+  })
+
+  return differences
+}
+
 const MakerPatchModalChildren = ({
   makerData,
   makerDataMutate,
   setMakerDataUpdateIsModalOpen,
 }: MakerPatchModalChildrenProps) => {
+  const { data: user } = useGetUserData()
   const formik = useFormik({
     initialValues: makerData,
     onSubmit: (values) => {
+      const original = {
+        status: makerData.status,
+        memo: makerData.memo,
+      }
+      const modified = {
+        status: values.status,
+        memo: values.memo,
+      }
+      const modifier = user?.user.user_metadata.name
+        ? `${user?.user.user_metadata.name} (${user?.user.email})`
+        : `미확인 (${user?.user.email})`
+
+      const modified_at = format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")
+      const changes = findDifferences(original, modified)
+
+      const patchData = makerData.history
+        ? {
+            ...values,
+            status: values.status,
+            memo: values.memo,
+            history: [
+              ...(makerData.history as string[]),
+              { modifier, modified_at, changes },
+            ] as Json,
+          }
+        : {
+            ...values,
+            status: values.status,
+            memo: values.memo,
+            history: [{ modifier, modified_at, changes }],
+          }
       makerDataMutate(
         {
           id: makerData.id,
-          patchData: values,
+          patchData,
         },
         {
           onSuccess: () => {

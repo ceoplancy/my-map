@@ -71,57 +71,22 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
 // =========================================
 // ============== patch 마커 정보 업데이트 ============
 // =========================================
-const patchExcel = async (
-  excelId: number,
-  userId: string,
-  patchData: Excel,
-) => {
-  const makeHistory = `${userId} ${format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")}`
+const patchExcel = async (excelId: number, patchData: Excel) => {
+  const { error } = await supabase
+    .from("excel")
+    .update(patchData)
+    .eq("id", excelId)
+    .select()
 
-  if (patchData.history !== null) {
-    const newArr = [...(patchData.history as string[]), makeHistory]
-    console.info(newArr)
-
-    const result = {
-      status: patchData.status,
-      memo: patchData.memo,
-      history: newArr,
-    }
-
-    const { error } = await supabase
-      .from("excel")
-      .update(result)
-      .eq("id", excelId)
-      .select()
-
-    if (error) throw new Error(error.message)
-
-    return
-  } else {
-    const result = {
-      status: patchData.status,
-      memo: patchData.memo,
-      history: [makeHistory],
-    }
-
-    const { error } = await supabase
-      .from("excel")
-      .update(result)
-      .eq("id", excelId)
-      .select()
-
-    if (error) throw new Error(error.message)
-
-    return
-  }
+  if (error) throw new Error(error.message)
 }
 
-export const usePatchExcel = (userId: string) => {
+export const usePatchExcel = () => {
   const queryClient = useQueryClient()
 
   return useMutation(
     ({ id, patchData }: { id: number; patchData: Excel }) =>
-      patchExcel(id, userId, patchData),
+      patchExcel(id, patchData),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(["excel"])
