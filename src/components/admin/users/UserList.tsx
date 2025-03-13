@@ -4,6 +4,7 @@ import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import UserDetailModal from "./UserDetailModal"
 import { User } from "@supabase/supabase-js"
+import { toast } from "react-toastify"
 
 const Table = styled.table`
   width: 100%;
@@ -127,7 +128,7 @@ export default function UserList() {
     if (confirm("정말 삭제하시겠습니까?")) {
       deleteUser(userId)
     } else {
-      alert("사용자 삭제가 취소되었습니다.")
+      toast.error("사용자 삭제가 취소되었습니다.")
     }
   }
 

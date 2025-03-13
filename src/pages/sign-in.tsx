@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import { useState } from "react"
 import { usePostSignIn } from "@/api/auth"
 import { useRouter } from "next/router"
 import useAuthCheck from "@/hooks/useAuthCheck"
@@ -61,11 +61,16 @@ const SignIn = () => {
         </FormWrapper>
       </SignInFrame>
 
-      {/* <BusinessInfoFrame>
+      <BusinessInfoFrame>
         <LineDiv />
 
         <div className="wrapper">
-          <LogoImage src={logo} alt="logo" width={100} height={100} />
+          <LogoImage
+            src="/entre-logo-full.png"
+            alt="logo"
+            width={100}
+            height={100}
+          />
 
           <BusinessInfoWrapper>
             <Font>상호명 : 투게더 짐 고잔점</Font>
@@ -75,7 +80,7 @@ const SignIn = () => {
             <Font>전화번호 : 031-403-0776 | 이메일 : xnrpejwla@naver.com</Font>
           </BusinessInfoWrapper>
         </div>
-      </BusinessInfoFrame> */}
+      </BusinessInfoFrame>
     </Frame>
   )
 }

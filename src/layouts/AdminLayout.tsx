@@ -4,6 +4,7 @@ import Sidebar from "@/components/admin/Sidebar"
 import Header from "@/components/admin/Header"
 import styled from "styled-components"
 import { useGetUserData } from "@/api/auth"
+import { toast } from "react-toastify"
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -78,7 +79,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       const isAdmin = user.user.user_metadata.role.includes("admin")
 
       if (!isAdmin) {
-        alert("관리자 권한이 없습니다.")
+        toast.error("관리자 권한이 없습니다.")
         router.push("/")
 
         return

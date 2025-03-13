@@ -57,7 +57,9 @@ export const usePostSignOut = () => {
 
     onError: (error) => {
       console.info(error)
-      alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.")
+      toast.error(
+        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
+      )
     },
   })
 }

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useGetUserData } from "@/api/auth"
 import styled from "styled-components"
 import { COLORS } from "@/styles/global-style"
+import { toast } from "react-toastify"
 
 const WelcomeSection = styled.div`
   background: linear-gradient(135deg, white, #f8fafc);
@@ -394,7 +395,7 @@ export default function AdminDashboard() {
               <ActionText>엑셀 업로드</ActionText>
             </ActionButton>
 
-            <SettingsButton onClick={() => alert("준비 중인 기능입니다.")}>
+            <SettingsButton onClick={() => toast.info("준비 중인 기능입니다.")}>
               <ActionIcon
                 fill="none"
                 strokeLinecap="round"

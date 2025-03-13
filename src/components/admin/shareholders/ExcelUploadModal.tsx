@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "react-query"
 import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
 import * as XLSX from "xlsx"
+import { toast } from "react-toastify"
 
 const Overlay = styled.div`
   position: fixed;
@@ -109,11 +110,11 @@ export default function ExcelUploadModal({ onClose }: Props) {
       //   if (error) throw error
 
       queryClient.invalidateQueries(["excel"])
-      alert("엑셀 데이터가 성공적으로 업로드되었습니다.")
+      toast.success("엑셀 데이터가 성공적으로 업로드되었습니다.")
       onClose()
     } catch (error) {
       console.error("Error uploading excel:", error)
-      alert("엑셀 업로드 중 오류가 발생했습니다.")
+      toast.error("엑셀 업로드 중 오류가 발생했습니다.")
     }
   }
 

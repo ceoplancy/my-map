@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useQueryClient } from "react-query"
 import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
 import { Excel } from "@/types/excel"
+import { toast } from "react-toastify"
 
 const Overlay = styled.div`
   position: fixed;
@@ -128,11 +129,11 @@ export default function EditShareholderModal({ data, onClose }: Props) {
       if (error) throw error
 
       queryClient.invalidateQueries(["excel"])
-      alert("데이터가 성공적으로 수정되었습니다.")
+      toast.success("데이터가 성공적으로 수정되었습니다.")
       onClose()
     } catch (error) {
       console.error("Error updating data:", error)
-      alert("데이터 수정 중 오류가 발생했습니다.")
+      toast.error("데이터 수정 중 오류가 발생했습니다.")
     }
   }
 

@@ -5,6 +5,7 @@ import { format } from "date-fns"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
 import { Excel } from "@/types/excel"
+import { toast } from "react-toastify"
 
 // =======================================
 // ============== get 엑셀 데이터 ===============
@@ -56,7 +57,9 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
     enabled: true,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.")
+      toast.error(
+        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
+      )
     },
   })
 }
@@ -122,7 +125,9 @@ export const usePatchExcel = (userId: string) => {
         queryClient.invalidateQueries(["completedStocks"])
       },
       onError: () => {
-        alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.")
+        toast.error(
+          "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
+        )
       },
     },
   )
@@ -156,7 +161,9 @@ export const useGetFilterMenu = () => {
     enabled: true,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.")
+      toast.error(
+        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
+      )
     },
   })
 }
@@ -225,7 +232,9 @@ export const useGetCompletedFilterMaker = (
       enabled: true,
       staleTime: 1000 * 60 * 5,
       onError: () => {
-        alert("네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.")
+        toast.error(
+          "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
+        )
       },
     },
   )
@@ -266,7 +275,7 @@ export const useGetUsers = (page: number = 1, limit: number = 10) => {
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      alert("사용자 목록을 불러오는데 실패했습니다.")
+      toast.error("사용자 목록을 불러오는데 실패했습니다.")
     },
   })
 }
@@ -324,7 +333,7 @@ export const useGetUser = (userId: string) => {
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      alert("사용자 정보를 불러오는데 실패했습니다.")
+      toast.error("사용자 정보를 불러오는데 실패했습니다.")
     },
   })
 }
@@ -345,10 +354,10 @@ export const useCreateUser = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(["users"])
-        alert("사용자가 성공적으로 생성되었습니다.")
+        toast.success("사용자가 성공적으로 생성되었습니다.")
       },
       onError: () => {
-        alert("사용자 생성에 실패했습니다.")
+        toast.error("사용자 생성에 실패했습니다.")
       },
     },
   )
@@ -364,10 +373,10 @@ export const useUpdateUser = () => {
       onSuccess: () => {
         queryClient.invalidateQueries(["users"])
         queryClient.invalidateQueries(["user"])
-        alert("사용자 정보가 성공적으로 수정되었습니다.")
+        toast.success("사용자 정보가 성공적으로 수정되었습니다.")
       },
       onError: () => {
-        alert("사용자 정보 수정에 실패했습니다.")
+        toast.error("사용자 정보 수정에 실패했습니다.")
       },
     },
   )
@@ -379,10 +388,10 @@ export const useDeleteUser = () => {
   return useMutation((userId: string) => deleteUser(userId), {
     onSuccess: () => {
       queryClient.invalidateQueries(["users"])
-      alert("사용자가 성공적으로 삭제되었습니다.")
+      toast.success("사용자가 성공적으로 삭제되었습니다.")
     },
     onError: () => {
-      alert("사용자 삭제에 실패했습니다.")
+      toast.error("사용자 삭제에 실패했습니다.")
     },
   })
 }
