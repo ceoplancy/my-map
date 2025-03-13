@@ -76,12 +76,14 @@ const TableContainer = styled.div`
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  max-width: 100%;
 `
 
 const Table = styled.table`
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
 `
 
 const TableRow = styled.tr`
@@ -96,12 +98,15 @@ const TableRow = styled.tr`
 
 const TableHeader = styled.td`
   width: 120px;
+  min-width: 120px;
   padding: 16px 20px;
   font-size: 14px;
   font-weight: 600;
   color: ${COLORS.gray[700]};
   background: ${COLORS.gray[50]};
-  vertical-align: top;
+  vertical-align: middle;
+  word-break: keep-all;
+  white-space: normal;
 `
 
 const TableCell = styled.td`
@@ -109,6 +114,8 @@ const TableCell = styled.td`
   font-size: 14px;
   color: ${COLORS.gray[900]};
   line-height: 1.5;
+  word-break: break-all;
+  white-space: pre-wrap;
 `
 
 const CopyableCell = styled(TableCell)`

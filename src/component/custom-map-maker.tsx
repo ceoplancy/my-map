@@ -182,6 +182,7 @@ export default CustomMapMaker
 const Frame = styled.div``
 
 const InfoWindowContainer = styled.div`
+  min-width: 280px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
@@ -203,10 +204,12 @@ const InfoWindowContainer = styled.div`
     }
   }
 
+  @media (max-width: 1920px) {
+    width: 600px;
+  }
   @media (max-width: 600px) {
     width: 400px;
   }
-
   @media (max-width: 450px) {
     width: 280px;
   }

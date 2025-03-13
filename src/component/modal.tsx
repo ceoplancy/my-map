@@ -149,8 +149,7 @@ const getPositionStyles = (position: string) => {
 const DialogFrame = styled.div<DialogFrameProps>`
   position: fixed;
 
-  min-height: 6rem;
-  max-height: 90vh;
+  min-width: 280px;
   background-color: #fff;
   border-radius: 0.5rem;
   overflow: hidden;
@@ -169,5 +168,15 @@ const DialogFrame = styled.div<DialogFrameProps>`
 
   &.slideDown {
     opacity: 0;
+  }
+
+  @media (max-width: 1920px) {
+    width: 600px;
+  }
+  @media (max-width: 600px) {
+    width: 400px;
+  }
+  @media (max-width: 450px) {
+    width: 280px;
   }
 `

@@ -44,7 +44,7 @@ const Home = () => {
   const { data: user } = useGetUserData()
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
-  const [mapLevel, setMapLevel] = useState<number>(8)
+  const [mapLevel, setMapLevel] = useState<number>(6)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
   const [searchAddress, setSearchAddress] = useState<SearchAddressType>({
     keyWord: "",
