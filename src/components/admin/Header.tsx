@@ -3,7 +3,8 @@ import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
 import { useRouter } from "next/router"
 import { useState, useRef, useEffect } from "react"
-import styled from "styled-components"
+import styled from "@emotion/styled"
+import { toast } from "react-toastify"
 
 const HeaderContainer = styled.header`
   background-color: white;
@@ -261,7 +262,8 @@ export default function Header() {
                 <DropdownButton
                   onClick={() => {
                     setIsProfileOpen(false)
-                    router.push("/admin/profile")
+                    // router.push("/admin/profile")
+                    toast.info("준비 중인 기능입니다.")
                   }}>
                   프로필 설정
                 </DropdownButton>

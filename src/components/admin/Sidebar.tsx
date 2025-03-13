@@ -1,7 +1,13 @@
 import { COLORS } from "@/styles/global-style"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import styled from "styled-components"
+import styled from "@emotion/styled"
+import {
+  Dashboard,
+  People,
+  Description,
+  CloudUpload,
+} from "@mui/icons-material"
 
 const SidebarContainer = styled.div`
   width: 16rem;
@@ -67,9 +73,18 @@ export default function Sidebar() {
   const router = useRouter()
 
   const menuItems = [
-    { title: "대시보드", path: "/admin", icon: "📊" },
-    { title: "사용자 관리", path: "/admin/users", icon: "👥" },
-    { title: "주주명부 관리", path: "/admin/shareholders", icon: "📑" },
+    { title: "대시보드", path: "/admin", icon: <Dashboard /> },
+    { title: "사용자 관리", path: "/admin/users", icon: <People /> },
+    {
+      title: "주주명부 관리",
+      path: "/admin/shareholders",
+      icon: <Description />,
+    },
+    {
+      title: "엑셀 업로드",
+      path: "/admin/excel-import",
+      icon: <CloudUpload />,
+    },
   ]
 
   return (

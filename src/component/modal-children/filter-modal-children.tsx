@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
 import Font from "@/component/font"
 import Button from "@/component/button"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 
 interface FilterModalChildrenProps {
   statusFilter: string[]

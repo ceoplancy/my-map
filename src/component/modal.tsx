@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import useOnClickOutside from "@/hooks/useOnClickOutside"
 import Portal from "./portal"
 

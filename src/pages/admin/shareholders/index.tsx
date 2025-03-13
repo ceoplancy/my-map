@@ -1,5 +1,5 @@
 import AdminLayout from "@/layouts/AdminLayout"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import ShareholderList from "@/components/admin/shareholders/ShareholderList"
 import { useEffect, useState } from "react"
@@ -53,16 +53,6 @@ const ActionButton = styled.button`
 
 export default function ShareholdersPage() {
   const router = useRouter()
-  const params = useSearchParams()
-  const upload = params.get("upload") ?? "false"
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
-
-  useEffect(() => {
-    if (upload === "true") {
-      setIsUploadModalOpen(true)
-      router.replace("/admin/shareholders")
-    }
-  }, [upload, router])
 
   return (
     <AdminLayout>
@@ -70,14 +60,11 @@ export default function ShareholdersPage() {
         <Header>
           <Title>주주명부 관리</Title>
           {/* <ActionButton onClick={() => setIsUploadModalOpen(true)}> */}
-          <ActionButton onClick={() => router.push("/excel-import")}>
+          <ActionButton onClick={() => router.push("/admin/excel-import")}>
             엑셀 업로드
           </ActionButton>
         </Header>
         <ShareholderList />
-        {isUploadModalOpen && (
-          <ExcelUploadModal onClose={() => setIsUploadModalOpen(false)} />
-        )}
       </Container>
     </AdminLayout>
   )

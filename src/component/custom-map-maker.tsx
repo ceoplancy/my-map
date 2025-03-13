@@ -1,7 +1,7 @@
 import { usePatchExcel } from "@/api/supabase"
 import { useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
 import Modal from "./modal"
 import DuplicateMakerModalChildren from "./modal-children/duplicate-maker-modal-children"

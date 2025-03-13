@@ -15,6 +15,10 @@
     "supabase:typegen": "supabase gen types typescript --project-id dovcidsnxtvxwlbquvin --schema public > ./src/types/db.ts"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^6.4.7",
+    "@mui/material": "^6.4.7",
     "@next/bundle-analyzer": "^15.1.5",
     "@next/third-parties": "^15.0.1",
     "@supabase/supabase-js": "^2.39.4",

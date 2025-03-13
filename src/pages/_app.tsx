@@ -8,7 +8,6 @@ import { RecoilRoot } from "recoil"
 import usePageLoading from "@/hooks/usePageLoading"
 import GlobalSpinner from "@/component/global-spinner"
 
-import { StyleSheetManager } from "styled-components"
 import isPropValid from "@emotion/is-prop-valid"
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
@@ -42,7 +41,7 @@ const App = ({
   }, [mapLoaded])
 
   return (
-    <StyleSheetManager shouldForwardProp={isPropValid}>
+    <>
       <Head>
         <title>ANT:RE | 스마트한 주주 관리 서비스</title>
         <meta
@@ -137,7 +136,7 @@ const App = ({
           }
         }}
       />
-    </StyleSheetManager>
+    </>
   )
 }
 

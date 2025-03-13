@@ -1,4 +1,4 @@
-import styled from "styled-components"
+import styled from "@emotion/styled"
 
 const ImageWrapper = (props) => {
   const { width, height, onClick, className, cursor, children } = props

@@ -1,4 +1,4 @@
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import Line from "../line"
 import Button from "../button"
 import Font from "../font"

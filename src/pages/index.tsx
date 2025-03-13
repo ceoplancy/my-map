@@ -6,7 +6,7 @@ import { useGetUserData, usePostSignOut } from "@/api/auth"
 import Font from "@/component/font"
 import Modal from "@/component/modal"
 import GlobalSpinner from "@/component/global-spinner"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import FilterModalChildren from "@/component/modal-children/filter-modal-children"
 
 import { useRouter } from "next/router"

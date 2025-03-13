@@ -1,4 +1,4 @@
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import Font from "./font"
 import { Excel } from "@/types/excel"
 import { toast } from "react-toastify"

@@ -1,6 +1,6 @@
 import { useMap } from "react-kakao-maps-sdk"
 import Button from "@/component/button"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import useDebounce from "@/hooks/useDebounce"
 import { useEffect } from "react"
 

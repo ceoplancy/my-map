@@ -2,7 +2,7 @@ import AdminLayout from "@/layouts/AdminLayout"
 import { useGetUsers } from "@/api/supabase"
 import Link from "next/link"
 import { useGetUserData } from "@/api/auth"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { toast } from "react-toastify"
 
@@ -381,8 +381,7 @@ export default function AdminDashboard() {
               <ActionText>주주명부 관리</ActionText>
             </ActionButton>
 
-            {/* <ActionButton href="/admin/shareholders?upload=true"> */}
-            <ActionButton href="/excel-import">
+            <ActionButton href="/admin/excel-import">
               <ActionIcon
                 fill="none"
                 strokeLinecap="round"

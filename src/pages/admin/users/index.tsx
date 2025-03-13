@@ -2,7 +2,7 @@ import AdminLayout from "@/layouts/AdminLayout"
 import UserList from "@/components/admin/users/UserList"
 import UserForm from "@/components/admin/users/UserForm"
 import { useState } from "react"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 
 const Container = styled.div`

@@ -1,5 +1,5 @@
 import { useDeleteUser, useGetUsers } from "@/api/supabase"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import UserDetailModal from "./UserDetailModal"

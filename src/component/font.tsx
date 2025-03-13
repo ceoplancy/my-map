@@ -1,4 +1,4 @@
-import styled from "styled-components"
+import styled from "@emotion/styled"
 
 interface StyledFontProps extends React.HTMLAttributes<HTMLSpanElement> {
   $size?: number

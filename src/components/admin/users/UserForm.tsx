@@ -1,6 +1,6 @@
 import { useCreateUser, useUpdateUser } from "@/api/supabase"
 import { useState } from "react"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 
 const Modal = styled.div`
   position: fixed;

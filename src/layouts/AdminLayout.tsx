@@ -2,7 +2,7 @@ import { useRouter } from "next/router"
 import { useEffect } from "react"
 import Sidebar from "@/components/admin/Sidebar"
 import Header from "@/components/admin/Header"
-import styled from "styled-components"
+import styled from "@emotion/styled"
 import { useGetUserData } from "@/api/auth"
 import { toast } from "react-toastify"
 
