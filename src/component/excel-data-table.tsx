@@ -1,7 +1,8 @@
 import styled from "@emotion/styled"
-import Font from "./font"
 import { Excel } from "@/types/excel"
 import { toast } from "react-toastify"
+import { ContentCopy } from "@mui/icons-material"
+import { COLORS } from "@/styles/global-style"
 
 const ExcelDataTable = ({ data }: { data: Excel }) => {
   if (!data) return null
@@ -13,91 +14,178 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
   }
 
   return (
-    <StyledTable>
-      <tbody>
-        <tr>
-          <StyledTitleTd>주주번호</StyledTitleTd>
-          <StyledContentTd>{data.id}</StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>이름</StyledTitleTd>
-          <StyledContentTd>{data.name}</StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>주식수</StyledTitleTd>
-          <StyledContentTd>{data.stocks}</StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>주소</StyledTitleTd>
-          <StyledContentTd
-            lineHeight={1.4}
-            onClick={handleAddressCopy}
-            style={{ cursor: "pointer" }}>
-            {data.address}
-          </StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>상태</StyledTitleTd>
-          <StyledContentTd>{data.status}</StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>회사명(구분1)</StyledTitleTd>
-          <StyledContentTd>{data.company}</StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>메모</StyledTitleTd>
-          <StyledContentTd>{data.memo}</StyledContentTd>
-        </tr>
-        <tr>
-          <StyledTitleTd>변경이력</StyledTitleTd>
-          <StyledContentTd>
-            <HistoryContainer>
-              {Array.isArray(data.history) &&
-                data.history.map((x) => (
-                  <Font key={x as string} fontSize="13px">
-                    {x as string}
-                  </Font>
-                ))}
-            </HistoryContainer>
-          </StyledContentTd>
-        </tr>
-      </tbody>
-    </StyledTable>
+    <TableContainer>
+      <Table>
+        <tbody>
+          <TableRow>
+            <TableHeader>주주번호</TableHeader>
+            <TableCell>{data.id}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>이름</TableHeader>
+            <TableCell>{data.name}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>주식수</TableHeader>
+            <TableCell>{data.stocks?.toLocaleString()}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>주소</TableHeader>
+            <CopyableCell onClick={handleAddressCopy}>
+              <div>{data.address}</div>
+              <CopyIcon>
+                <ContentCopy fontSize="small" />
+              </CopyIcon>
+            </CopyableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>상태</TableHeader>
+            <TableCell>
+              <StatusBadge status={data.status}>{data.status}</StatusBadge>
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>회사명(구분1)</TableHeader>
+            <TableCell>{data.company}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>메모</TableHeader>
+            <TableCell>{data.memo}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>변경이력</TableHeader>
+            <TableCell>
+              <HistoryContainer>
+                {Array.isArray(data.history) &&
+                  data.history.map((x) => (
+                    <HistoryItem key={x as string}>{x as string}</HistoryItem>
+                  ))}
+              </HistoryContainer>
+            </TableCell>
+          </TableRow>
+        </tbody>
+      </Table>
+    </TableContainer>
   )
 }
 
 export default ExcelDataTable
 
-const StyledTable = styled.table`
-  border: 1px solid #ccc;
-  border-collapse: collapse;
+const TableContainer = styled.div`
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+`
+
+const Table = styled.table`
   width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
 `
 
-const StyledTitleTd = styled.td<{ lineHeight?: number }>`
-  width: 40%;
-  font-size: 13px;
-  text-align: center;
-  vertical-align: middle;
-  border: 1px solid #ccc;
-  padding: 10px;
-  white-space: pre-wrap;
-  line-height: ${(props) => (props.lineHeight ? props.lineHeight : "normal")};
+const TableRow = styled.tr`
+  &:not(:last-child) {
+    border-bottom: 1px solid ${COLORS.gray[100]};
+  }
+
+  &:hover {
+    background: ${COLORS.gray[50]};
+  }
 `
 
-const StyledContentTd = styled.td<{ lineHeight?: number }>`
-  width: 60%;
+const TableHeader = styled.td`
+  width: 120px;
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: ${COLORS.gray[700]};
+  background: ${COLORS.gray[50]};
+  vertical-align: top;
+`
+
+const TableCell = styled.td`
+  padding: 16px 20px;
+  font-size: 14px;
+  color: ${COLORS.gray[900]};
+  line-height: 1.5;
+`
+
+const CopyableCell = styled(TableCell)`
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+
+  &:hover {
+    background: ${COLORS.blue[50]};
+
+    svg {
+      opacity: 1;
+    }
+  }
+`
+
+const CopyIcon = styled.div`
+  color: ${COLORS.blue[500]};
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    color: ${COLORS.blue[600]};
+  }
+`
+
+const StatusBadge = styled.span<{ status: string | null }>`
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
   font-size: 13px;
-  border: 1px solid #ccc;
-  padding: 10px;
-  text-align: left;
-  vertical-align: middle;
-  white-space: pre-wrap;
-  line-height: ${(props) => (props.lineHeight ? props.lineHeight : "normal")};
+  font-weight: 500;
+  background: ${({ status }) => {
+    switch (status) {
+      case "완료":
+        return COLORS.green[50]
+      case "미방문":
+        return COLORS.blue[50]
+      case "보류":
+        return COLORS.yellow[50]
+      case "실패":
+        return COLORS.red[50]
+      default:
+        return COLORS.gray[50]
+    }
+  }};
+  color: ${({ status }) => {
+    switch (status) {
+      case "완료":
+        return COLORS.green[700]
+      case "진행중":
+        return COLORS.blue[700]
+      case "보류":
+        return COLORS.yellow[700]
+      default:
+        return COLORS.gray[700]
+    }
+  }};
 `
 
 const HistoryContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 8px;
+`
+
+const HistoryItem = styled.div`
+  font-size: 13px;
+  color: ${COLORS.gray[600]};
+  padding: 8px 12px;
+  background: ${COLORS.gray[50]};
+  border-radius: 6px;
+  line-height: 1.4;
+
+  &:hover {
+    background: ${COLORS.gray[100]};
+  }
 `

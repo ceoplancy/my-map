@@ -73,7 +73,7 @@ const Frame = styled.div`
   visibility: hidden;
   background-color: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
-  z-index: 1000;
+  z-index: 20;
   transition: all 0.2s ease-in-out;
 
   &.slideUp {
@@ -148,11 +148,9 @@ const getPositionStyles = (position: string) => {
 
 const DialogFrame = styled.div<DialogFrameProps>`
   position: fixed;
-  width: 100%;
-  max-width: 600px;
+
   min-height: 6rem;
   max-height: 90vh;
-  padding: 1.5rem;
   background-color: #fff;
   border-radius: 0.5rem;
   overflow: hidden;
@@ -160,7 +158,6 @@ const DialogFrame = styled.div<DialogFrameProps>`
   flex-direction: column;
   transition: all 0.2s ease-in-out;
   box-sizing: border-box;
-  z-index: 999;
   overflow-x: ${(props) => (props.isOverflow ? "auto" : "")};
   overflow-y: auto;
   ${(props) => getPositionStyles(props.position)}

@@ -72,6 +72,18 @@ export const COLORS = {
     800: "#991B1B",
     900: "#7F1D1D",
   },
+  yellow: {
+    50: "#FEFCE8",
+    100: "#FEF9E2",
+    200: "#FEF0B8",
+    300: "#FDE089",
+    400: "#FDD67A",
+    500: "#FBCF5D",
+    600: "#FABE3C",
+    700: "#F8A812",
+    800: "#B5890F",
+    900: "#7F5D0C",
+  },
 } as const
 
 // reset CSS

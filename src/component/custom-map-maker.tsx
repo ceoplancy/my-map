@@ -12,6 +12,8 @@ import Button from "./button"
 import GlobalSpinner from "./global-spinner"
 import Portal from "./portal"
 import { toast } from "react-toastify"
+import { ContentCopy, Edit, Close } from "@mui/icons-material"
+import { COLORS } from "@/styles/global-style"
 
 interface CustomMapMakerProps {
   marker: Excel
@@ -103,51 +105,37 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
             clickable={true}
             yAnchor={1.1}
             zIndex={100}>
-            <InfoWindow>
-              <ExcelDataTable data={marker} />
+            <InfoWindowContainer>
+              <InfoWindowHeader>
+                <HeaderTitle>주주 정보</HeaderTitle>
+                <CloseButton onClick={() => setIsOpen(false)}>
+                  <Close fontSize="small" />
+                </CloseButton>
+              </InfoWindowHeader>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "1rem",
-                  justifyContent: "center",
-                  marginTop: "3rem",
-                }}>
-                <Button
-                  fontSize="14px"
-                  backgroundColor="#4CAF50"
-                  border="1px solid #4CAF50"
-                  borderRadius="5px"
-                  color="#fff"
-                  onClick={handleAddressCopy}>
+              <InfoWindowContent>
+                <ExcelDataTable data={marker} />
+              </InfoWindowContent>
+
+              <InfoWindowFooter>
+                <ActionButton variant="success" onClick={handleAddressCopy}>
+                  <ContentCopy fontSize="small" />
                   주소 복사
-                </Button>
-                <Button
-                  fontSize="14px"
-                  backgroundColor="#5599FF"
-                  border="1px solid #5599FF"
-                  borderRadius="5px"
-                  color="#fff"
+                </ActionButton>
+                <ActionButton
+                  variant="primary"
                   onClick={() => setMakerDataUpdateIsModalOpen(true)}>
+                  <Edit fontSize="small" />
                   수정하기
-                </Button>
-
-                <Button
-                  fontSize="14px"
-                  backgroundColor="#fff"
-                  border="1px solid #000"
-                  borderRadius="5px"
-                  onClick={() => setIsOpen(false)}>
-                  닫기
-                </Button>
-              </div>
-            </InfoWindow>
+                </ActionButton>
+              </InfoWindowFooter>
+            </InfoWindowContainer>
           </CustomOverlayMap>
         </Portal>
       )}
       {/* 마커 데이터 수정하기 모달 */}
       <Modal
-        position="bottom"
+        position="center"
         open={makerDataUpdateIsModalOpen}
         setOpen={setMakerDataUpdateIsModalOpen}>
         <MakerPatchModalChildren
@@ -193,15 +181,27 @@ export default CustomMapMaker
 
 const Frame = styled.div``
 
-const InfoWindow = styled.div`
-  width: 600px;
-  max-height: 50rem;
-  overflow-y: auto;
+const InfoWindowContainer = styled.div`
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  user-select: none;
+  backdrop-filter: blur(8px);
+  border: 1px solid ${COLORS.gray[100]};
+  transform-origin: bottom center;
+  animation: slideUp 0.3s ease-out;
 
-  padding: 20px;
-  background-color: #fff;
-  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
-  border-radius: 5px;
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
   @media (max-width: 600px) {
     width: 400px;
@@ -209,6 +209,145 @@ const InfoWindow = styled.div`
 
   @media (max-width: 450px) {
     width: 280px;
+  }
+`
+
+const InfoWindowHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: white;
+  border-bottom: 1px solid ${COLORS.gray[100]};
+`
+
+const HeaderTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &::before {
+    content: "";
+    display: block;
+    width: 4px;
+    height: 16px;
+    background: ${COLORS.blue[500]};
+    border-radius: 2px;
+  }
+`
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  color: ${COLORS.gray[500]};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.gray[100]};
+    color: ${COLORS.gray[700]};
+    transform: rotate(90deg);
+  }
+`
+
+const InfoWindowContent = styled.div`
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  padding: 0;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${COLORS.gray[200]};
+    border-radius: 3px;
+
+    &:hover {
+      background: ${COLORS.gray[300]};
+    }
+  }
+`
+
+const InfoWindowFooter = styled.div`
+  display: flex;
+  justify-content: end;
+  gap: 12px;
+  padding: 20px 24px;
+  background: ${COLORS.gray[50]};
+  border-top: 1px solid ${COLORS.gray[100]};
+`
+
+const ActionButton = styled.button<{ variant: "primary" | "success" }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  background: ${({ variant }) =>
+    variant === "primary"
+      ? COLORS.blue[500]
+      : variant === "success"
+        ? COLORS.green[500]
+        : "white"};
+  color: white;
+  box-shadow: 0 2px 4px
+    ${({ variant }) =>
+      variant === "primary"
+        ? "rgba(59, 130, 246, 0.2)"
+        : variant === "success"
+          ? "rgba(76, 175, 80, 0.2)"
+          : "rgba(0, 0, 0, 0.1)"};
+
+  &:hover {
+    background: ${({ variant }) =>
+      variant === "primary"
+        ? COLORS.blue[600]
+        : variant === "success"
+          ? COLORS.green[600]
+          : COLORS.gray[100]};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px
+      ${({ variant }) =>
+        variant === "primary"
+          ? "rgba(59, 130, 246, 0.3)"
+          : variant === "success"
+            ? "rgba(76, 175, 80, 0.3)"
+            : "rgba(0, 0, 0, 0.15)"};
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px
+      ${({ variant }) =>
+        variant === "primary"
+          ? "rgba(59, 130, 246, 0.2)"
+          : variant === "success"
+            ? "rgba(76, 175, 80, 0.2)"
+            : "rgba(0, 0, 0, 0.1)"};
+  }
+
+  svg {
+    font-size: 18px;
   }
 `
 

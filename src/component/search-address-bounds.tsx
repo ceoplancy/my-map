@@ -117,7 +117,7 @@ const SearchAddressWrapper = styled.div<StyledProps>`
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  z-index: 10;
   transition: all 0.3s ease;
   opacity: ${(props) => (props.isVisible ? 1 : 0)};
   visibility: ${(props) => (props.isVisible ? "visible" : "hidden")};
