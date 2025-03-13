@@ -7,14 +7,13 @@ import Button from "@/component/button"
 import DotSpinner from "@/component/dot-spinner"
 import Font from "@/component/font"
 import Image from "next/image"
+import { SignInAnimation } from "@/components/animations/SignInAnimation"
 
 const SignIn = () => {
   const router = useRouter()
   const isLoggedIn = useAuthCheck()
-
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-
   const { mutate: signInMutate, isLoading: signInIsLoading } = usePostSignIn()
 
   if (isLoggedIn) {
@@ -24,149 +23,208 @@ const SignIn = () => {
   }
 
   return (
-    <Frame>
-      <SignInFrame>
-        {signInIsLoading && <DotSpinner />}
+    <Container>
+      <LeftSection>
+        <AnimationWrapper>
+          <SignInAnimation />
+        </AnimationWrapper>
+        <ContentWrapper>
+          <h1>주주명부 관리를 더 스마트하게</h1>
+          <p>
+            디지털 방식으로 주주명부를 관리하고,
+            <br />
+            효율적으로 주주들과 소통하세요.
+          </p>
+        </ContentWrapper>
+      </LeftSection>
 
-        <Font fontSize="22px">로그인</Font>
+      <RightSection>
+        <LoginContainer>
+          <LogoWrapper>
+            <Image
+              src="/entre-logo-full.png"
+              alt="logo"
+              width={0}
+              height={0}
+              sizes="100vw"
+              style={{
+                width: "auto",
+                height: "auto",
+                maxWidth: "200px",
+              }}
+              priority
+            />
+          </LogoWrapper>
 
-        <FormWrapper>
-          <StyledInput
-            type="text"
-            name="email"
-            value={email || ""}
-            placeholder="이메일"
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <LoginForm
+            onSubmit={(e) => {
+              e.preventDefault()
+              signInMutate({ email, password })
+            }}>
+            {signInIsLoading && <StyledDotSpinner />}
 
-          <StyledInput
-            type="password"
-            value={password || ""}
-            placeholder="비밀번호"
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyUp={(e) => {
-              if (e.key === "Enter") {
-                signInMutate({ email, password })
-              }
-            }}
-          />
+            <InputGroup>
+              <StyledInput
+                type="text"
+                placeholder="이메일"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <StyledInput
+                type="password"
+                placeholder="비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </InputGroup>
 
-          <ButtonWrapper>
-            <Button
-              fontSize="14px"
-              onClick={() => signInMutate({ email, password })}>
-              로그인
-            </Button>
-          </ButtonWrapper>
-        </FormWrapper>
-      </SignInFrame>
+            <LoginButton type="submit">로그인</LoginButton>
+          </LoginForm>
+        </LoginContainer>
 
-      <BusinessInfoFrame>
-        <LineDiv />
-
-        <div className="wrapper">
-          <LogoImage
-            src="/entre-logo-full.png"
-            alt="logo"
-            width={100}
-            height={100}
-          />
-
-          <BusinessInfoWrapper>
-            <Font>상호명 : 투게더 짐 고잔점</Font>
-            <Font>사업자등록번호 : 889-06-02586</Font>
-            <Font>대표자 : 황재민</Font>
-            <Font>{`주소 : 경기도 안산시 단원구 광덕서로 66 B101~B107호 (고잔동)`}</Font>
-            <Font>전화번호 : 031-403-0776 | 이메일 : xnrpejwla@naver.com</Font>
-          </BusinessInfoWrapper>
-        </div>
-      </BusinessInfoFrame>
-    </Frame>
+        <Footer>
+          <Copyright>
+            <Font $size={12} color="#999">
+              © 2024 ANTRE. All rights reserved.
+            </Font>
+          </Copyright>
+        </Footer>
+      </RightSection>
+    </Container>
   )
 }
 
 export default SignIn
 
-const Frame = styled.div`
-  height: 80vh;
-  position: relative;
-  padding: 0 3rem;
+const Container = styled.div`
+  display: flex;
+  min-height: 100vh;
 `
 
-const SignInFrame = styled.div`
+const LeftSection = styled.div`
+  flex: 2;
+  background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
   display: flex;
-  gap: 4rem;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-
-  max-width: 80rem;
-  margin: 0 auto;
-  margin-top: 10rem;
-  padding: 6rem 6rem;
-  border: 1px solid #c6c6c6;
-  border-radius: 5px;
+  padding: 4rem;
+  color: white;
 `
 
-const FormWrapper = styled.form`
+const AnimationWrapper = styled.div`
   width: 100%;
+  max-width: 500px;
+  margin-bottom: 3rem;
+`
+
+const ContentWrapper = styled.div`
+  text-align: center;
+
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+  }
+
+  p {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    opacity: 0.9;
+  }
+`
+
+const RightSection = styled.div`
+  flex: 1;
   display: flex;
-  gap: 2rem;
   flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem;
+  background-color: #ffffff;
+`
+
+const LoginContainer = styled.div`
+  margin: 0 auto;
+  width: 100%;
+  height: 100%;
+  padding: 2rem;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
+`
+
+const LogoWrapper = styled.div`
+  text-align: center;
+  margin-bottom: 3rem;
+`
+
+const LoginForm = styled.form`
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`
+
+const InputGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 `
 
 const StyledInput = styled.input`
   width: 100%;
-  padding: 10px;
-  border: 2px solid #ccc;
-  border-radius: 5px;
-  font-size: 14px;
-  outline: none;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
 
   &:focus {
-    border-color: #000;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+    outline: none;
   }
 `
 
-const ButtonWrapper = styled.div`
-  width: 15rem;
-  margin-top: 2rem;
-  display: flex;
-  justify-content: center;
-`
-
-const LineDiv = styled.div`
-  margin: 4rem 0;
-  border: 1px solid #989898;
-`
-
-const BusinessInfoFrame = styled.div`
-  position: absolute;
-  bottom: 0;
+const LoginButton = styled(Button)`
   width: 100%;
+  padding: 1rem;
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-
-  .wrapper {
-    display: flex;
-    align-items: center;
-    gap: 3rem;
+  &:hover {
+    background-color: #1557b0;
   }
 `
 
-const BusinessInfoWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 2rem;
+const StyledDotSpinner = styled(DotSpinner)`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 `
 
-const LogoImage = styled(Image)`
-  border-radius: 25%;
-  cursor: pointer;
-  transform: translateY(8px);
+const Footer = styled.footer`
+  text-align: center;
+  padding: 2rem 0;
+`
+
+const CompanyInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0.8;
+`
+
+const Copyright = styled.div`
+  margin-top: 1rem;
 `
