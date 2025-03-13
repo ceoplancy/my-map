@@ -412,3 +412,20 @@ export const setUserRole = async (userId: string, role: "admin" | "user") => {
     return { success: false, error }
   }
 }
+
+export const useDeleteExcel = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from("excel").delete().eq("id", id)
+
+      if (error) throw error
+
+      return true
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["excel"] })
+    },
+  })
+}

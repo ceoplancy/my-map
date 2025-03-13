@@ -424,14 +424,12 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
               borderColor: "divider",
               borderRadius: 2,
               bgcolor: "background.default",
-              cursor: "pointer",
               transition: "all 0.2s ease",
               "&:hover": {
                 borderColor: "primary.main",
                 bgcolor: "action.hover",
               },
             }}
-            onClick={() => document.getElementById("file-upload")?.click()}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragEnter={onDragEnter}>
@@ -466,7 +464,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                   sx={{ fontSize: 48, mb: 2, opacity: 0.7 }}
                 />
                 <Typography variant="h6" color="textSecondary" align="center">
-                  파일을 드래그하거나 클릭하여 업로드
+                  파일을 영역에 드래그하거나 하단의 버튼을 클릭하여 업로드
                 </Typography>
                 <Typography
                   variant="body2"

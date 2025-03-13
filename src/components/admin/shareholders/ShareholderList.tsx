@@ -1,4 +1,4 @@
-import { useGetExcel } from "@/api/supabase"
+import { useGetExcel, useDeleteExcel } from "@/api/supabase"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
@@ -13,6 +13,7 @@ import {
   Delete as DeleteIcon,
   Clear as ClearIcon,
 } from "@mui/icons-material"
+import { toast } from "react-toastify"
 
 const Container = styled.div`
   background: white;
@@ -339,6 +340,7 @@ export default function ShareholderList() {
   })
 
   const { data: excelData, isLoading, refetch } = useGetExcel(14)
+  const deleteExcelMutation = useDeleteExcel()
 
   const handleModalClose = () => {
     setSelectedItem(null)
@@ -356,6 +358,18 @@ export default function ShareholderList() {
   const handleFilterChange = (field: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
     setCurrentPage(1) // 필터 변경 시 첫 페이지로 이동
+  }
+
+  const handleDelete = async (id: number) => {
+    if (confirm("정말 삭제하시겠습니까?")) {
+      try {
+        await deleteExcelMutation.mutateAsync(id)
+        toast.success("성공적으로 삭제되었습니다.")
+      } catch (error) {
+        console.error("삭제 중 오류 발생:", error)
+        toast.error("삭제 중 오류가 발생했습니다.")
+      }
+    }
   }
 
   if (isLoading) return <div>로딩 중...</div>
@@ -540,11 +554,7 @@ export default function ShareholderList() {
                   </ActionButton>
                   <ActionButton
                     className="delete"
-                    onClick={() => {
-                      if (confirm("정말 삭제하시겠습니까?")) {
-                        // TODO: 삭제 로직
-                      }
-                    }}
+                    onClick={() => handleDelete(item.id)}
                     title="삭제">
                     <DeleteIcon />
                   </ActionButton>
