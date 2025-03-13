@@ -42,6 +42,7 @@ interface StyledProps {
 const Home = () => {
   const router = useRouter()
   const { data: user } = useGetUserData()
+  const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
   const [mapLevel, setMapLevel] = useState<number>(6)
@@ -221,6 +222,14 @@ const Home = () => {
             </StatItem>
           </StatsCard>
           <div style={{ flex: 1 }} />
+          {isAdmin && (
+            <MenuItem
+              onClick={() => router.push("/admin")}
+              style={{ color: COLORS.purple[700] }}>
+              <Settings />
+              관리자
+            </MenuItem>
+          )}
           <MenuItem onClick={() => logout()} style={{ color: COLORS.red[600] }}>
             <LogoutOutlined />
             로그아웃
@@ -339,6 +348,7 @@ const MenuItem = styled.div`
   cursor: pointer;
   transition: all 0.2s ease;
   color: ${COLORS.gray[700]};
+  margin-top: 4px;
   margin-bottom: 4px;
 
   &:hover {
