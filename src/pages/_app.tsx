@@ -11,7 +11,7 @@ import GlobalSpinner from "@/component/global-spinner"
 import { StyleSheetManager } from "styled-components"
 import isPropValid from "@emotion/is-prop-valid"
 import Script from "next/script"
-import { Toaster } from "react-hot-toast"
+import { ToastContainer } from "react-toastify"
 
 declare global {
   interface Window {
@@ -114,7 +114,7 @@ const App = ({
             ) : (
               <Component {...pageProps} />
             )}
-            <Toaster position="top-center" />
+            <ToastContainer position="top-center" />
             <div id="portal" />
           </RecoilRoot>
         </Hydrate>

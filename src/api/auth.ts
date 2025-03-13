@@ -1,6 +1,6 @@
 import supabase from "@/lib/supabase/supabaseClient"
 import { useRouter } from "next/navigation"
-import toast from "react-hot-toast"
+import { toast } from "react-toastify"
 import { useQuery, useMutation, useQueryClient } from "react-query"
 
 // =========================================

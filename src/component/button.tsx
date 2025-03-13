@@ -12,7 +12,7 @@ interface ButtonProps {
   cursor?: string
   color?: string
   lineHeight?: string
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
   children?: React.ReactNode
 }
 

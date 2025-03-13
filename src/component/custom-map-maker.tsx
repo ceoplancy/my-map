@@ -11,6 +11,7 @@ import ExcelDataTable from "./excel-data-table"
 import Button from "./button"
 import GlobalSpinner from "./global-spinner"
 import Portal from "./portal"
+import { toast } from "react-toastify"
 
 interface CustomMapMakerProps {
   marker: Excel
@@ -44,6 +45,12 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
     mutate: duplicateMakerDataMutate,
     isLoading: duplicateMakerDataMutateIsLoading,
   } = usePatchExcel(userId)
+
+  const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(marker.address ?? "")
+    toast.success("주소가 클립보드에 복사되었습니다")
+  }
 
   return (
     <Frame>
@@ -106,6 +113,15 @@ const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
                   justifyContent: "center",
                   marginTop: "3rem",
                 }}>
+                <Button
+                  fontSize="14px"
+                  backgroundColor="#4CAF50"
+                  border="1px solid #4CAF50"
+                  borderRadius="5px"
+                  color="#fff"
+                  onClick={handleAddressCopy}>
+                  주소 복사
+                </Button>
                 <Button
                   fontSize="14px"
                   backgroundColor="#5599FF"

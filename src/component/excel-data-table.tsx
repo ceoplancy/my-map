@@ -1,9 +1,16 @@
 import styled from "styled-components"
 import Font from "./font"
 import { Excel } from "@/types/excel"
+import { toast } from "react-toastify"
 
 const ExcelDataTable = ({ data }: { data: Excel }) => {
   if (!data) return null
+
+  const handleAddressCopy = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(data.address ?? "")
+    toast.success("주소가 클립보드에 복사되었습니다")
+  }
 
   return (
     <StyledTable>
@@ -22,7 +29,12 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
         </tr>
         <tr>
           <StyledTitleTd>주소</StyledTitleTd>
-          <StyledContentTd lineHeight={1.4}>{data.address}</StyledContentTd>
+          <StyledContentTd
+            lineHeight={1.4}
+            onClick={handleAddressCopy}
+            style={{ cursor: "pointer" }}>
+            {data.address}
+          </StyledContentTd>
         </tr>
         <tr>
           <StyledTitleTd>상태</StyledTitleTd>
