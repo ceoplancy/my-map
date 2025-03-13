@@ -41,7 +41,7 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
           <StyledContentTd>{data.status}</StyledContentTd>
         </tr>
         <tr>
-          <StyledTitleTd>회사명</StyledTitleTd>
+          <StyledTitleTd>회사명(구분1)</StyledTitleTd>
           <StyledContentTd>{data.company}</StyledContentTd>
         </tr>
         <tr>

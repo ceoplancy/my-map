@@ -51,6 +51,7 @@ import {
 } from "@mui/icons-material"
 import { Excel } from "@/types/excel"
 import useDebounce from "@/hooks/useDebounce"
+import { FIELD_LABELS } from "../admin/shareholders/EditShareholderModal"
 
 // Excel 타입을 확장하여 인덱스 시그니처 추가
 
@@ -661,7 +662,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                       return (
                         <TextField
                           key={field}
-                          label={field}
+                          label={FIELD_LABELS[field as keyof Excel]}
                           fullWidth
                           margin="normal"
                           value={editedValues[field] || ""}
@@ -676,7 +677,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                     return (
                       <TextField
                         key={field}
-                        label={field}
+                        label={FIELD_LABELS[field as keyof Excel]}
                         fullWidth
                         margin="normal"
                         value={editedValues[field] || ""}
@@ -779,9 +780,13 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
             </Button>
           </Box>
 
-          <Alert severity="info" sx={{ mb: 3 }}>
+          <Alert severity="info" sx={{ mb: 1 }}>
             아래 데이터는 주소를 좌표로 변환하는데 실패했습니다. 하단의 작업
             버튼을 통해 주소를 수정한 후 저장 및 재변환을 시도해주세요.
+          </Alert>
+
+          <Alert severity="error" sx={{ mb: 3 }}>
+            새로 고침 시 수정 중인 데이터 목록은 사라집니다.
           </Alert>
 
           <TableContainer>

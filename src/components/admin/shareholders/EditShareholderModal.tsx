@@ -24,7 +24,9 @@ const Modal = styled.div`
   border-radius: 1rem;
   padding: 2rem;
   width: 100%;
-  max-width: 32rem;
+  max-width: 80rem;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
 `
 
@@ -36,6 +38,19 @@ const Title = styled.h2`
 `
 
 const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+`
+
+const FormSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -113,6 +128,23 @@ interface Props {
   onClose: () => void
 }
 
+// 필드 라벨 매핑 객체 추가
+export const FIELD_LABELS: Record<keyof Excel, string> = {
+  id: "아이디",
+  name: "이름",
+  company: "회사명(구분1)",
+  status: "상태",
+  address: "주소",
+  lat: "위도",
+  lng: "경도",
+  latlngaddress: "기존 주소(수정 전)",
+  maker: "마커(구분2)",
+  stocks: "주식수",
+  memo: "메모",
+  history: "히스토리",
+  image: "이미지",
+}
+
 export default function EditShareholderModal({ data, onClose }: Props) {
   const [formData, setFormData] = useState(data)
   const queryClient = useQueryClient()
@@ -137,53 +169,100 @@ export default function EditShareholderModal({ data, onClose }: Props) {
     }
   }
 
+  const handleChange = (field: keyof Excel, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
   return (
     <Overlay onClick={onClose}>
       <Modal onClick={(e) => e.stopPropagation()}>
         <Title>주주 정보 수정</Title>
         <Form onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label>회사명</Label>
-            <Input
-              type="text"
-              value={formData.company || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, company: e.target.value })
-              }
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label>상태</Label>
-            <Select
-              value={formData.status || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value })
-              }>
-              <option value="접수">접수</option>
-              <option value="진행중">진행중</option>
-              <option value="완료">완료</option>
-            </Select>
-          </FormGroup>
-          <FormGroup>
-            <Label>주식수</Label>
-            <Input
-              type="number"
-              value={formData.stocks}
-              onChange={(e) =>
-                setFormData({ ...formData, stocks: Number(e.target.value) })
-              }
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label>메모</Label>
-            <Input
-              type="text"
-              value={formData.memo || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, memo: e.target.value })
-              }
-            />
-          </FormGroup>
+          <FormGrid>
+            <FormSection>
+              <FormGroup>
+                <Label>{FIELD_LABELS.name}</Label>
+                <Input
+                  type="text"
+                  disabled
+                  value={formData.name || ""}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.address}</Label>
+                <Input
+                  type="text"
+                  disabled
+                  value={formData.address || ""}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.status}</Label>
+                <Select
+                  value={formData.status || ""}
+                  onChange={(e) => handleChange("status", e.target.value)}>
+                  <option value="">선택하세요</option>
+                  <option value="미방문">미방문</option>
+                  <option value="완료">완료</option>
+                  <option value="실패">실패</option>
+                </Select>
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.company}</Label>
+                <Input
+                  type="text"
+                  value={formData.company || ""}
+                  onChange={(e) => handleChange("company", e.target.value)}
+                />
+              </FormGroup>
+            </FormSection>
+            <FormSection>
+              <FormGroup>
+                <Label>{FIELD_LABELS.stocks}</Label>
+                <Input
+                  type="number"
+                  disabled
+                  value={formData.stocks || 0}
+                  onChange={(e) =>
+                    handleChange("stocks", parseInt(e.target.value) || 0)
+                  }
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.latlngaddress}</Label>
+                <Input
+                  type="text"
+                  disabled
+                  value={formData.latlngaddress || ""}
+                  onChange={(e) =>
+                    handleChange("latlngaddress", e.target.value)
+                  }
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.memo}</Label>
+                <Input
+                  type="text"
+                  value={formData.memo || ""}
+                  onChange={(e) => handleChange("memo", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.maker}</Label>
+                <Input
+                  type="text"
+                  value={formData.maker || ""}
+                  onChange={(e) => handleChange("maker", e.target.value)}
+                />
+              </FormGroup>
+            </FormSection>
+          </FormGrid>
+
           <ButtonGroup>
             <Button type="button" className="cancel" onClick={onClose}>
               취소

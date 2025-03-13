@@ -2,9 +2,7 @@ import AdminLayout from "@/layouts/AdminLayout"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import ShareholderList from "@/components/admin/shareholders/ShareholderList"
-import { useEffect, useState } from "react"
-import ExcelUploadModal from "@/components/admin/shareholders/ExcelUploadModal"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 const Container = styled.div`
   display: flex;

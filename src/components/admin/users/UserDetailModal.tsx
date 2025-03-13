@@ -175,7 +175,7 @@ export default function UserDetailModal({ user, onClose }: Props) {
               onChange={(e) =>
                 setFormData({ ...formData, role: e.target.value })
               }>
-              <option value="user">사용자</option>
+              <option value="user">일반 사용자</option>
               <option value="admin">관리자</option>
             </Select>
           </FormGroup>
