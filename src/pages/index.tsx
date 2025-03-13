@@ -14,51 +14,60 @@ import supabase from "@/lib/supabase/supabaseClient"
 import Image from "next/image"
 import MultipleMapMaker from "@/component/multiple-map-maker"
 import { debounce } from "lodash"
+import {
+  Menu,
+  Settings,
+  Search as SearchIcon,
+  FilterAlt,
+  LogoutOutlined,
+  Clear as ClearIcon,
+} from "@mui/icons-material"
+import { COLORS } from "@/styles/global-style"
+
+interface SearchAddressType {
+  keyWord: string
+  lat: number
+  lng: number
+}
+
+interface MapBounds {
+  sw: { lat: number; lng: number }
+  ne: { lat: number; lng: number }
+}
+
+interface StyledProps {
+  isVisible: boolean
+}
 
 const Home = () => {
   const router = useRouter()
-  // 유저 정보
   const { data: user } = useGetUserData()
 
-  const [isVisibleMenu, setIsVisibleMenu] = useState(false)
-  // 현재 지도 확대 레벨.
-  const [mapLevel, setMapLevel] = useState(8)
-  // 필터 모달
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
-  // 주소 검색
-  const [searchAddress, setSearchAddress] = useState<{
-    keyWord: string
-    lat: number
-    lng: number
-  }>({
+  const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
+  const [mapLevel, setMapLevel] = useState<number>(8)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
+  const [searchAddress, setSearchAddress] = useState<SearchAddressType>({
     keyWord: "",
     lat: 0,
     lng: 0,
   })
-  // 필터 선택
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [companyFilter, setCompanyFilter] = useState<string[]>([])
+  const [cityFilter, setCityFilter] = useState<string>("")
   const [stocks, setStocks] = useState<{ start: number; end: number }>({
     start: 0,
     end: 0,
   })
-  // 현재 위도 경도
   const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
     lat: 37.5665,
     lng: 126.978,
   })
-  // 로그아웃
   const { mutate: logout } = usePostSignOut()
-  // 현재 지도 바운드
-  const [mapBounds, setMapBounds] = useState<{
-    sw: { lat: number; lng: number }
-    ne: { lat: number; lng: number }
-  }>({
+  const [mapBounds, setMapBounds] = useState<MapBounds>({
     sw: { lat: 0, lng: 0 },
     ne: { lat: 0, lng: 0 },
   })
 
-  // 엑셀 데이터
   const {
     data: excelData,
     refetch: excelDataRefetch,
@@ -70,28 +79,20 @@ const Home = () => {
     endStocks: stocks.end,
     lat: currCenter.lat,
     lng: currCenter.lng,
-    bounds: mapBounds, // 바운드 정보 추가
+    bounds: mapBounds,
+    city: cityFilter,
   })
 
-  // 현재 필터 상황
-  const {
-    data: completedFilterMakerData,
-    refetch: completedFilterMakerDataRefetch,
-  } = useGetCompletedFilterMaker(14, {
-    status: statusFilter,
-    company: companyFilter,
-    startStocks: stocks.start,
-    endStocks: stocks.end,
-  })
+  const totalStocks = excelData
+    ?.map((item) => item.stocks)
+    .reduce((accumulator, currentValue) => accumulator + currentValue, 0)
 
-  // 지도 이벤트 최적화를 위한 디바운스 적용
   const debouncedMapUpdate = useMemo(
     () =>
       debounce((target: kakao.maps.Map) => {
         const bounds = target.getBounds()
         const latlng = target.getCenter()
 
-        // 한 번에 상태 업데이트
         setCurrCenter({
           lat: latlng.getLat(),
           lng: latlng.getLng(),
@@ -111,7 +112,6 @@ const Home = () => {
     [],
   )
 
-  // 지도 확대 레벨 트리거 핸들러
   const handleZoomChange = useCallback(
     (target: kakao.maps.Map) => {
       const currentLevel = target.getLevel()
@@ -123,7 +123,6 @@ const Home = () => {
     [debouncedMapUpdate, mapLevel],
   )
 
-  // 지도 드래그 트리거 핸들러
   const handleDragEnd = useCallback(
     (target: kakao.maps.Map) => {
       debouncedMapUpdate(target)
@@ -131,14 +130,12 @@ const Home = () => {
     [debouncedMapUpdate],
   )
 
-  // mapBounds와 mapLevel 변경에 대한 단일 useEffect
   useEffect(() => {
     if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
       excelDataRefetch()
     }
   }, [mapBounds, mapLevel, excelDataRefetch])
 
-  // 로그아웃 처리
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -151,13 +148,14 @@ const Home = () => {
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [])
+  }, [router])
+
+  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false)
 
   if (!excelData || !user?.user.email) return null
 
   return (
     <>
-      {/* 스피너 */}
       {excelIsLoading && (
         <SpinnerFrame>
           <GlobalSpinner
@@ -169,7 +167,6 @@ const Home = () => {
         </SpinnerFrame>
       )}
 
-      {/* 지도 */}
       <Map
         center={{
           lat: currCenter.lat,
@@ -182,77 +179,67 @@ const Home = () => {
         level={mapLevel}
         onZoomChanged={handleZoomChange}
         onDragEnd={handleDragEnd}>
-        {/* 컨트롤러 생성 */}
         <MapTypeControl position={"TOPRIGHT"} />
         <ZoomControl position={"RIGHT"} />
-        {/* 마커 생성 */}
         <MultipleMapMaker markers={excelData} userId={user.user.email} />
 
-        <div
-          style={{
-            position: "fixed",
-            top: "20px",
-            left: "20px",
-            zIndex: "10",
-            backgroundColor: "#fff",
-            padding: "5px",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}
-          onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
-          <Image src="/svg/menu.svg" alt="menu" width={30} height={30} />
-        </div>
+        <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
+          <Menu />
+        </MenuButton>
 
-        {isVisibleMenu && (
-          <>
-            {/* 주소 검색 */}
-            <SearchAddressBounds
-              searchAddress={searchAddress}
-              setSearchAddress={setSearchAddress}
-            />
+        <SearchAddressBounds
+          searchAddress={searchAddress}
+          setSearchAddress={setSearchAddress}
+          isVisible={isSearchVisible}
+        />
 
-            {/* 로그아웃 */}
-            <SignOutBtn onClick={() => logout()}>로그아웃</SignOutBtn>
+        <MenuOverlay
+          isVisible={isVisibleMenu}
+          onClick={() => setIsVisibleMenu(false)}
+        />
 
-            {/* 필터 버튼 */}
-            <FilterBtn onClick={() => setIsFilterModalOpen(!isFilterModalOpen)}>
-              필터
-            </FilterBtn>
+        <SideMenu isVisible={isVisibleMenu}>
+          <MenuHeader>
+            <MenuTitle>대시보드</MenuTitle>
+            <CloseButton onClick={() => setIsVisibleMenu(false)}>
+              <ClearIcon />
+            </CloseButton>
+          </MenuHeader>
+          <MenuItem onClick={() => setIsFilterModalOpen(true)}>
+            <FilterAlt />
+            필터 설정
+          </MenuItem>
+          <StatsCard>
+            <StatsTitle>의결권 현황</StatsTitle>
+            <StatItem>
+              <StatLabel>주주 수</StatLabel>
+              <StatValue>{excelData?.length || 0}</StatValue>
+            </StatItem>
+            <StatItem>
+              <StatLabel>총 주식수</StatLabel>
+              <StatValue>{totalStocks?.toLocaleString() || 0}</StatValue>
+            </StatItem>
+          </StatsCard>
+          <div style={{ flex: 1 }} />
+          <MenuItem onClick={() => logout()} style={{ color: COLORS.red[600] }}>
+            <LogoutOutlined />
+            로그아웃
+          </MenuItem>
+        </SideMenu>
 
-            {/* 필터 현황 */}
-            <CompletedStocksWrapper>
-              <Font fontSize="13px" margin="0">
-                의결권 현황
-              </Font>
-
-              <div style={{ border: "0.1px solid #000" }}></div>
-
-              <Font fontSize="13px" margin="0">
-                [주주 수] {completedFilterMakerData?.length}
-              </Font>
-
-              <Font fontSize="13px">
-                [총 주식수] {completedFilterMakerData?.sumCompletedStocks}
-              </Font>
-            </CompletedStocksWrapper>
-
-            {/* 필터 모달 */}
-            <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
-              <FilterModalChildren
-                statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
-                companyFilter={companyFilter}
-                setCompanyFilter={setCompanyFilter}
-                setStocks={setStocks}
-                excelDataRefetch={excelDataRefetch}
-                completedFilterMakerDataRefetch={
-                  completedFilterMakerDataRefetch
-                }
-                setIsFilterModalOpen={setIsFilterModalOpen}
-              />
-            </Modal>
-          </>
-        )}
+        <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
+          <FilterModalChildren
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            companyFilter={companyFilter}
+            setCompanyFilter={setCompanyFilter}
+            setStocks={setStocks}
+            excelDataRefetch={excelDataRefetch}
+            setIsFilterModalOpen={setIsFilterModalOpen}
+            cityFilter={cityFilter}
+            setCityFilter={setCityFilter}
+          />
+        </Modal>
       </Map>
     </>
   )
@@ -269,61 +256,133 @@ const SpinnerFrame = styled.div`
   z-index: 100;
 `
 
-const FilterBtn = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  font-size: 13px;
-  font-weight: 700;
-
+const MenuButton = styled.button`
   position: fixed;
-  left: 100px;
-  top: 70px;
-
-  height: 40px;
-  padding: 15px;
-  border: 1px #000 solid;
-  border-radius: 5px;
-  background-color: #fff;
-  z-index: 5;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+  background-color: white;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: ${COLORS.gray[50]};
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
 `
 
-const CompletedStocksWrapper = styled.div`
+const MenuOverlay = styled.div<{ isVisible: boolean }>`
+  display: none;
+`
+
+const SideMenu = styled.div<{ isVisible: boolean }>`
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  width: 320px;
+  height: auto;
+  max-height: calc(100vh - 100px);
+  background: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 24px;
+  border-radius: 16px;
+  opacity: ${(props) => (props.isVisible ? 1 : 0)};
+  visibility: ${(props) => (props.isVisible ? "visible" : "hidden")};
+  transform: translateX(${(props) => (props.isVisible ? "0" : "-20px")});
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 11;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
-
-  position: fixed;
-  left: 20px;
-  top: 120px;
-
-  padding: 10px;
-  border: 1px #000 solid;
-  border-radius: 5px;
-  background-color: #fff;
-  z-index: 5;
-  cursor: pointer;
+  overflow-y: auto;
+  pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
 `
 
-const SignOutBtn = styled.div`
+const MenuHeader = styled.div`
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+`
 
-  font-size: 13px;
-  font-weight: 700;
+const MenuTitle = styled.h2`
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+`
 
-  position: fixed;
-  left: 20px;
-  top: 70px;
-
-  height: 40px;
-  padding: 10px;
-  border: 1px #000 solid;
-  border-radius: 5px;
-  background-color: #fff;
-  z-index: 5;
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  color: ${COLORS.gray[500]};
   cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.gray[100]};
+    color: ${COLORS.gray[700]};
+  }
+`
+
+const MenuItem = styled.div`
+  padding: 0px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: ${COLORS.gray[700]};
+  margin-bottom: 4px;
+
+  &:hover {
+    background: ${COLORS.gray[50]};
+    color: ${COLORS.gray[900]};
+  }
+
+  svg {
+    font-size: 20px;
+  }
+`
+
+const StatsCard = styled.div`
+  background: ${COLORS.blue[50]};
+  border-radius: 12px;
+  padding: 20px;
+  margin: 12px 0;
+`
+
+const StatsTitle = styled.h3`
+  font-size: 0.875rem;
+  color: ${COLORS.blue[700]};
+  margin-bottom: 16px;
+  font-weight: 600;
+`
+
+const StatItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`
+
+const StatLabel = styled.span`
+  color: ${COLORS.gray[600]};
+  font-size: 0.875rem;
+`
+
+const StatValue = styled.span`
+  color: ${COLORS.gray[900]};
+  font-weight: 600;
+  font-size: 0.875rem;
 `

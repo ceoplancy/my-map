@@ -3,164 +3,292 @@ import { useGetFilterMenu } from "@/api/supabase"
 import Font from "@/component/font"
 import Button from "@/component/button"
 import styled from "@emotion/styled"
+import { COLORS } from "@/styles/global-style"
+import { Clear as ClearIcon } from "@mui/icons-material"
+import { Alert } from "@mui/material"
 
 interface FilterModalChildrenProps {
   statusFilter: string[]
   setStatusFilter: Dispatch<SetStateAction<string[]>>
   companyFilter: string[]
   setCompanyFilter: Dispatch<SetStateAction<string[]>>
+  cityFilter: string
+  setCityFilter: Dispatch<SetStateAction<string>>
   setStocks: Dispatch<SetStateAction<{ start: number; end: number }>>
   excelDataRefetch: () => void
-  completedFilterMakerDataRefetch: () => void
   setIsFilterModalOpen: Dispatch<SetStateAction<boolean>>
 }
 
+const MAJOR_CITIES = [
+  "서울",
+  "경기",
+  "인천",
+  "부산",
+  "대전",
+  "광주",
+  "울산",
+  "세종",
+  "강원",
+  "충청",
+  "대구",
+  "전라",
+  "경상",
+  "제주",
+]
+
 const FilterModalChildren = ({
-  statusFilter, // status 선택 상태
-  setStatusFilter, // status setState
-  companyFilter, // company 선택 상태
-  setCompanyFilter, // company setState
-  setStocks, // stocs setState
-  excelDataRefetch, // 엑셀 데이터 refetch
-  completedFilterMakerDataRefetch, // 필터 완료된 데이터 refetch
-  setIsFilterModalOpen, // 모달 열기/닫기 상태
+  statusFilter,
+  setStatusFilter,
+  companyFilter,
+  setCompanyFilter,
+  cityFilter,
+  setCityFilter,
+  setStocks,
+  excelDataRefetch,
+  setIsFilterModalOpen,
 }: FilterModalChildrenProps) => {
   const { data: filterMenu } = useGetFilterMenu()
 
   return (
-    <>
-      <Font fontSize="16px" margin="0 0 1.5rem 0">
-        상태
-      </Font>
+    <FilterContainer>
+      <ModalHeader>
+        <ModalTitle>필터 설정</ModalTitle>
+        <CloseButton onClick={() => setIsFilterModalOpen(false)}>
+          <ClearIcon />
+        </CloseButton>
+      </ModalHeader>
 
-      <FilterWrapper>
-        {filterMenu?.statusMenu?.map((x) => {
-          const isExist = statusFilter?.find((y) => y === x) || false
+      <FilterSection>
+        <SectionTitle>지역(문자가 포함된 주소)</SectionTitle>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          현재 지도에서 보고 있는 지역을 기준으로 필터링됩니다(서울을 보고
+          있는데 부산으로 필터링되면 '부산'이 포함된 서울 지역만 필터링됩니다).
+        </Alert>
+        <ChipsWrapper>
+          {MAJOR_CITIES.map((city) => {
+            const isSelected = cityFilter?.includes(city)
 
-          if (!x) return null
+            return (
+              <FilterChip
+                key={city}
+                isSelected={isSelected}
+                onClick={() => {
+                  setCityFilter(city)
+                }}>
+                {city}
+              </FilterChip>
+            )
+          })}
+        </ChipsWrapper>
+      </FilterSection>
 
-          return (
-            <li key={x}>
-              <FilterLabel>
-                <input
-                  type="checkbox"
-                  id={`status${x}`}
-                  name={`status${x}`}
-                  onChange={() => {
-                    if (isExist) {
-                      setStatusFilter(() => statusFilter.filter((k) => k !== x))
-                    } else {
-                      setStatusFilter((prev) => [...prev, x])
-                    }
-                  }}
-                  checked={!!isExist}
-                />
+      <FilterSection>
+        <SectionTitle>상태</SectionTitle>
+        <ChipsWrapper>
+          {filterMenu?.statusMenu?.map((x) => {
+            if (!x) return null
+            const isSelected = statusFilter?.includes(x)
 
+            return (
+              <FilterChip
+                key={x}
+                isSelected={isSelected}
+                onClick={() => {
+                  if (isSelected) {
+                    setStatusFilter(statusFilter.filter((k) => k !== x))
+                  } else {
+                    setStatusFilter([...statusFilter, x])
+                  }
+                }}>
                 {x}
-              </FilterLabel>
-            </li>
-          )
-        })}
-      </FilterWrapper>
+              </FilterChip>
+            )
+          })}
+        </ChipsWrapper>
+      </FilterSection>
 
-      <Font fontSize="16px" margin="3.5rem 0 1.5rem 0">
-        회사
-      </Font>
+      <FilterSection>
+        <SectionTitle>회사명(구분1)</SectionTitle>
+        <ChipsWrapper>
+          {filterMenu?.companyMenu?.map((x) => {
+            if (!x) return null
+            const isSelected = companyFilter?.includes(x)
 
-      <FilterWrapper>
-        {filterMenu?.companyMenu?.map((x) => {
-          const isExist = companyFilter?.find((y) => y === x) || false
-
-          if (!x) return null
-
-          return (
-            <li key={x}>
-              <FilterLabel htmlFor={`company${x}`}>
-                <input
-                  type="checkbox"
-                  id={`company${x}`}
-                  name={`company${x}`}
-                  onChange={() => {
-                    if (isExist) {
-                      setCompanyFilter(() =>
-                        companyFilter.filter((k) => k !== x),
-                      )
-                    } else {
-                      setCompanyFilter((prev) => [...prev, x])
-                    }
-                  }}
-                  checked={!!isExist}
-                />
+            return (
+              <FilterChip
+                key={x}
+                isSelected={isSelected}
+                onClick={() => {
+                  if (isSelected) {
+                    setCompanyFilter(companyFilter.filter((k) => k !== x))
+                  } else {
+                    setCompanyFilter([...companyFilter, x])
+                  }
+                }}>
                 {x}
-              </FilterLabel>
-            </li>
-          )
-        })}
-      </FilterWrapper>
+              </FilterChip>
+            )
+          })}
+        </ChipsWrapper>
+      </FilterSection>
 
-      <Font fontSize="16px" margin="3.5rem 0 1.5rem 0">
-        주식수
-      </Font>
-
-      <FilterWrapper>
-        <input
-          type="number"
-          onChange={(e) => {
-            setStocks((prev) => {
-              return {
+      <FilterSection>
+        <SectionTitle>주식수</SectionTitle>
+        <StockInputWrapper>
+          <StockInput
+            type="number"
+            placeholder="최소 주식수"
+            onChange={(e) => {
+              setStocks((prev) => ({
                 ...prev,
                 start: Number(e.target.value),
-              }
-            })
-          }}
-        />
-
-        <Font fontSize="14px">~</Font>
-
-        <input
-          type="number"
-          onChange={(e) => {
-            setStocks((prev) => {
-              return {
+              }))
+            }}
+          />
+          <StockDivider>~</StockDivider>
+          <StockInput
+            type="number"
+            placeholder="최대 주식수"
+            onChange={(e) => {
+              setStocks((prev) => ({
                 ...prev,
                 end: Number(e.target.value),
-              }
-            })
-          }}
-        />
-      </FilterWrapper>
+              }))
+            }}
+          />
+        </StockInputWrapper>
+      </FilterSection>
 
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <Button
-          fontSize="16px"
-          backgroundColor="#5599FF"
-          border="1px solid #5599FF"
-          borderRadius="5px"
-          color="#fff"
-          margin="3rem 0 0 0"
-          cursor="pointer"
-          onClick={() => {
-            excelDataRefetch()
-            completedFilterMakerDataRefetch()
-            setIsFilterModalOpen(false)
-          }}>
-          확인
-        </Button>
-      </div>
-    </>
+      <ActionButton
+        onClick={() => {
+          excelDataRefetch()
+          setIsFilterModalOpen(false)
+        }}>
+        필터 적용하기
+      </ActionButton>
+    </FilterContainer>
   )
 }
 
-export default FilterModalChildren
-
-const FilterWrapper = styled.ul`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+const FilterContainer = styled.div`
+  padding: 24px;
+  max-width: 90vw;
+  position: relative;
 `
 
-const FilterLabel = styled.label`
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+`
+
+const ModalTitle = styled.h2`
+  font-size: 20px;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+`
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  color: ${COLORS.gray[500]};
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.gray[100]};
+    color: ${COLORS.gray[700]};
+  }
+
+  svg {
+    font-size: 20px;
+  }
+`
+
+const FilterSection = styled.div`
+  margin-bottom: 32px;
+`
+
+const SectionTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+  margin-bottom: 4px;
+`
+
+const ChipsWrapper = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`
+
+const FilterChip = styled.button<{ isSelected: boolean }>`
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid
+    ${(props) => (props.isSelected ? COLORS.blue[500] : COLORS.gray[200])};
+  background: ${(props) => (props.isSelected ? COLORS.blue[50] : "white")};
+  color: ${(props) => (props.isSelected ? COLORS.blue[700] : COLORS.gray[700])};
   font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${(props) =>
+      props.isSelected ? COLORS.blue[100] : COLORS.gray[50]};
+  }
 `
+
+const StockInputWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`
+
+const StockInput = styled.input`
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: ${COLORS.blue[500]};
+    box-shadow: 0 0 0 2px ${COLORS.blue[100]};
+  }
+
+  &::placeholder {
+    color: ${COLORS.gray[400]};
+  }
+`
+
+const StockDivider = styled.span`
+  color: ${COLORS.gray[400]};
+`
+
+const ActionButton = styled.button`
+  width: 100%;
+  padding: 14px;
+  background: ${COLORS.blue[500]};
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.blue[600]};
+  }
+`
+
+export default FilterModalChildren

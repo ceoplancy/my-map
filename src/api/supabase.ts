@@ -21,6 +21,10 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
     query = query.in("company", params.company)
   }
 
+  if (params?.city && params.city.length > 0) {
+    query = query.like("address", `%${params.city}%`)
+  }
+
   if (params?.startStocks && params.startStocks > 0) {
     query = query.gte("stocks", params.startStocks)
   }
@@ -180,6 +184,10 @@ const getCompletedFilterMaker = async (mapLevel = 14, params: FilterParams) => {
 
   if (params.company && params.company.length > 0) {
     query = query.in("company", params.company)
+  }
+
+  if (params.city && params.city.length > 0) {
+    query = query.like("address", `%${params.city}%`)
   }
 
   if (params.startStocks && params.startStocks > 0) {

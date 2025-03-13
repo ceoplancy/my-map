@@ -9,6 +9,7 @@ export type FilterParams = {
     sw: { lat: number; lng: number }
     ne: { lat: number; lng: number }
   }
+  city?: string
 }
 
 export type CoordinateRanges = {

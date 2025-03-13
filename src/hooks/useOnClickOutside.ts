@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, RefObject } from "react"
 
 /* modal 이외의 곳 클릭 시 모달이 닫히게 하기 위한 hook
   inRef: modal 안을 클릭했을 때 모달이 닫히지 않게 하기 위한 ref입니다.
@@ -6,13 +6,25 @@ import { useEffect } from "react"
   handler: () => setModalOpen(false) - 모달이 닫히게 하는 함수
 */
 
-export default function useOnClickOutside({ inRef, exceptRef, handler }) {
+interface UseOnClickOutsideProps {
+  inRef: RefObject<HTMLElement>
+  exceptRef?: RefObject<HTMLElement>
+  handler: () => void
+}
+
+export default function useOnClickOutside({
+  inRef,
+  exceptRef,
+  handler,
+}: UseOnClickOutsideProps) {
   useEffect(() => {
-    const listener = (event) => {
+    const listener = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node
+
       if (
         !inRef?.current ||
-        inRef?.current?.contains(event.target) ||
-        exceptRef?.current?.contains(event.target)
+        inRef.current.contains(target) ||
+        exceptRef?.current?.contains(target)
       ) {
         return
       }
