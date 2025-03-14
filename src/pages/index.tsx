@@ -108,7 +108,6 @@ const Home = () => {
 
   const handleDragEnd = useCallback(
     (target: kakao.maps.Map) => {
-      console.info(target)
       debouncedMapUpdate(target)
     },
     [debouncedMapUpdate],

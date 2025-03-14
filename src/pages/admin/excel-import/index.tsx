@@ -265,8 +265,6 @@ const ExcelImport = () => {
 
       const result = await handleGeocoding(geocoder, editedData)
 
-      console.log({ result, editedData })
-
       if (result.success && result.data) {
         // 성공한 경우 DB에 저장
         await supabase.from("excel").insert([result.data]).select()
