@@ -1,44 +1,74 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import GlobalStyle from "@/styles/global-style"
 import Head from "next/head"
 import { Hydrate, QueryClient, QueryClientProvider } from "react-query"
 import { ReactQueryDevtools } from "react-query/devtools"
 import { RecoilRoot } from "recoil"
+import { ErrorBoundary } from "react-error-boundary"
 
 import usePageLoading from "@/hooks/usePageLoading"
 import GlobalSpinner from "@/component/global-spinner"
 
-import isPropValid from "@emotion/is-prop-valid"
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
+import { ErrorFallback } from "@/components/error-boundary"
 
 declare global {
   interface Window {
-    kakao: any
-    kakaoMapsLoaded: boolean
+    kakao: {
+      maps: {
+        services: {
+          Geocoder: new () => any
+          Places: new () => any
+          Status: any
+        }
+        load: () => void
+      }
+    }
+    kakaoMapsLoaded?: boolean
   }
 }
 
-const App = ({
-  Component,
-  pageProps,
-}: {
+// 타입 정의 개선
+type AppProps = {
   Component: React.ComponentType
-  pageProps: any
-}) => {
-  const [queryClient] = useState(() => new QueryClient())
+  pageProps: Record<string, unknown>
+}
+
+// QueryClient 설정 분리
+const queryClientOptions = {
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 300000, // 5분
+    },
+  },
+}
+
+const App = ({ Component, pageProps }: AppProps) => {
+  const [queryClient] = useState(() => new QueryClient(queryClientOptions))
   const loading = usePageLoading()
   const [mapLoaded, setMapLoaded] = useState(false)
 
-  useEffect(() => {
-    if (window.kakao && !mapLoaded) {
+  // 카카오맵 로딩 로직 분리 및 에러 처리 개선
+  const initializeKakaoMap = useCallback(() => {
+    if (!window.kakao || mapLoaded) return
+
+    try {
       window.kakao.maps.load(() => {
         console.info("Kakao Maps API loaded successfully")
         setMapLoaded(true)
         window.kakaoMapsLoaded = true
       })
+    } catch (error) {
+      console.error("Failed to initialize Kakao Maps:", error)
     }
   }, [mapLoaded])
+
+  useEffect(() => {
+    initializeKakaoMap()
+  }, [initializeKakaoMap])
 
   return (
     <>
@@ -103,38 +133,36 @@ const App = ({
       <QueryClientProvider client={queryClient}>
         <Hydrate state={pageProps.dehydratedState}>
           <RecoilRoot>
-            {loading ? (
-              <GlobalSpinner
-                width={18}
-                height={18}
-                marginRight={18}
-                dotColor="#8536FF"
+            <ErrorBoundary fallback={<ErrorFallback />}>
+              {loading ? (
+                <GlobalSpinner
+                  width={18}
+                  height={18}
+                  marginRight={18}
+                  dotColor="#8536FF"
+                />
+              ) : (
+                <Component {...pageProps} />
+              )}
+              <ToastContainer
+                position="top-center"
+                limit={3}
+                autoClose={3000}
               />
-            ) : (
-              <Component {...pageProps} />
-            )}
-            <ToastContainer position="top-center" />
-            <div id="portal" />
+              <div id="portal" />
+            </ErrorBoundary>
           </RecoilRoot>
         </Hydrate>
-
-        <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+        {process.env.NODE_ENV === "development" && (
+          <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+        )}
       </QueryClientProvider>
 
       <Script
-        strategy="beforeInteractive"
+        strategy="afterInteractive"
         src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_APP_KEY}&libraries=services&autoload=false`}
-        onLoad={() => {
-          try {
-            window.kakao.maps.load(() => {
-              console.info("Initial Kakao Maps load")
-              window.kakaoMapsLoaded = true
-              setMapLoaded(true)
-            })
-          } catch (error) {
-            console.error("Kakao Maps load error:", error)
-          }
-        }}
+        onError={(e) => console.error("Kakao Maps script load error:", e)}
+        onLoad={initializeKakaoMap}
       />
     </>
   )

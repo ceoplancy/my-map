@@ -1,11 +1,11 @@
+import { useQuery, useMutation, useQueryClient } from "react-query"
+import { toast } from "react-toastify"
+
 import supabase from "@/lib/supabase/supabaseClient"
 import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
-import { useQuery, useMutation, useQueryClient } from "react-query"
-import { format } from "date-fns"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
 import { Excel } from "@/types/excel"
-import { toast } from "react-toastify"
 
 // =======================================
 // ============== get 엑셀 데이터 ===============
@@ -51,7 +51,6 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 }
 
 export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
-  // Create a query key that includes all relevant parameters
   const queryKey = ["excel"]
 
   return useQuery(queryKey, () => getExcel(mapLevel, params), {
@@ -59,7 +58,8 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     enabled: true,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 60000, // 1분 동안 캐시된 데이터 사용
+    cacheTime: 300000, // 5분 동안 캐시 유지
     onError: () => {
       toast.error(
         "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
@@ -71,7 +71,7 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
 // =========================================
 // ============== patch 마커 정보 업데이트 ============
 // =========================================
-const patchExcel = async (excelId: number, patchData: Excel) => {
+const updateExcel = async (excelId: number, patchData: Excel) => {
   const { error } = await supabase
     .from("excel")
     .update(patchData)
@@ -86,12 +86,10 @@ export const usePatchExcel = () => {
 
   return useMutation(
     ({ id, patchData }: { id: number; patchData: Excel }) =>
-      patchExcel(id, patchData),
+      updateExcel(id, patchData),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(["excel"])
-        queryClient.invalidateQueries(["filterMenu"])
-        queryClient.invalidateQueries(["completedStocks"])
       },
       onError: () => {
         toast.error(

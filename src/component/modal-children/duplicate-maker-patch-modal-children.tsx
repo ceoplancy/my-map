@@ -112,7 +112,6 @@ const DuplicateMakerPatchModalChildren = ({
                   `${userId} ${format(new Date(), "yyyy/MM/dd/ HH:mm:ss")}`,
                 ],
               }
-              console.info(updated)
               duplicateMakerDataMutate({
                 id: duplicateMakerDataState.id,
                 patchData: updated,

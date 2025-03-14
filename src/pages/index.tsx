@@ -1,42 +1,28 @@
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { Map, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
-import SearchAddressBounds from "@/component/search-address-bounds"
-import { useGetExcel, useGetCompletedFilterMaker } from "@/api/supabase"
-import { useGetUserData, usePostSignOut } from "@/api/auth"
-import Font from "@/component/font"
-import Modal from "@/component/modal"
-import GlobalSpinner from "@/component/global-spinner"
-import styled from "@emotion/styled"
-import FilterModalChildren from "@/component/modal-children/filter-modal-children"
-
 import { useRouter } from "next/router"
-import supabase from "@/lib/supabase/supabaseClient"
-import Image from "next/image"
-import MultipleMapMaker from "@/component/multiple-map-maker"
 import { debounce } from "lodash"
 import {
   Menu,
   Settings,
-  Search as SearchIcon,
   FilterAlt,
   LogoutOutlined,
   Clear as ClearIcon,
 } from "@mui/icons-material"
-import { COLORS } from "@/styles/global-style"
 
-interface SearchAddressType {
-  keyWord: string
-  lat: number
-  lng: number
-}
+import { useGetExcel } from "@/api/supabase"
+import { useGetUserData, usePostSignOut } from "@/api/auth"
+import Modal from "@/component/modal"
+import GlobalSpinner from "@/component/global-spinner"
+import styled from "@emotion/styled"
+import FilterModalChildren from "@/component/modal-children/filter-modal-children"
+import supabase from "@/lib/supabase/supabaseClient"
+import MultipleMapMarker from "@/component/multiple-map-marker"
+import { COLORS } from "@/styles/global-style"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
   ne: { lat: number; lng: number }
-}
-
-interface StyledProps {
-  isVisible: boolean
 }
 
 const Home = () => {
@@ -47,11 +33,6 @@ const Home = () => {
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
   const [mapLevel, setMapLevel] = useState<number>(6)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
-  const [searchAddress, setSearchAddress] = useState<SearchAddressType>({
-    keyWord: "",
-    lat: 0,
-    lng: 0,
-  })
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [companyFilter, setCompanyFilter] = useState<string[]>([])
   const [cityFilter, setCityFilter] = useState<string>("")
@@ -138,20 +119,16 @@ const Home = () => {
   }, [mapBounds, mapLevel, excelDataRefetch])
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "SIGNED_OUT") {
-          router.reload()
-        }
-      },
-    )
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        router.reload()
+      }
+    })
 
     return () => {
       authListener.subscription.unsubscribe()
     }
   }, [router])
-
-  const [isSearchVisible, setIsSearchVisible] = useState<boolean>(false)
 
   if (!excelData || !user?.user.email) return null
 
@@ -182,17 +159,11 @@ const Home = () => {
         onDragEnd={handleDragEnd}>
         <MapTypeControl position={"TOPRIGHT"} />
         <ZoomControl position={"RIGHT"} />
-        <MultipleMapMaker markers={excelData} userId={user.user.email} />
+        <MultipleMapMarker markers={excelData} />
 
         <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
           <Menu />
         </MenuButton>
-
-        <SearchAddressBounds
-          searchAddress={searchAddress}
-          setSearchAddress={setSearchAddress}
-          isVisible={isSearchVisible}
-        />
 
         <MenuOverlay
           isVisible={isVisibleMenu}

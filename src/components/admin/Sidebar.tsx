@@ -1,6 +1,5 @@
 import { COLORS } from "@/styles/global-style"
 import Link from "next/link"
-import { useRouter } from "next/router"
 import styled from "@emotion/styled"
 import {
   Dashboard,
@@ -8,6 +7,8 @@ import {
   Description,
   CloudUpload,
 } from "@mui/icons-material"
+import { usePathname } from "next/navigation"
+import { normalizePathname } from "@/lib/utils"
 
 const SidebarContainer = styled.div`
   width: 16rem;
@@ -36,7 +37,7 @@ const Navigation = styled.nav`
   margin-top: 1.5rem;
 `
 
-const NavLink = styled(Link)<{ $active?: boolean }>`
+const NavLink = styled(Link)`
   display: flex;
   align-items: center;
   padding: 0.75rem 1.5rem;
@@ -48,11 +49,9 @@ const NavLink = styled(Link)<{ $active?: boolean }>`
     background-color: ${COLORS.gray[100]};
   }
 
-  ${(props) =>
-    props.$active &&
-    `
+  &.active {
     background-color: ${COLORS.gray[100]};
-  `}
+  }
 `
 
 const NavIcon = styled.span`
@@ -69,23 +68,24 @@ const NavText = styled.span`
   font-weight: 500;
 `
 
-export default function Sidebar() {
-  const router = useRouter()
+const menuItems = [
+  { title: "대시보드", path: "/admin", icon: <Dashboard /> },
+  { title: "사용자 관리", path: "/admin/users", icon: <People /> },
+  {
+    title: "주주명부 관리",
+    path: "/admin/shareholders",
+    icon: <Description />,
+  },
+  {
+    title: "엑셀 업로드",
+    path: "/admin/excel-import",
+    icon: <CloudUpload />,
+  },
+]
 
-  const menuItems = [
-    { title: "대시보드", path: "/admin", icon: <Dashboard /> },
-    { title: "사용자 관리", path: "/admin/users", icon: <People /> },
-    {
-      title: "주주명부 관리",
-      path: "/admin/shareholders",
-      icon: <Description />,
-    },
-    {
-      title: "엑셀 업로드",
-      path: "/admin/excel-import",
-      icon: <CloudUpload />,
-    },
-  ]
+export default function Sidebar() {
+  const pathname = usePathname()
+  pathname.isWellFormed()
 
   return (
     <SidebarContainer>
@@ -99,7 +99,11 @@ export default function Sidebar() {
           <NavLink
             key={item.path}
             href={item.path}
-            $active={router.pathname === item.path}>
+            className={
+              normalizePathname(pathname) === normalizePathname(item.path)
+                ? "active"
+                : ""
+            }>
             <NavIcon>{item.icon}</NavIcon>
             <NavText>{item.title}</NavText>
           </NavLink>

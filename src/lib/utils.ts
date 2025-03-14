@@ -28,3 +28,8 @@ export const removeTags = (str: string | null) => {
 
   return str.replace(/<\/?[^>]+(>|$)/g, "")
 }
+
+export const normalizePathname = (path: string) => {
+  // 경로가 '/'로 끝나고 루트 경로('/')가 아닌 경우, 마지막 '/'를 제거
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path
+}

@@ -410,7 +410,7 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
         </ModifierInfo>
       </HistoryHeader>
       <HistoryDetails>
-        {history.changes.memo && (
+        {history.changes?.memo && (
           <ChangeItem>
             <FieldName>메모</FieldName>
             <ChangeContent>
@@ -424,7 +424,7 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
             </ChangeContent>
           </ChangeItem>
         )}
-        {history.changes.status && (
+        {history.changes?.status && (
           <ChangeItem>
             <FieldName>상태</FieldName>
             <ChangeContent>

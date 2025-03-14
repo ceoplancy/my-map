@@ -10,7 +10,6 @@ import {
   FilterList,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Clear as ClearIcon,
 } from "@mui/icons-material"
 
 const Container = styled.div`
@@ -380,19 +379,18 @@ export default function UserList() {
                 page === metadata.totalPages ||
                 Math.abs(page - currentPage) <= 2,
             )
-            .map((page, index, array) => (
-              <>
-                {index > 0 && array[index - 1] !== page - 1 && (
-                  <span key={`ellipsis-${page}`}>...</span>
-                )}
+            .map((page, index, array) =>
+              index > 0 && array[index - 1] !== page - 1 ? (
+                <span key={`ellipsis-${page}`}>...</span>
+              ) : (
                 <PageButton
                   key={page}
                   onClick={() => setCurrentPage(page)}
                   isActive={currentPage === page}>
                   {page}
                 </PageButton>
-              </>
-            ))}
+              ),
+            )}
           <PageButton
             onClick={() =>
               setCurrentPage((prev) => Math.min(metadata.totalPages, prev + 1))
@@ -420,6 +418,7 @@ export default function UserList() {
 
 const FilterSelect = styled.select`
   padding: 0.75rem 1rem;
+  padding-right: 2.5rem;
   border: 1px solid ${COLORS.gray[200]};
   border-radius: 0.5rem;
   font-size: 0.875rem;
@@ -427,10 +426,19 @@ const FilterSelect = styled.select`
   min-width: 140px;
   cursor: pointer;
   transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
 
   &:focus {
     outline: none;
     border-color: ${COLORS.blue[500]};
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:hover {
+    border-color: ${COLORS.gray[400]};
   }
 `

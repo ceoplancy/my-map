@@ -1,10 +1,4 @@
-import React, {
-  FormEvent,
-  ChangeEventHandler,
-  useState,
-  useEffect,
-  useRef,
-} from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import {
   Box,
   Button,
@@ -21,7 +15,6 @@ import {
   IconButton,
   Alert,
   Chip,
-  Divider,
   useTheme,
   TextField,
   Dialog,
@@ -30,7 +23,6 @@ import {
   DialogActions,
   Tooltip,
   List,
-  ListItem,
   ListItemText,
   CircularProgress,
   InputAdornment,
@@ -48,42 +40,13 @@ import {
   Search,
   LocationOn,
   Map as MapIcon,
+  Close,
 } from "@mui/icons-material"
 import { Excel } from "@/types/excel"
 import useDebounce from "@/hooks/useDebounce"
 import { FIELD_LABELS } from "../admin/shareholders/EditShareholderModal"
-
-// Excel 타입을 확장하여 인덱스 시그니처 추가
-
-export type SearchResult = {
-  address_name: string
-  road_address_name: string
-  place_name: string
-  x: number
-  y: number
-  address: string
-  road_address: string
-  place: string
-  lat: number
-  lng: number
-}
-
-interface ExcelImportViewProps {
-  fileName: string
-  failCount: number
-  failData: Excel[]
-  loading: boolean
-  progress: { current: number; total: number }
-  onFileChange: ChangeEventHandler<HTMLInputElement>
-  onClearFileName: () => void
-  onSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>
-  onExport: (data: Excel[]) => void
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void
-  onDragEnter: (e: React.DragEvent<HTMLDivElement>) => void
-  onEditFailedData: (editedData: Excel) => Promise<void>
-  onRetryAllFailedData: () => Promise<void>
-}
+import { BATCH_SIZE } from "@/pages/admin/excel-import"
+import { ExcelImportViewProps, SearchResult } from "./types"
 
 export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   fileName,
@@ -128,6 +91,45 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   // 페이지네이션 관련 상태 추가
   const [page, setPage] = useState(0)
   const [rowsPerPage] = useState(20)
+
+  // 예상 소요 시간 관련 상태 추가
+  const [remainingTime, setRemainingTime] = useState<number>(0)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 부드러운 프로그레스를 위한 상태 추가
+  const [smoothProgress, setSmoothProgress] = useState(0)
+  const progressAnimationRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 프로그레스 바 애니메이션 효과
+  useEffect(() => {
+    if (loading && progress.current > 0) {
+      const targetProgress = (progress.current / progress.total) * 100
+      const step = 100 / progress.total / 1.34
+
+      if (progressAnimationRef.current) {
+        clearInterval(progressAnimationRef.current)
+      }
+
+      progressAnimationRef.current = setInterval(() => {
+        setSmoothProgress((prev) => {
+          const next = Math.min(prev + step, targetProgress)
+          if (next >= targetProgress && progressAnimationRef.current) {
+            clearInterval(progressAnimationRef.current)
+          }
+
+          return next
+        })
+      }, 50) // 50ms 간격으로 업데이트
+
+      return () => {
+        if (progressAnimationRef.current) {
+          clearInterval(progressAnimationRef.current)
+        }
+      }
+    } else if (!loading) {
+      setSmoothProgress(0)
+    }
+  }, [loading, progress])
 
   // 지도 초기화 함수
   const initializeMap = (lat?: number, lng?: number) => {
@@ -193,7 +195,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         }
       }, 300)
     }
-  }, [mapVisible])
+  }, [mapVisible, selectedLocation, currentEditData, editDialogOpen])
 
   // 다이얼로그 열릴 때 지도 초기화 - 수정
   useEffect(() => {
@@ -210,7 +212,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         }
       }, 300) // 지연 시간 증가
     }
-  }, [editDialogOpen, mapVisible])
+  }, [editDialogOpen, mapVisible, currentEditData, selectedLocation])
 
   // 디바운스된 검색어 변경 시 주소 검색
   useEffect(() => {
@@ -291,7 +293,6 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
 
   // 편집 다이얼로그 열기 함수
   const handleEditClick = (rowData: Excel) => {
-    console.info(rowData)
     setCurrentEditData(rowData)
 
     // 모든 필드를 포함하는 초기 값 설정
@@ -389,6 +390,48 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
       }
     }
   }
+
+  // 예상 소요 시간 계산 및 타이머 설정
+  useEffect(() => {
+    if (loading && progress.current > 0) {
+      // 초기 예상 시간 계산 (초 단위)
+      const initialTime =
+        Math.round((progress.total - progress.current) / BATCH_SIZE) * 3.4
+      setRemainingTime(initialTime)
+
+      // 이전 타이머 정리
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+
+      // 0.1초마다 업데이트
+      timerRef.current = setInterval(() => {
+        setRemainingTime((prev) => {
+          const newTime = Math.max(0, prev - 0.1)
+          if (newTime === 0 && timerRef.current) {
+            clearInterval(timerRef.current)
+          }
+
+          return newTime
+        })
+      }, 100)
+
+      // 컴포넌트 언마운트 또는 로딩 완료 시 타이머 정리
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+      }
+    }
+  }, [loading, progress.current, progress.total])
+
+  // 시간 포맷팅 함수
+  const formatTime = useCallback((time: number) => {
+    const minutes = Math.floor(time / 60)
+    const seconds = (time % 60).toFixed(1)
+
+    return minutes > 0 ? `${minutes}분 ${seconds}초` : `${seconds}초`
+  }, [])
 
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
@@ -520,25 +563,121 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
 
         {loading && (
           <Box sx={{ mt: 4 }}>
+            {/* 전체 진행 상황 */}
+            <Box sx={{ mb: 4 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                }}>
+                <Box>
+                  <Typography variant="h6" fontWeight="600" color="primary">
+                    전체 진행률:{" "}
+                    {Math.round((progress.current / progress.total) * 100)}%
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}>
+                    {progress.current.toLocaleString()} /{" "}
+                    {progress.total.toLocaleString()} 건
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <CircularProgress
+                    size={20}
+                    thickness={5}
+                    sx={{ mr: 1, color: theme.palette.primary.light }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {progress.current > 0
+                      ? `예상 소요 시간: ${formatTime(remainingTime)}`
+                      : "예상 소요 시간: "}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ position: "relative", height: "12px" }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={smoothProgress}
+                  sx={{
+                    height: "100%",
+                    borderRadius: "8px",
+                    backgroundColor: theme.palette.grey[100],
+                    "& .MuiLinearProgress-bar": {
+                      borderRadius: "8px",
+                      background: `linear-gradient(90deg, 
+                        ${theme.palette.primary.light} 0%, 
+                        ${theme.palette.primary.main} 50%, 
+                        ${theme.palette.primary.dark} 100%)`,
+                      transition: "transform 0.05s linear", // 부드러운 움직임을 위한 트랜지션
+                    },
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `linear-gradient(
+                      90deg,
+                      transparent 0%,
+                      rgba(255, 255, 255, 0.3) 50%,
+                      transparent 100%
+                    )`,
+                    animation: "shine 1.5s infinite linear",
+                    "@keyframes shine": {
+                      "0%": { transform: "translateX(-100%)" },
+                      "100%": { transform: "translateX(100%)" },
+                    },
+                    opacity: 0.8,
+                  }}
+                />
+              </Box>
+
+              {/* 현재 진행 상태 표시 */}
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  textAlign: "right",
+                  mt: 1,
+                  color: "text.secondary",
+                }}>
+                {smoothProgress.toFixed(1)}%
+              </Typography>
+            </Box>
+
             <Box
               sx={{
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                mb: 1,
+                justifyContent: "center",
+                gap: 1,
+                mt: 3,
+                p: 1,
+                borderRadius: 1,
+                backgroundColor: "rgba(0, 0, 0, 0.02)",
               }}>
-              <Typography variant="body2" color="textSecondary">
-                변환 진행 중...
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {progress.current} / {progress.total}
+              <CircularProgress
+                size={16}
+                thickness={6}
+                sx={{ color: theme.palette.warning.light }}
+              />
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  fontStyle: "italic",
+                }}>
+                데이터 처리 중입니다. 브라우저를 닫지 마세요.
               </Typography>
             </Box>
-            <LinearProgress
-              variant="determinate"
-              value={(progress.current / progress.total) * 100}
-              sx={{ height: 8, borderRadius: 4 }}
-            />
           </Box>
         )}
       </Paper>
@@ -549,10 +688,28 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         onClose={handleEditDialogClose}
         maxWidth="lg"
         fullWidth>
-        <DialogTitle>
-          <Typography variant="h6" fontWeight="bold">
+        <DialogTitle
+          sx={{
+            m: 0,
+            p: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}>
+          <Typography variant="h6" component="div" fontWeight="bold">
             주소 데이터 수정
           </Typography>
+          <IconButton
+            aria-label="close"
+            onClick={handleEditDialogClose}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}>
+            <Close />
+          </IconButton>
         </DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" color="text.secondary" paragraph>

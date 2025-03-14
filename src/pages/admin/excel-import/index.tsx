@@ -62,6 +62,8 @@ const ActionButton = styled.button`
   }
 `
 
+export const BATCH_SIZE = 50
+
 const ExcelImport = () => {
   const {
     failData,
@@ -79,7 +81,7 @@ const ExcelImport = () => {
   } = useExcelImport()
 
   const { waitForKakaoMaps } = useKakaoMaps()
-  const router = useRouter()
+
   const [processingItem, setProcessingItem] = useState<number | null>(null)
 
   const handleFile: ChangeEventHandler<HTMLInputElement> = (e) => {
@@ -179,7 +181,11 @@ const ExcelImport = () => {
     geocoder: any,
   ): Promise<Excel[]> => {
     const results = await Promise.all(
-      excels.map((excel) => handleGeocoding(geocoder, excel)),
+      excels.map(async (excel) => {
+        const result = await handleGeocoding(geocoder, excel)
+
+        return result
+      }),
     )
 
     return results
@@ -204,19 +210,30 @@ const ExcelImport = () => {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const data = XLSX.utils.sheet_to_json(worksheet)
 
+      const totalRows = data.length
+
+      setProgress({ current: 0, total: totalRows })
+
       const geocoder = new window.kakao.maps.services.Geocoder()
-      const batchSize = 10
-      const totalBatches = Math.ceil(data.length / batchSize)
-      setProgress({ current: 0, total: totalBatches })
+      const totalBatches = Math.ceil(totalRows / BATCH_SIZE)
 
       let allResults: Excel[] = []
+      let processedRows = 0
+
       for (let i = 0; i < totalBatches; i++) {
-        const batch = data.slice(i * batchSize, (i + 1) * batchSize) as Excel[]
+        const batch = data.slice(
+          i * BATCH_SIZE,
+          (i + 1) * BATCH_SIZE,
+        ) as Excel[]
         const batchResults = await processBatch(batch, geocoder)
         allResults = [...allResults, ...batchResults]
 
-        setProgress((prev) => ({ ...prev, current: i + 1 }))
-        if (i < totalBatches - 1) await new Promise((r) => setTimeout(r, 3000))
+        processedRows += batch.length
+        setProgress((prev) => ({ ...prev, current: processedRows }))
+
+        if (i < totalBatches - 1) {
+          await new Promise((r) => setTimeout(r, 3000))
+        }
       }
 
       if (allResults.length > 0) {
@@ -226,7 +243,7 @@ const ExcelImport = () => {
         )
       }
 
-      if (allResults.length !== data.length) {
+      if (allResults.length !== totalRows) {
         toast.warning(
           "일부 주소 변환에 실패했습니다. 실패한 주소는 아래 목록에서 확인할 수 있습니다.",
         )

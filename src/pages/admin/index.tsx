@@ -311,8 +311,9 @@ export default function AdminDashboard() {
         <StatCard variant="purple">
           <StatTitle>관리자 수</StatTitle>
           <StatValue>
-            {users.users.filter((user) => user.user_metadata?.role === "admin")
-              .length || 0}
+            {users.users.filter((user) =>
+              String(user.user_metadata?.role).includes("admin"),
+            ).length || 0}
           </StatValue>
         </StatCard>
       </StatsGrid>
@@ -341,8 +342,11 @@ export default function AdminDashboard() {
                     </UserDate>
                   </UserDetails>
                 </UserInfo>
-                <UserRole isAdmin={user.user_metadata?.role === "admin"}>
-                  {user.user_metadata?.role === "admin" ? "관리자" : "사용자"}
+                <UserRole
+                  isAdmin={String(user.user_metadata?.role).includes("admin")}>
+                  {String(user.user_metadata?.role).includes("admin")
+                    ? "관리자"
+                    : "사용자"}
                 </UserRole>
               </UserItem>
             ))}

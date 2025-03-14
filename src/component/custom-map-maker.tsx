@@ -14,10 +14,9 @@ import { COLORS } from "@/styles/global-style"
 
 interface CustomMapMakerProps {
   marker: Excel
-  userId: string
 }
 
-const CustomMapMaker = ({ marker, userId }: CustomMapMakerProps) => {
+const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
   // 인포윈도우
   const [isOpen, setIsOpen] = useState(false)
   // 마커 업데이트 모달
