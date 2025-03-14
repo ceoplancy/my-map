@@ -1,5 +1,5 @@
 import { usePatchExcel } from "@/api/supabase"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
@@ -31,6 +31,13 @@ const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
     navigator.clipboard.writeText(marker.address ?? "")
     toast.success("주소가 클립보드에 복사되었습니다")
   }
+
+  useEffect(() => {
+    return () => {
+      setIsOpen(false)
+      setMakerDataUpdateIsModalOpen(false)
+    }
+  }, [])
 
   return (
     <Frame>
@@ -80,9 +87,7 @@ const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
                 </CloseButton>
               </InfoWindowHeader>
 
-              <InfoWindowContent>
-                <ExcelDataTable data={marker} />
-              </InfoWindowContent>
+              <ExcelDataTable data={marker} />
 
               <InfoWindowFooter>
                 <ActionButton variant="success" onClick={handleAddressCopy}>
@@ -121,10 +126,10 @@ const Frame = styled.div``
 
 const InfoWindowContainer = styled.div`
   min-width: 280px;
+  height: 100%;
   background: white;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
   user-select: none;
   backdrop-filter: blur(8px);
   border: 1px solid ${COLORS.gray[100]};
@@ -200,10 +205,10 @@ const CloseButton = styled.button`
 `
 
 const InfoWindowContent = styled.div`
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
   padding: 0;
   scroll-behavior: smooth;
+  max-height: 300px;
+  overflow-y: auto;
 
   &::-webkit-scrollbar {
     width: 6px;

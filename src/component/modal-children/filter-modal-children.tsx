@@ -172,8 +172,9 @@ const FilterModalChildren = ({
 
 const FilterContainer = styled.div`
   padding: 24px;
-  max-width: 90vw;
   position: relative;
+  height: 100%;
+  overflow-y: auto;
 `
 
 const ModalHeader = styled.div`
@@ -249,16 +250,28 @@ const StockInputWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    gap: 8px;
+  }
 `
 
 const StockInput = styled.input`
   flex: 1;
+  min-width: 120px;
+  max-width: calc(50% - 20px);
   padding: 12px 16px;
   border-radius: 8px;
   border: 1px solid ${COLORS.gray[200]};
   font-size: 14px;
   outline: none;
   transition: all 0.2s ease;
+
+  @media (max-width: 480px) {
+    max-width: 100%;
+    padding: 10px 12px;
+  }
 
   &:focus {
     border-color: ${COLORS.blue[500]};
@@ -272,6 +285,11 @@ const StockInput = styled.input`
 
 const StockDivider = styled.span`
   color: ${COLORS.gray[400]};
+
+  @media (max-width: 480px) {
+    width: 100%;
+    text-align: center;
+  }
 `
 
 const ActionButton = styled.button`

@@ -97,6 +97,7 @@ const Home = () => {
   const handleZoomChange = useCallback(
     (target: kakao.maps.Map) => {
       const currentLevel = target.getLevel()
+
       if (mapLevel !== currentLevel) {
         setMapLevel(currentLevel)
         debouncedMapUpdate(target)
@@ -107,6 +108,7 @@ const Home = () => {
 
   const handleDragEnd = useCallback(
     (target: kakao.maps.Map) => {
+      console.info(target)
       debouncedMapUpdate(target)
     },
     [debouncedMapUpdate],
@@ -130,6 +132,20 @@ const Home = () => {
     }
   }, [router])
 
+  useEffect(() => {
+    const setViewHeight = () => {
+      const vh = window.innerHeight * 0.01
+      document.documentElement.style.setProperty("--vh", `${vh}px`)
+    }
+
+    setViewHeight()
+    window.addEventListener("resize", setViewHeight)
+
+    return () => {
+      window.removeEventListener("resize", setViewHeight)
+    }
+  }, [])
+
   if (!excelData || !user?.user.email) return null
 
   return (
@@ -145,82 +161,86 @@ const Home = () => {
         </SpinnerFrame>
       )}
 
-      <Map
-        center={{
-          lat: currCenter.lat,
-          lng: currCenter.lng,
-        }}
-        style={{
-          width: "100%",
-          height: "100vh",
-        }}
-        level={mapLevel}
-        onZoomChanged={handleZoomChange}
-        onDragEnd={handleDragEnd}>
-        <MapTypeControl position={"TOPRIGHT"} />
-        <ZoomControl position={"RIGHT"} />
-        <MultipleMapMarker markers={excelData} />
+      <MapContainer>
+        <Map
+          center={{
+            lat: currCenter.lat,
+            lng: currCenter.lng,
+          }}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
+          level={mapLevel}
+          onZoomChanged={handleZoomChange}
+          onDragEnd={handleDragEnd}>
+          <MapTypeControl position={"TOPRIGHT"} />
+          <ZoomControl position={"RIGHT"} />
+          <MultipleMapMarker markers={excelData} />
 
-        <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
-          <Menu />
-        </MenuButton>
+          <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
+            <Menu />
+          </MenuButton>
 
-        <MenuOverlay
-          isVisible={isVisibleMenu}
-          onClick={() => setIsVisibleMenu(false)}
-        />
-
-        <SideMenu isVisible={isVisibleMenu}>
-          <MenuHeader>
-            <MenuTitle>대시보드</MenuTitle>
-            <CloseButton onClick={() => setIsVisibleMenu(false)}>
-              <ClearIcon />
-            </CloseButton>
-          </MenuHeader>
-          <MenuItem onClick={() => setIsFilterModalOpen(true)}>
-            <FilterAlt />
-            필터 설정
-          </MenuItem>
-          <StatsCard>
-            <StatsTitle>의결권 현황</StatsTitle>
-            <StatItem>
-              <StatLabel>주주 수</StatLabel>
-              <StatValue>{excelData?.length || 0}</StatValue>
-            </StatItem>
-            <StatItem>
-              <StatLabel>총 주식수</StatLabel>
-              <StatValue>{totalStocks?.toLocaleString() || 0}</StatValue>
-            </StatItem>
-          </StatsCard>
-          <div style={{ flex: 1 }} />
-          {isAdmin && (
-            <MenuItem
-              onClick={() => router.push("/admin")}
-              style={{ color: COLORS.purple[700] }}>
-              <Settings />
-              관리자
-            </MenuItem>
-          )}
-          <MenuItem onClick={() => logout()} style={{ color: COLORS.red[600] }}>
-            <LogoutOutlined />
-            로그아웃
-          </MenuItem>
-        </SideMenu>
-
-        <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
-          <FilterModalChildren
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            companyFilter={companyFilter}
-            setCompanyFilter={setCompanyFilter}
-            setStocks={setStocks}
-            excelDataRefetch={excelDataRefetch}
-            setIsFilterModalOpen={setIsFilterModalOpen}
-            cityFilter={cityFilter}
-            setCityFilter={setCityFilter}
+          <MenuOverlay
+            isVisible={isVisibleMenu}
+            onClick={() => setIsVisibleMenu(false)}
           />
-        </Modal>
-      </Map>
+
+          <SideMenu isVisible={isVisibleMenu}>
+            <MenuHeader>
+              <MenuTitle>대시보드</MenuTitle>
+              <CloseButton onClick={() => setIsVisibleMenu(false)}>
+                <ClearIcon />
+              </CloseButton>
+            </MenuHeader>
+            <MenuItem onClick={() => setIsFilterModalOpen(true)}>
+              <FilterAlt />
+              필터 설정
+            </MenuItem>
+            <StatsCard>
+              <StatsTitle>의결권 현황</StatsTitle>
+              <StatItem>
+                <StatLabel>주주 수</StatLabel>
+                <StatValue>{excelData?.length || 0}</StatValue>
+              </StatItem>
+              <StatItem>
+                <StatLabel>총 주식수</StatLabel>
+                <StatValue>{totalStocks?.toLocaleString() || 0}</StatValue>
+              </StatItem>
+            </StatsCard>
+            <div style={{ flex: 1 }} />
+            {isAdmin && (
+              <MenuItem
+                onClick={() => router.push("/admin")}
+                style={{ color: COLORS.purple[700] }}>
+                <Settings />
+                관리자
+              </MenuItem>
+            )}
+            <MenuItem
+              onClick={() => logout()}
+              style={{ color: COLORS.red[600] }}>
+              <LogoutOutlined />
+              로그아웃
+            </MenuItem>
+          </SideMenu>
+
+          <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
+            <FilterModalChildren
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              companyFilter={companyFilter}
+              setCompanyFilter={setCompanyFilter}
+              setStocks={setStocks}
+              excelDataRefetch={excelDataRefetch}
+              setIsFilterModalOpen={setIsFilterModalOpen}
+              cityFilter={cityFilter}
+              setCityFilter={setCityFilter}
+            />
+          </Modal>
+        </Map>
+      </MapContainer>
     </>
   )
 }
@@ -280,6 +300,10 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   flex-direction: column;
   overflow-y: auto;
   pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
+
+  @media (max-width: 768px) {
+    width: 260px;
+  }
 `
 
 const MenuHeader = styled.div`
@@ -366,4 +390,14 @@ const StatValue = styled.span`
   color: ${COLORS.gray[900]};
   font-weight: 600;
   font-size: 0.875rem;
+`
+
+const MapContainer = styled.div`
+  width: 100%;
+  height: 100vh;
+  position: relative;
+
+  @media screen and (max-width: 768px) {
+    height: calc(var(--vh, 1vh) * 100);
+  }
 `

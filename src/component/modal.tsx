@@ -67,6 +67,7 @@ export default Modal
 const Frame = styled.div`
   position: fixed;
   inset: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -150,15 +151,16 @@ const DialogFrame = styled.div<DialogFrameProps>`
   position: fixed;
 
   min-width: 280px;
+  overflow-y: hidden;
+
   background-color: #fff;
   border-radius: 0.5rem;
-  overflow: hidden;
+
   display: flex;
   flex-direction: column;
   transition: all 0.2s ease-in-out;
   box-sizing: border-box;
-  overflow-x: ${(props) => (props.isOverflow ? "auto" : "")};
-  overflow-y: auto;
+
   ${(props) => getPositionStyles(props.position)}
 
   &.slideUp {
@@ -172,11 +174,16 @@ const DialogFrame = styled.div<DialogFrameProps>`
 
   @media (max-width: 1920px) {
     width: 600px;
+    max-height: 80vh;
   }
   @media (max-width: 600px) {
     width: 400px;
+    max-height: 80vh;
   }
   @media (max-width: 450px) {
-    width: 280px;
+    width: 450px;
+    max-height: 100vh;
+    width: 100%;
+    height: 100%;
   }
 `

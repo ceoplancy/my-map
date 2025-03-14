@@ -99,6 +99,10 @@ export default SignIn
 const Container = styled.div`
   display: flex;
   min-height: 100vh;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 `
 
 const LeftSection = styled.div`
@@ -110,12 +114,22 @@ const LeftSection = styled.div`
   align-items: center;
   padding: 4rem;
   color: white;
+
+  @media (max-width: 768px) {
+    flex: 1;
+    padding: 2rem 1rem;
+  }
 `
 
 const AnimationWrapper = styled.div`
   width: 100%;
   max-width: 500px;
   margin-bottom: 3rem;
+
+  @media (max-width: 768px) {
+    max-width: 300px;
+    margin-bottom: 2rem;
+  }
 `
 
 const ContentWrapper = styled.div`
@@ -125,12 +139,21 @@ const ContentWrapper = styled.div`
     font-size: 2.5rem;
     margin-bottom: 1.5rem;
     font-weight: 700;
+
+    @media (max-width: 768px) {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
   }
 
   p {
     font-size: 1.2rem;
     line-height: 1.6;
     opacity: 0.9;
+
+    @media (max-width: 768px) {
+      font-size: 1rem;
+    }
   }
 `
 
@@ -141,11 +164,16 @@ const RightSection = styled.div`
   justify-content: space-between;
   padding: 2rem;
   background-color: #ffffff;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `
 
 const LoginContainer = styled.div`
   margin: 0 auto;
   width: 100%;
+  max-width: 400px;
   height: 100%;
   padding: 2rem;
 
@@ -153,11 +181,23 @@ const LoginContainer = styled.div`
   flex-direction: column;
   justify-content: center;
   align-items: center;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `
 
 const LogoWrapper = styled.div`
   text-align: center;
   margin-bottom: 3rem;
+
+  @media (max-width: 768px) {
+    margin-bottom: 2rem;
+
+    img {
+      max-width: 150px !important;
+    }
+  }
 `
 
 const LoginForm = styled.form`

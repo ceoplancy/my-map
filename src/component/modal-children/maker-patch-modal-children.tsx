@@ -102,21 +102,20 @@ const MakerPatchModalChildren = ({
   })
 
   return (
-    <ModalContainer>
+    <>
       <ModalHeader>
         <HeaderTitle>주주 정보 수정</HeaderTitle>
         <CloseButton onClick={() => setMakerDataUpdateIsModalOpen(false)}>
           <CloseIcon />
         </CloseButton>
       </ModalHeader>
+      <ModalContainer>
+        <ModalContent onSubmit={formik.handleSubmit}>
+          <Section>
+            <SectionTitle>현재 정보</SectionTitle>
+            <ExcelDataTable data={makerData} />
+          </Section>
 
-      <ModalContent>
-        <Section>
-          <SectionTitle>현재 정보</SectionTitle>
-          <ExcelDataTable data={makerData} />
-        </Section>
-
-        <form onSubmit={formik.handleSubmit}>
           <Section>
             <SectionTitle>상태 변경</SectionTitle>
             <SelectWrapper>
@@ -160,18 +159,19 @@ const MakerPatchModalChildren = ({
               취소
             </ActionButton>
           </ButtonGroup>
-        </form>
-      </ModalContent>
-    </ModalContainer>
+        </ModalContent>
+      </ModalContainer>
+    </>
   )
 }
 
 const ModalContainer = styled.div`
-  max-width: 90vw;
   background: white;
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
+  height: 100%;
+  overflow-y: auto;
+
   user-select: none;
   animation: slideUp 0.3s ease-out;
 
@@ -229,10 +229,10 @@ const CloseButton = styled.button`
   }
 `
 
-const ModalContent = styled.div`
+const ModalContent = styled.form`
   padding: 24px;
-  max-height: calc(100vh - 200px);
   overflow-y: auto;
+  height: 100%;
 
   &::-webkit-scrollbar {
     width: 6px;

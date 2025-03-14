@@ -5,7 +5,7 @@ import { ContentCopy, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
 import { nanoid } from "nanoid"
 import { useState } from "react"
-import Modal from "./modal"
+import ModalComponent from "./modal"
 
 // history 데이터 타입 정의 추가
 type HistoryChange = {
@@ -72,47 +72,20 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
           <TableRow>
             <TableHeader>변경이력</TableHeader>
             <TableCell>
-              <HistoryContainer>
-                {Array.isArray(data.history) && data.history.length > 0 && (
-                  <>
-                    <LatestHistoryPreview
-                      history={
-                        data.history[data.history.length - 1] as HistoryItem
-                      }
-                    />
-                    {data.history.length > 1 && (
-                      <ViewMoreButton
-                        onClick={() => setIsHistoryModalOpen(true)}>
-                        이전 기록 보기 ({data.history.length - 1}건)
-                      </ViewMoreButton>
-                    )}
-                  </>
-                )}
-              </HistoryContainer>
+              {Array.isArray(data.history) && data.history.length > 0 && (
+                <HistoryButton
+                  type="button"
+                  onClick={() => setIsHistoryModalOpen(true)}>
+                  변경 이력 보기 ({data.history.length}건)
+                </HistoryButton>
+              )}
 
               {isHistoryModalOpen && (
-                <Modal
+                <HistoryModal
                   open={isHistoryModalOpen}
-                  setOpen={setIsHistoryModalOpen}
-                  position="center">
-                  <HistoryModalContent>
-                    <HistoryModalHeader>
-                      <ModalTitle>변경 이력</ModalTitle>
-                      <CloseButton onClick={() => setIsHistoryModalOpen(false)}>
-                        <Close fontSize="small" />
-                      </CloseButton>
-                    </HistoryModalHeader>
-                    <HistoryList>
-                      {Array.isArray(data.history) &&
-                        data.history.map((history) => (
-                          <HistoryCardItem
-                            key={nanoid()}
-                            history={history as HistoryItem}
-                          />
-                        ))}
-                    </HistoryList>
-                  </HistoryModalContent>
-                </Modal>
+                  onClose={() => setIsHistoryModalOpen(false)}
+                  history={data.history as HistoryItem[]}
+                />
               )}
             </TableCell>
           </TableRow>
@@ -130,6 +103,13 @@ const TableContainer = styled.div`
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   width: 100%;
+
+  @media screen and (max-width: 768px) {
+    border-radius: 0;
+    box-shadow: none;
+    max-height: 300px;
+    overflow-y: auto;
+  }
 `
 
 const Table = styled.table`
@@ -137,6 +117,14 @@ const Table = styled.table`
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
+
+  @media screen and (max-width: 768px) {
+    display: block;
+
+    tbody {
+      display: block;
+    }
+  }
 `
 
 const TableRow = styled.tr`
@@ -144,9 +132,11 @@ const TableRow = styled.tr`
     border-bottom: 1px solid ${COLORS.gray[100]};
   }
 
-  // &:hover {
-  //   background: ${COLORS.gray[50]};
-  // }
+  @media screen and (max-width: 768px) {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+  }
 `
 
 const TableHeader = styled.td`
@@ -160,6 +150,15 @@ const TableHeader = styled.td`
   vertical-align: middle;
   word-break: keep-all;
   white-space: normal;
+
+  @media screen and (max-width: 768px) {
+    width: 100%;
+    min-width: 100%;
+    padding: 0 16px 4px 16px;
+    background: none;
+    font-size: 13px;
+    color: ${COLORS.gray[500]};
+  }
 `
 
 const TableCell = styled.td`
@@ -169,6 +168,11 @@ const TableCell = styled.td`
   line-height: 1.5;
   word-break: break-all;
   white-space: pre-wrap;
+
+  @media screen and (max-width: 768px) {
+    padding: 0 16px;
+    font-size: 15px;
+  }
 `
 
 const CopyableCell = styled(TableCell)`
@@ -177,6 +181,14 @@ const CopyableCell = styled(TableCell)`
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
+
+  @media screen and (max-width: 768px) {
+    padding: 0 16px;
+
+    &:hover {
+      background: none;
+    }
+  }
 
   &:hover {
     background: ${COLORS.blue[50]};
@@ -203,6 +215,12 @@ const StatusBadge = styled.span<{ status: string | null }>`
   border-radius: 16px;
   font-size: 13px;
   font-weight: 500;
+
+  @media screen and (max-width: 768px) {
+    padding: 6px 14px;
+    font-size: 14px;
+  }
+
   background: ${({ status }) => {
     switch (status) {
       case "완료":
@@ -231,44 +249,114 @@ const StatusBadge = styled.span<{ status: string | null }>`
   }};
 `
 
-const HistoryContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`
-
-const LatestHistoryPreview = ({ history }: { history: HistoryItem }) => {
-  return (
-    <PreviewContainer>
-      <PreviewHeader>
-        {history.modifier && <ModifierName>{history.modifier}</ModifierName>}
-        {history?.modified_at && <TimeStamp>{history.modified_at}</TimeStamp>}
-      </PreviewHeader>
-    </PreviewContainer>
-  )
-}
-
-const ViewMoreButton = styled.button`
+const HistoryButton = styled.button`
   background: none;
   border: none;
-  color: ${COLORS.blue[500]};
+  color: ${COLORS.blue[600]};
   font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
   &:hover {
     background: ${COLORS.blue[50]};
   }
+
+  @media screen and (max-width: 768px) {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    font-size: 15px;
+    background: ${COLORS.blue[50]};
+    font-weight: 500;
+
+    &:hover {
+      background: ${COLORS.blue[100]};
+    }
+  }
 `
+
+const ModalWrapper = styled.div`
+  @media screen and (max-width: 768px) {
+    width: 100%;
+    margin: 0;
+  }
+`
+
+const HistoryModal = ({
+  open,
+  onClose,
+  history,
+}: {
+  open: boolean
+  onClose: () => void
+  history: HistoryItem[]
+}) => {
+  return (
+    <ModalComponent open={open} setOpen={onClose} position="center">
+      <HistoryModalContent>
+        <HistoryModalHeader>
+          <ModalTitle>변경 이력</ModalTitle>
+          <CloseButton onClick={onClose}>
+            <Close fontSize="small" />
+          </CloseButton>
+        </HistoryModalHeader>
+        <HistoryList>
+          {history.map((item) => (
+            <HistoryCardItem key={nanoid()} history={item} />
+          ))}
+        </HistoryList>
+      </HistoryModalContent>
+    </ModalComponent>
+  )
+}
 
 const HistoryModalContent = styled.div`
   background: white;
   border-radius: 16px;
-  max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+
+  @media screen and (max-width: 768px) {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 16px 16px 0 0;
+    margin-top: auto;
+  }
+`
+
+const HistoryModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid ${COLORS.gray[100]};
+
+  @media screen and (max-width: 768px) {
+    padding: 16px 20px;
+  }
+`
+
+const ModalTitle = styled.h2`
+  font-size: 18px;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+  margin: 0;
+`
+
+const HistoryList = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+
+  @media screen and (max-width: 768px) {
+    padding: 16px;
+  }
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -287,97 +375,6 @@ const HistoryModalContent = styled.div`
       background: ${COLORS.gray[300]};
     }
   }
-`
-
-const HistoryModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid ${COLORS.gray[100]};
-`
-
-const ModalTitle = styled.h2`
-  font-size: 18px;
-  font-weight: 600;
-  color: ${COLORS.gray[900]};
-  margin: 0;
-`
-
-const HistoryList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  overflow-y: auto;
-`
-
-const HistoryCard = styled.div`
-  border-bottom: 1px solid ${COLORS.gray[100]};
-  padding: 16px 0;
-
-  &:last-child {
-    border-bottom: none;
-  }
-`
-
-const HistoryHeader = styled.div`
-  margin-bottom: 12px;
-`
-
-const ModifierInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-`
-
-const ModifierName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${COLORS.gray[900]};
-`
-
-const TimeStamp = styled.div`
-  font-size: 13px;
-  color: ${COLORS.gray[500]};
-  line-height: 1.8;
-`
-
-const HistoryDetails = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`
-
-const ChangeItem = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-`
-
-const FieldName = styled.div`
-  font-size: 13px;
-  color: ${COLORS.gray[500]};
-  width: 40px;
-  flex-shrink: 0;
-`
-
-const ChangeContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-`
-
-const ChangeText = styled.span<{ highlight?: boolean }>`
-  font-size: 14px;
-  color: ${(props) => (props.highlight ? COLORS.blue[700] : COLORS.gray[700])};
-`
-
-const ArrowIcon = styled.span`
-  color: ${COLORS.gray[400]};
-  font-size: 14px;
 `
 
 const CloseButton = styled.button`
@@ -448,9 +445,82 @@ const PreviewContainer = styled.div`
   padding: 8px 12px;
   background: ${COLORS.gray[50]};
   border-radius: 8px;
+
+  @media screen and (max-width: 768px) {
+    padding: 12px 16px;
+    margin: 0 -4px;
+  }
 `
 
 const PreviewHeader = styled.div`
   display: flex;
   gap: 4px;
+`
+
+const HistoryCard = styled.div`
+  border-bottom: 1px solid ${COLORS.gray[100]};
+  padding: 16px 0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+`
+
+const HistoryHeader = styled.div`
+  margin-bottom: 12px;
+`
+
+const ModifierInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+`
+
+const ModifierName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+`
+
+const TimeStamp = styled.div`
+  font-size: 13px;
+  color: ${COLORS.gray[500]};
+  line-height: 1.8;
+`
+
+const HistoryDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const ChangeItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+`
+
+const FieldName = styled.div`
+  font-size: 13px;
+  color: ${COLORS.gray[500]};
+  width: 40px;
+  flex-shrink: 0;
+`
+
+const ChangeContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+`
+
+const ChangeText = styled.span<{ highlight?: boolean }>`
+  font-size: 14px;
+  color: ${(props) => (props.highlight ? COLORS.blue[700] : COLORS.gray[700])};
+`
+
+const ArrowIcon = styled.span`
+  color: ${COLORS.gray[400]};
+  font-size: 14px;
 `
