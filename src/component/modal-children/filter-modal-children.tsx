@@ -65,6 +65,14 @@ const FilterModalChildren = ({
           있는데 부산으로 필터링되면 '부산'이 포함된 서울 지역만 필터링됩니다).
         </Alert>
         <ChipsWrapper>
+          <FilterChip
+            key={"전체"}
+            isSelected={cityFilter === ""}
+            onClick={() => {
+              setCityFilter("")
+            }}>
+            전체
+          </FilterChip>
           {MAJOR_CITIES.map((city) => {
             const isSelected = cityFilter?.includes(city)
 
