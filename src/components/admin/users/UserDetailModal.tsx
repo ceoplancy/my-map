@@ -2,7 +2,7 @@ import { User } from "@supabase/supabase-js"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
-import { useUpdateUser } from "@/api/supabase"
+import { useUpdateUser, useGetFilterMenu } from "@/api/supabase"
 
 const Overlay = styled.div`
   position: fixed;
@@ -111,17 +111,46 @@ const Button = styled.button`
   }
 `
 
+const CheckboxGroup = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`
+
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.gray[50]};
+  }
+`
+
+const Checkbox = styled.input`
+  cursor: pointer;
+`
+
 interface Props {
   user: User
   onClose: () => void
 }
 
 export default function UserDetailModal({ user, onClose }: Props) {
+  const { data: filterMenu } = useGetFilterMenu()
   const { mutate: updateUser } = useUpdateUser()
   const [formData, setFormData] = useState({
     email: user.email,
     name: user.user_metadata?.name || "",
     role: user.user_metadata?.role || "user",
+    allowedStatus: user.user_metadata?.allowedStatus || [],
+    allowedCompany: user.user_metadata?.allowedCompany || [],
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -135,6 +164,8 @@ export default function UserDetailModal({ user, onClose }: Props) {
           user_metadata: {
             name: formData.name,
             role: formData.role,
+            allowedStatus: formData.allowedStatus,
+            allowedCompany: formData.allowedCompany,
           },
         },
       },
@@ -144,6 +175,24 @@ export default function UserDetailModal({ user, onClose }: Props) {
         },
       },
     )
+  }
+
+  const handleStatusChange = (status: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      allowedStatus: prev.allowedStatus.includes(status)
+        ? prev.allowedStatus.filter((s: string) => s !== status)
+        : [...prev.allowedStatus, status],
+    }))
+  }
+
+  const handleCompanyChange = (company: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      allowedCompany: prev.allowedCompany.includes(company)
+        ? prev.allowedCompany.filter((c: string) => c !== company)
+        : [...prev.allowedCompany, company],
+    }))
   }
 
   return (
@@ -182,6 +231,36 @@ export default function UserDetailModal({ user, onClose }: Props) {
               <option value="user">일반 사용자</option>
               <option value="admin">관리자</option>
             </Select>
+          </FormGroup>
+          <FormGroup>
+            <Label>조회 가능한 상태</Label>
+            <CheckboxGroup>
+              {filterMenu?.statusMenu?.map((status) => (
+                <CheckboxLabel key={status}>
+                  <Checkbox
+                    type="checkbox"
+                    checked={formData.allowedStatus.includes(status)}
+                    onChange={() => handleStatusChange(status)}
+                  />
+                  {status}
+                </CheckboxLabel>
+              ))}
+            </CheckboxGroup>
+          </FormGroup>
+          <FormGroup>
+            <Label>조회 가능한 회사</Label>
+            <CheckboxGroup>
+              {filterMenu?.companyMenu?.map((company) => (
+                <CheckboxLabel key={company}>
+                  <Checkbox
+                    type="checkbox"
+                    checked={formData.allowedCompany.includes(company)}
+                    onChange={() => handleCompanyChange(company)}
+                  />
+                  {company}
+                </CheckboxLabel>
+              ))}
+            </CheckboxGroup>
           </FormGroup>
           <ButtonGroup>
             <Button type="button" className="cancel" onClick={onClose}>

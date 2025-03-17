@@ -62,7 +62,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_distinct_company: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          company: string
+        }[]
+      }
+      get_distinct_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,3 +1,5 @@
+import { UserMetadata } from "@supabase/supabase-js"
+
 export type FilterParams = {
   status: string[]
   company: string[]
@@ -10,6 +12,7 @@ export type FilterParams = {
     ne: { lat: number; lng: number }
   }
   city?: string
+  userMetadata?: UserMetadata
 }
 
 export type CoordinateRanges = {

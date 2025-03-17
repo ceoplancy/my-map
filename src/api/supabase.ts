@@ -13,14 +13,53 @@ import { Excel } from "@/types/excel"
 const getExcel = async (mapLevel = 14, params?: FilterParams) => {
   let query = supabase.from("excel").select("*", { count: "exact" })
 
-  if (params?.status && params.status.length > 0) {
-    query = query.in("status", params.status)
+  // 관리자가 아닌 경우, 허용된 필터만 적용
+  if (
+    params?.userMetadata &&
+    !String(params.userMetadata.role).includes("admin")
+  ) {
+    const { allowedStatus, allowedCompany } = params.userMetadata
+
+    // 허용된 상태 필터링
+    if (allowedStatus?.length > 0) {
+      query = query.in("status", allowedStatus)
+    }
+
+    // 허용된 회사 필터링
+    if (allowedCompany?.length > 0) {
+      query = query.in("company", allowedCompany)
+    }
+
+    // 사용자가 선택한 필터가 허용된 범위 내인지 확인
+    if (params.status && params.status.length > 0) {
+      const validStatuses = params.status.filter((s) =>
+        allowedStatus?.includes(s),
+      )
+      if (validStatuses.length > 0) {
+        query = query.in("status", validStatuses)
+      }
+    }
+
+    if (params.company && params.company.length > 0) {
+      const validCompanies = params.company.filter((c) =>
+        allowedCompany?.includes(c),
+      )
+      if (validCompanies.length > 0) {
+        query = query.in("company", validCompanies)
+      }
+    }
+  } else {
+    // 관리자인 경우 모든 필터 적용
+    if (params?.status && params.status.length > 0) {
+      query = query.in("status", params.status)
+    }
+
+    if (params?.company && params.company.length > 0) {
+      query = query.in("company", params.company)
+    }
   }
 
-  if (params?.company && params.company.length > 0) {
-    query = query.in("company", params.company)
-  }
-
+  // 공통 필터 적용
   if (params?.city && params.city.length > 0) {
     query = query.like("address", `%${params.city}%`)
   }
@@ -33,7 +72,7 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
     query = query.lte("stocks", params.endStocks)
   }
 
-  // 위도, 경도 필터링 (지도의 확대 레벨에 따라 조정)
+  // 위도, 경도 필터링
   if (params?.lat && params?.lng) {
     const { latRange, lngRange } = getCoordinateRanges(mapLevel)
 
@@ -104,19 +143,24 @@ export const usePatchExcel = () => {
 // ============== get 필터 메뉴 ================
 // =======================================
 const getFilterMenu = async () => {
-  const { data, error } = await supabase.from("excel").select()
+  const { data: statusData, error: statusError } = await supabase.rpc(
+    "get_distinct_status",
+  ) // 저장 프로시저 사용
 
-  if (error) throw new Error(error.message)
+  const { data: companyData, error: companyError } = await supabase.rpc(
+    "get_distinct_company",
+  ) // 저장 프로시저 사용
 
-  const statusArray = data?.map((item) => item.status)
-  const companyMenuArray = data?.map((item) => item.company)
+  if (statusError || companyError)
+    throw new Error(statusError?.message || companyError?.message)
 
-  const uniqueStatusArray = [...new Set(statusArray)]
-  const uniqueCompanyMenuArray = [...new Set(companyMenuArray)]
+  // 중복 제거를 클라이언트에서 처리
+  const uniqueStatus = [...new Set(statusData.map((item) => item.status))]
+  const uniqueCompany = [...new Set(companyData.map((item) => item.company))]
 
   return {
-    statusMenu: uniqueStatusArray,
-    companyMenu: uniqueCompanyMenuArray,
+    statusMenu: uniqueStatus,
+    companyMenu: uniqueCompany,
   }
 }
 

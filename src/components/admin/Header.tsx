@@ -206,7 +206,7 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
-      router.push("/login")
+      router.push("/sign-in")
     } catch (error) {
       console.error("로그아웃 중 오류가 발생했습니다:", error)
     }

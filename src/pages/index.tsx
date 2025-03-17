@@ -63,6 +63,7 @@ const Home = () => {
     lng: currCenter.lng,
     bounds: mapBounds,
     city: cityFilter,
+    userMetadata: user?.user?.user_metadata,
   })
 
   const totalStocks = excelData
