@@ -21,6 +21,7 @@ import MultipleMapMarker from "@/component/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import { UserMetadata } from "@supabase/supabase-js"
+import StatsCard from "@/components/StatsCard"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
@@ -208,17 +209,7 @@ const Home = () => {
               <FilterAlt />
               필터 설정
             </MenuItem>
-            <StatsCard>
-              <StatsTitle>의결권 현황</StatsTitle>
-              <StatItem>
-                <StatLabel>주주 수</StatLabel>
-                <StatValue>{excelData?.length || 0}</StatValue>
-              </StatItem>
-              <StatItem>
-                <StatLabel>총 주식수</StatLabel>
-                <StatValue>{totalStocks?.toLocaleString() || 0}</StatValue>
-              </StatItem>
-            </StatsCard>
+            <StatsCard />
             <div style={{ flex: 1 }} />
             {isAdmin && (
               <MenuItem
@@ -357,42 +348,6 @@ const MenuItem = styled.div`
   svg {
     font-size: 20px;
   }
-`
-
-const StatsCard = styled.div`
-  background: ${COLORS.blue[50]};
-  border-radius: 12px;
-  padding: 20px;
-  margin: 12px 0;
-`
-
-const StatsTitle = styled.h3`
-  font-size: 0.875rem;
-  color: ${COLORS.blue[700]};
-  margin-bottom: 16px;
-  font-weight: 600;
-`
-
-const StatItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-`
-
-const StatLabel = styled.span`
-  color: ${COLORS.gray[600]};
-  font-size: 0.875rem;
-`
-
-const StatValue = styled.span`
-  color: ${COLORS.gray[900]};
-  font-weight: 600;
-  font-size: 0.875rem;
 `
 
 const MapContainer = styled.div`

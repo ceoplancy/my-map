@@ -458,6 +458,7 @@ export default function ShareholderList() {
               <option value="">모든 상태</option>
               <option value="미방문">미방문</option>
               <option value="완료">완료</option>
+              <option value="보류">보류</option>
               <option value="실패">실패</option>
             </FilterSelect>
           </FormGroup>

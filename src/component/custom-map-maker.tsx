@@ -1,4 +1,4 @@
-import { usePatchExcel } from "@/api/supabase"
+import { useGetFilterMenu, usePatchExcel } from "@/api/supabase"
 import { useEffect, useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
@@ -11,12 +11,59 @@ import Portal from "./portal"
 import { toast } from "react-toastify"
 import { ContentCopy, Edit, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
+import { useFilterStore } from "@/store/filterState"
 
 interface CustomMapMakerProps {
   marker: Excel
 }
 
+// status에 따른 마커 색상
+const STATUS_MARKERS = {
+  미방문: "/svg/default.svg",
+  보류: "/svg/pending.svg",
+  완료: "/svg/complete.svg",
+  실패: "/svg/fail.svg",
+} as const
+
+// 회사별 마커 색상 (10가지)
+const COMPANY_MARKERS = [
+  "/svg/maker1.svg",
+  "/svg/maker2.svg",
+  "/svg/maker3.svg",
+  "/svg/maker4.svg",
+  "/svg/maker5.svg",
+  "/svg/maker6.svg",
+  "/svg/maker7.svg",
+  "/svg/maker8.svg",
+  "/svg/maker9.svg",
+  "/svg/maker10.svg",
+] as const
+
+const getMarkerImage = (
+  status: string | null,
+  company: string | null,
+  companyList: string[],
+) => {
+  // status가 '완료', '보류', '실패'인 경우 status 마커 사용
+  if (status && status !== "미방문" && status in STATUS_MARKERS) {
+    return STATUS_MARKERS[status as keyof typeof STATUS_MARKERS]
+  }
+
+  // status가 '미방문'이거나 없는 경우 company 마커 사용
+  if (company && companyList.length > 0) {
+    const companyIndex = companyList.indexOf(company)
+    if (companyIndex !== -1) {
+      return COMPANY_MARKERS[companyIndex % COMPANY_MARKERS.length]
+    }
+  }
+
+  // 기본 마커 (company가 없는 경우)
+  return STATUS_MARKERS["미방문"]
+}
+
 const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
+  const { data: filterMenu } = useGetFilterMenu()
+
   // 인포윈도우
   const [isOpen, setIsOpen] = useState(false)
   // 마커 업데이트 모달
@@ -38,6 +85,8 @@ const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
       setMakerDataUpdateIsModalOpen(false)
     }
   }, [])
+
+  if (!filterMenu) return null
 
   return (
     <Frame>
@@ -61,7 +110,11 @@ const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
           setIsOpen(!isOpen)
         }}
         image={{
-          src: `/svg/google-map-marker.svg`,
+          src: getMarkerImage(
+            marker.status,
+            marker.company,
+            filterMenu.companyMenu,
+          ),
           size: {
             width: 30,
             height: 40,
@@ -99,6 +152,10 @@ const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
                   onClick={() => setMakerDataUpdateIsModalOpen(true)}>
                   <Edit fontSize="small" />
                   수정하기
+                </ActionButton>
+                <ActionButton variant="close" onClick={() => setIsOpen(false)}>
+                  <Close fontSize="small" />
+                  닫기
                 </ActionButton>
               </InfoWindowFooter>
             </InfoWindowContainer>
@@ -237,7 +294,9 @@ const InfoWindowFooter = styled.div`
   border-top: 1px solid ${COLORS.gray[100]};
 `
 
-const ActionButton = styled.button<{ variant: "primary" | "success" }>`
+const ActionButton = styled.button<{
+  variant: "primary" | "success" | "close"
+}>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -254,8 +313,11 @@ const ActionButton = styled.button<{ variant: "primary" | "success" }>`
       ? COLORS.blue[500]
       : variant === "success"
         ? COLORS.green[500]
-        : "white"};
+        : variant === "close"
+          ? COLORS.gray[500]
+          : "white"};
   color: white;
+
   box-shadow: 0 2px 4px
     ${({ variant }) =>
       variant === "primary"
@@ -270,7 +332,9 @@ const ActionButton = styled.button<{ variant: "primary" | "success" }>`
         ? COLORS.blue[600]
         : variant === "success"
           ? COLORS.green[600]
-          : COLORS.gray[100]};
+          : variant === "close"
+            ? COLORS.gray[600]
+            : COLORS.gray[100]};
     transform: translateY(-1px);
     box-shadow: 0 4px 8px
       ${({ variant }) =>

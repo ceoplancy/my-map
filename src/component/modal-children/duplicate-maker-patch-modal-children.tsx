@@ -63,8 +63,10 @@ const DuplicateMakerPatchModalChildren = ({
               return { ...prev, status: e.target.value }
             })
           }}>
+          <option value="">선택하세요</option>
           <option value="미방문">미방문</option>
           <option value="완료">완료</option>
+          <option value="보류">보류</option>
           <option value="실패">실패</option>
         </select>
       </InfoWrapper>

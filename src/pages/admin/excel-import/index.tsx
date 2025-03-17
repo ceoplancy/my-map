@@ -237,9 +237,18 @@ const ExcelImport = () => {
       }
 
       if (allResults.length > 0) {
-        await supabase.from("excel").insert(allResults).select()
+        const { error } = await supabase
+          .from("excel")
+          .upsert(allResults)
+          .select()
+
+        if (error) {
+          toast.error(`데이터 업로드 중 오류가 발생했습니다. ${error.message}`)
+          throw error
+        }
+
         toast.success(
-          `${allResults.length}개의 데이터가 성공적으로 업로드되었습니다.`,
+          `${data.length}개의 데이터가 성공적으로 업로드되었습니다.`,
         )
       }
 
