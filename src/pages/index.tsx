@@ -19,6 +19,8 @@ import FilterModalChildren from "@/component/modal-children/filter-modal-childre
 import supabase from "@/lib/supabase/supabaseClient"
 import MultipleMapMarker from "@/component/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
+import { useFilterStore } from "@/store/filterState"
+import { UserMetadata } from "@supabase/supabase-js"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
@@ -33,13 +35,8 @@ const Home = () => {
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
   const [mapLevel, setMapLevel] = useState<number>(6)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
-  const [statusFilter, setStatusFilter] = useState<string[]>([])
-  const [companyFilter, setCompanyFilter] = useState<string[]>([])
-  const [cityFilter, setCityFilter] = useState<string>("")
-  const [stocks, setStocks] = useState<{ start: number; end: number }>({
-    start: 0,
-    end: 0,
-  })
+  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+
   const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
     lat: 37.5665,
     lng: 126.978,
@@ -49,6 +46,7 @@ const Home = () => {
     sw: { lat: 0, lng: 0 },
     ne: { lat: 0, lng: 0 },
   })
+  const [userMetadata, setUserMetadata] = useState<UserMetadata>()
 
   const {
     data: excelData,
@@ -57,13 +55,12 @@ const Home = () => {
   } = useGetExcel(mapLevel, {
     status: statusFilter,
     company: companyFilter,
-    startStocks: stocks.start,
-    endStocks: stocks.end,
+    stocks,
     lat: currCenter.lat,
     lng: currCenter.lng,
     bounds: mapBounds,
     city: cityFilter,
-    userMetadata: user?.user?.user_metadata,
+    userMetadata,
   })
 
   const totalStocks = excelData
@@ -114,6 +111,11 @@ const Home = () => {
     [debouncedMapUpdate],
   )
 
+  const handleApplyFilters = () => {
+    excelDataRefetch()
+    setIsFilterModalOpen(false)
+  }
+
   useEffect(() => {
     if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
       excelDataRefetch()
@@ -145,6 +147,14 @@ const Home = () => {
       window.removeEventListener("resize", setViewHeight)
     }
   }, [])
+
+  useEffect(() => {
+    console.info(user?.user.user_metadata)
+    if (user?.user.user_metadata) {
+      setUserMetadata(user?.user.user_metadata)
+      excelDataRefetch()
+    }
+  }, [user?.user.user_metadata, excelDataRefetch])
 
   if (!excelData || !user?.user.email) return null
 
@@ -228,15 +238,8 @@ const Home = () => {
 
           <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
             <FilterModalChildren
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              companyFilter={companyFilter}
-              setCompanyFilter={setCompanyFilter}
-              setStocks={setStocks}
-              excelDataRefetch={excelDataRefetch}
-              setIsFilterModalOpen={setIsFilterModalOpen}
-              cityFilter={cityFilter}
-              setCityFilter={setCityFilter}
+              handleClose={() => setIsFilterModalOpen(false)}
+              handleApplyFilters={handleApplyFilters}
             />
           </Modal>
         </Map>

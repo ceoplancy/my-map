@@ -13,11 +13,7 @@ import { Excel } from "@/types/excel"
 const getExcel = async (mapLevel = 14, params?: FilterParams) => {
   let query = supabase.from("excel").select("*", { count: "exact" })
 
-  // 관리자가 아닌 경우, 허용된 필터만 적용
-  if (
-    params?.userMetadata &&
-    !String(params.userMetadata.role).includes("admin")
-  ) {
+  if (params?.userMetadata) {
     const { allowedStatus, allowedCompany } = params.userMetadata
 
     // 허용된 상태 필터링
@@ -48,15 +44,6 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
         query = query.in("company", validCompanies)
       }
     }
-  } else {
-    // 관리자인 경우 모든 필터 적용
-    if (params?.status && params.status.length > 0) {
-      query = query.in("status", params.status)
-    }
-
-    if (params?.company && params.company.length > 0) {
-      query = query.in("company", params.company)
-    }
   }
 
   // 공통 필터 적용
@@ -64,12 +51,14 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
     query = query.like("address", `%${params.city}%`)
   }
 
-  if (params?.startStocks && params.startStocks > 0) {
-    query = query.gte("stocks", params.startStocks)
-  }
+  // 스톡 필터링 로직 수정
+  if (params?.stocks && params.stocks.length > 0) {
+    // OR 조건으로 각 구간 필터링
+    const stockConditions = params.stocks
+      .map((range) => `and(stocks.gte.${range.start},stocks.lte.${range.end})`)
+      .join(",")
 
-  if (params?.endStocks && params.endStocks > 0) {
-    query = query.lte("stocks", params.endStocks)
+    query = query.or(stockConditions)
   }
 
   // 위도, 경도 필터링
@@ -90,7 +79,7 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 }
 
 export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
-  const queryKey = ["excel"]
+  const queryKey = ["excel", params?.userMetadata]
 
   return useQuery(queryKey, () => getExcel(mapLevel, params), {
     refetchOnMount: false,
@@ -177,82 +166,6 @@ export const useGetFilterMenu = () => {
       )
     },
   })
-}
-
-// ================================================
-// ============== get 필터 된 마커 정보 ===================
-// ================================================
-const getCompletedFilterMaker = async (mapLevel = 14, params: FilterParams) => {
-  let query = supabase.from("excel").select("*", { count: "exact" })
-
-  if (params.status && params.status.length > 0) {
-    query = query.in("status", params.status)
-  }
-
-  if (params.company && params.company.length > 0) {
-    query = query.in("company", params.company)
-  }
-
-  if (params.city && params.city.length > 0) {
-    query = query.like("address", `%${params.city}%`)
-  }
-
-  if (params.startStocks && params.startStocks > 0) {
-    query = query.gte("stocks", params.startStocks)
-  }
-
-  if (params.endStocks && params.endStocks > 0) {
-    query = query.lte("stocks", params.endStocks)
-  }
-
-  // 위도, 경도 필터링 (지도의 확대 레벨에 따라 조정)
-  if (params.lat && params.lng) {
-    const { latRange, lngRange } = getCoordinateRanges(mapLevel)
-
-    query = query.gte("lat", params.lat - latRange)
-    query = query.lte("lat", params.lat + latRange)
-    query = query.gte("lng", params.lng - lngRange)
-    query = query.lte("lng", params.lng + lngRange)
-  }
-
-  const { data, error } = await query
-
-  if (error) throw new Error(error.message)
-
-  const sumCompletedStocks = () => {
-    const totalStocks = data
-      .map((item) => item.stocks)
-      .reduce((accumulator, currentValue) => accumulator + currentValue, 0)
-
-    return totalStocks
-  }
-
-  return {
-    sumCompletedStocks: sumCompletedStocks(),
-    length: data.length,
-  }
-}
-
-export const useGetCompletedFilterMaker = (
-  mapLevel = 14,
-  params: FilterParams,
-) => {
-  return useQuery(
-    ["completedFilterMaker"],
-    () => getCompletedFilterMaker(mapLevel, params),
-    {
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      enabled: true,
-      staleTime: 1000 * 60 * 5,
-      onError: () => {
-        toast.error(
-          "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
-        )
-      },
-    },
-  )
 }
 
 // =======================================

@@ -1,5 +1,6 @@
-import { Dispatch, SetStateAction, useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
+import { useFilterStore } from "@/store/filterState"
 
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
@@ -8,15 +9,8 @@ import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
 
 interface FilterModalChildrenProps {
-  statusFilter: string[]
-  setStatusFilter: Dispatch<SetStateAction<string[]>>
-  companyFilter: string[]
-  setCompanyFilter: Dispatch<SetStateAction<string[]>>
-  cityFilter: string
-  setCityFilter: Dispatch<SetStateAction<string>>
-  setStocks: Dispatch<SetStateAction<{ start: number; end: number }>>
-  excelDataRefetch: () => void
-  setIsFilterModalOpen: Dispatch<SetStateAction<boolean>>
+  handleClose: () => void
+  handleApplyFilters: () => void
 }
 
 const MAJOR_CITIES = [
@@ -36,17 +30,33 @@ const MAJOR_CITIES = [
   "제주",
 ]
 
+const STOCK_RANGES = [
+  { label: "1천주 미만", start: 0, end: 999 },
+  { label: "1천주 ~ 5천주", start: 1000, end: 4999 },
+  { label: "5천주 ~ 1만주", start: 5000, end: 9999 },
+  { label: "1만주 ~ 2만주", start: 10000, end: 19999 },
+  { label: "2만주 ~ 3만주", start: 20000, end: 29999 },
+  { label: "3만주 ~ 4만주", start: 30000, end: 39999 },
+  { label: "4만주 ~ 5만주", start: 40000, end: 49999 },
+  { label: "5만주 ~ 10만주", start: 50000, end: 99999 },
+  { label: "10만주 이상", start: 100000, end: 99999999999 },
+] as const
+
 const FilterModalChildren = ({
-  statusFilter,
-  setStatusFilter,
-  companyFilter,
-  setCompanyFilter,
-  cityFilter,
-  setCityFilter,
-  setStocks,
-  excelDataRefetch,
-  setIsFilterModalOpen,
+  handleClose,
+  handleApplyFilters,
 }: FilterModalChildrenProps) => {
+  const {
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    setStatusFilter,
+    setCompanyFilter,
+    setCityFilter,
+    setStocks,
+    resetFilters,
+  } = useFilterStore()
   const { data: user } = useGetUserData()
   const { data: filterMenu } = useGetFilterMenu()
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
@@ -93,11 +103,27 @@ const FilterModalChildren = ({
     setCompanyFilter,
   ])
 
+  const handleRangeSelect = (start: number, end: number) => {
+    setStocks((prev) => {
+      const isSelected = prev.some(
+        (range) => range.start === start && range.end === end,
+      )
+
+      if (isSelected) {
+        return prev.filter(
+          (range) => !(range.start === start && range.end === end),
+        )
+      } else {
+        return [...prev, { start, end }]
+      }
+    })
+  }
+
   return (
     <FilterContainer>
       <ModalHeader>
         <ModalTitle>필터 설정</ModalTitle>
-        <CloseButton onClick={() => setIsFilterModalOpen(false)}>
+        <CloseButton onClick={handleClose}>
           <ClearIcon />
         </CloseButton>
       </ModalHeader>
@@ -175,39 +201,25 @@ const FilterModalChildren = ({
       </FilterSection>
 
       <FilterSection>
-        <SectionTitle>주식수</SectionTitle>
-        <StockInputWrapper>
-          <StockInput
-            type="number"
-            placeholder="최소 주식수"
-            onChange={(e) => {
-              setStocks((prev) => ({
-                ...prev,
-                start: Number(e.target.value),
-              }))
-            }}
-          />
-          <StockDivider>~</StockDivider>
-          <StockInput
-            type="number"
-            placeholder="최대 주식수"
-            onChange={(e) => {
-              setStocks((prev) => ({
-                ...prev,
-                end: Number(e.target.value),
-              }))
-            }}
-          />
-        </StockInputWrapper>
+        <SectionTitle>주식수 (다중 선택 가능)</SectionTitle>
+        <StockRangeWrapper>
+          {STOCK_RANGES.map((range) => (
+            <StockRangeButton
+              key={range.label}
+              isSelected={stocks.some(
+                (s) => s.start === range.start && s.end === range.end,
+              )}
+              onClick={() => handleRangeSelect(range.start, range.end)}>
+              {range.label}
+            </StockRangeButton>
+          ))}
+        </StockRangeWrapper>
       </FilterSection>
 
-      <ActionButton
-        onClick={() => {
-          excelDataRefetch()
-          setIsFilterModalOpen(false)
-        }}>
-        필터 적용하기
-      </ActionButton>
+      <ButtonGroup>
+        <ResetButton onClick={resetFilters}>필터 초기화</ResetButton>
+        <ApplyButton onClick={handleApplyFilters}>적용하기</ApplyButton>
+      </ButtonGroup>
     </FilterContainer>
   )
 }
@@ -288,60 +300,64 @@ const FilterChip = styled.button<{ isSelected: boolean }>`
   }
 `
 
-const StockInputWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+const StockRangeWrapper = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 
-  @media (max-width: 480px) {
-    gap: 8px;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
   }
 `
 
-const StockInput = styled.input`
-  flex: 1;
-  min-width: 120px;
-  max-width: calc(50% - 20px);
-  padding: 12px 16px;
+const StockRangeButton = styled.button<{ isSelected: boolean }>`
+  width: 100%;
+  padding: 12px;
   border-radius: 8px;
-  border: 1px solid ${COLORS.gray[200]};
+  border: 1px solid
+    ${(props) => (props.isSelected ? COLORS.blue[500] : COLORS.gray[200])};
+  background: ${(props) => (props.isSelected ? COLORS.blue[50] : "white")};
+  color: ${(props) => (props.isSelected ? COLORS.blue[700] : COLORS.gray[700])};
   font-size: 14px;
-  outline: none;
+  cursor: pointer;
   transition: all 0.2s ease;
 
-  @media (max-width: 480px) {
-    max-width: 100%;
-    padding: 10px 12px;
-  }
-
-  &:focus {
-    border-color: ${COLORS.blue[500]};
-    box-shadow: 0 0 0 2px ${COLORS.blue[100]};
-  }
-
-  &::placeholder {
-    color: ${COLORS.gray[400]};
+  &:hover {
+    background: ${(props) =>
+      props.isSelected ? COLORS.blue[100] : COLORS.gray[50]};
   }
 `
 
-const StockDivider = styled.span`
-  color: ${COLORS.gray[400]};
+const ButtonGroup = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+`
 
-  @media (max-width: 480px) {
-    width: 100%;
-    text-align: center;
+const ResetButton = styled.button`
+  background: none;
+  border: none;
+  color: ${COLORS.gray[500]};
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.gray[100]};
+    color: ${COLORS.gray[700]};
   }
 `
 
-const ActionButton = styled.button`
-  width: 100%;
-  padding: 14px;
+const ApplyButton = styled.button`
   background: ${COLORS.blue[500]};
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 16px;
+  padding: 8px 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;

@@ -1,10 +1,10 @@
+import { StockRange } from "@/store/filterState"
 import { UserMetadata } from "@supabase/supabase-js"
 
 export type FilterParams = {
   status: string[]
   company: string[]
-  startStocks: number
-  endStocks: number
+  stocks: StockRange[]
   lat?: number
   lng?: number
   bounds?: {
