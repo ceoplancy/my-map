@@ -1,9 +1,20 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useFilteredStats } from "@/hooks/useFilteredStats"
+import { useGetUserData } from "@/api/auth"
+import { useFilterStore } from "@/store/filterState"
 
 const StatsCard = () => {
-  const { data: stats, isLoading } = useFilteredStats()
+  const { data: user } = useGetUserData()
+  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+
+  const { data: stats, isLoading } = useFilteredStats({
+    status: statusFilter,
+    company: companyFilter,
+    city: cityFilter,
+    stocks: stocks,
+    userMetadata: user?.user.user_metadata,
+  })
 
   return (
     <Container>
@@ -21,6 +32,20 @@ const StatsCard = () => {
         <StatLabel>총 주식 수</StatLabel>
         <StatValue>
           {isLoading ? "-" : `${stats?.totalStocks.toLocaleString()}주`}
+        </StatValue>
+      </StatItem>
+      <StatItem>
+        <StatLabel>완료 주주 수</StatLabel>
+        <StatValue>
+          {isLoading
+            ? "-"
+            : `${stats?.completedShareholders.toLocaleString()}명`}
+        </StatValue>
+      </StatItem>
+      <StatItem>
+        <StatLabel>완료 주식 수</StatLabel>
+        <StatValue>
+          {isLoading ? "-" : `${stats?.completedStocks.toLocaleString()}주`}
         </StatValue>
       </StatItem>
     </Container>

@@ -79,7 +79,14 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 }
 
 export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
-  const queryKey = ["excel", params?.userMetadata]
+  const queryKey = [
+    "excel",
+    params?.status,
+    params?.company,
+    params?.city,
+    params?.stocks,
+    params?.userMetadata,
+  ]
 
   return useQuery(queryKey, () => getExcel(mapLevel, params), {
     refetchOnMount: false,
@@ -118,6 +125,7 @@ export const usePatchExcel = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries(["excel"])
+        queryClient.invalidateQueries(["filteredStats"])
       },
       onError: () => {
         toast.error(

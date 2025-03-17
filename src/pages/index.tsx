@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { Map, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
 import { useRouter } from "next/router"
 import { debounce } from "lodash"
@@ -30,6 +30,7 @@ interface MapBounds {
 
 const Home = () => {
   const router = useRouter()
+  const mapRef = useRef<kakao.maps.Map>(null)
   const { data: user } = useGetUserData()
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
 
@@ -63,10 +64,6 @@ const Home = () => {
     city: cityFilter,
     userMetadata,
   })
-
-  const totalStocks = excelData
-    ?.map((item) => item.stocks)
-    .reduce((accumulator, currentValue) => accumulator + currentValue, 0)
 
   const debouncedMapUpdate = useMemo(
     () =>
@@ -174,6 +171,7 @@ const Home = () => {
 
       <MapContainer>
         <Map
+          ref={mapRef}
           center={{
             lat: currCenter.lat,
             lng: currCenter.lng,

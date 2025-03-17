@@ -11,7 +11,6 @@ import Portal from "./portal"
 import { toast } from "react-toastify"
 import { ContentCopy, Edit, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
-import { useFilterStore } from "@/store/filterState"
 
 interface CustomMapMakerProps {
   marker: Excel
