@@ -1,5 +1,5 @@
 import { useQuery } from "react-query"
-import { useFilterStore } from "@/store/filterState"
+
 import supabase from "@/lib/supabase/supabaseClient"
 import { FilterParams } from "@/types"
 

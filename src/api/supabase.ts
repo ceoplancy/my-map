@@ -14,7 +14,8 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
   let query = supabase.from("excel").select("*", { count: "exact" })
 
   if (params?.userMetadata) {
-    const { allowedStatus, allowedCompany } = params.userMetadata
+    const { allowedStatus, allowedCompany, role } = params.userMetadata
+    const isAdmin = role.includes("admin")
 
     // 허용된 상태 필터링
     if (allowedStatus?.length > 0) {
@@ -28,20 +29,28 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 
     // 사용자가 선택한 필터가 허용된 범위 내인지 확인
     if (params.status && params.status.length > 0) {
-      const validStatuses = params.status.filter((s) =>
-        allowedStatus?.includes(s),
-      )
-      if (validStatuses.length > 0) {
-        query = query.in("status", validStatuses)
+      if (!isAdmin) {
+        const validStatuses = params.status.filter((s) =>
+          allowedStatus?.includes(s),
+        )
+        if (validStatuses.length > 0) {
+          query = query.in("status", validStatuses)
+        }
+      } else {
+        query = query.in("status", params.status)
       }
     }
 
     if (params.company && params.company.length > 0) {
-      const validCompanies = params.company.filter((c) =>
-        allowedCompany?.includes(c),
-      )
-      if (validCompanies.length > 0) {
-        query = query.in("company", validCompanies)
+      if (!isAdmin) {
+        const validCompanies = params.company.filter((c) =>
+          allowedCompany?.includes(c),
+        )
+        if (validCompanies.length > 0) {
+          query = query.in("company", validCompanies)
+        }
+      } else {
+        query = query.in("company", params.company)
       }
     }
   }

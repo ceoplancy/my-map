@@ -119,6 +119,18 @@ const FilterModalChildren = ({
     })
   }
 
+  const handleCompanyFilter = (selectedCompany: string) => {
+    setCompanyFilter((prev) => {
+      // 이미 선택된 회사인 경우 제거
+      if (prev.includes(selectedCompany)) {
+        return prev.filter((company) => company !== selectedCompany)
+      }
+
+      // 새로운 회사 추가
+      return [...prev, selectedCompany]
+    })
+  }
+
   return (
     <FilterContainer>
       <ModalHeader>
@@ -187,13 +199,7 @@ const FilterModalChildren = ({
             <FilterChip
               key={company}
               isSelected={companyFilter.includes(company)}
-              onClick={() => {
-                if (companyFilter.includes(company)) {
-                  setCompanyFilter(companyFilter.filter((c) => c !== company))
-                } else {
-                  setCompanyFilter([...companyFilter, company])
-                }
-              }}>
+              onClick={() => handleCompanyFilter(company)}>
               {company}
             </FilterChip>
           ))}

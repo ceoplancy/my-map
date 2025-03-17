@@ -6,9 +6,6 @@ import { ReactQueryDevtools } from "react-query/devtools"
 import { RecoilRoot } from "recoil"
 import { ErrorBoundary } from "react-error-boundary"
 
-import usePageLoading from "@/hooks/usePageLoading"
-import GlobalSpinner from "@/component/global-spinner"
-
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
 import { ErrorFallback } from "@/components/error-boundary"
@@ -48,7 +45,6 @@ const queryClientOptions = {
 
 const App = ({ Component, pageProps }: AppProps) => {
   const [queryClient] = useState(() => new QueryClient(queryClientOptions))
-  const loading = usePageLoading()
   const [mapLoaded, setMapLoaded] = useState(false)
 
   // 카카오맵 로딩 로직 분리 및 에러 처리 개선
@@ -134,16 +130,7 @@ const App = ({ Component, pageProps }: AppProps) => {
         <Hydrate state={pageProps.dehydratedState}>
           <RecoilRoot>
             <ErrorBoundary fallback={<ErrorFallback />}>
-              {loading ? (
-                <GlobalSpinner
-                  width={18}
-                  height={18}
-                  marginRight={18}
-                  dotColor="#8536FF"
-                />
-              ) : (
-                <Component {...pageProps} />
-              )}
+              {mapLoaded && <Component {...pageProps} />}
               <ToastContainer
                 position="top-center"
                 limit={3}

@@ -48,7 +48,6 @@ const Home = () => {
     sw: { lat: 0, lng: 0 },
     ne: { lat: 0, lng: 0 },
   })
-  const [userMetadata, setUserMetadata] = useState<UserMetadata>()
 
   const {
     data: excelData,
@@ -62,7 +61,7 @@ const Home = () => {
     lng: currCenter.lng,
     bounds: mapBounds,
     city: cityFilter,
-    userMetadata,
+    userMetadata: user?.user.user_metadata,
   })
 
   const debouncedMapUpdate = useMemo(
@@ -145,14 +144,6 @@ const Home = () => {
       window.removeEventListener("resize", setViewHeight)
     }
   }, [])
-
-  useEffect(() => {
-    console.info(user?.user.user_metadata)
-    if (user?.user.user_metadata) {
-      setUserMetadata(user?.user.user_metadata)
-      excelDataRefetch()
-    }
-  }, [user?.user.user_metadata, excelDataRefetch])
 
   if (!excelData || !user?.user.email) return null
 

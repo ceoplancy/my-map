@@ -47,20 +47,6 @@ const Title = styled.h1`
   -webkit-text-fill-color: transparent;
 `
 
-const ActionButton = styled.button`
-  background: linear-gradient(135deg, ${COLORS.blue[500]}, ${COLORS.blue[600]});
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  }
-`
-
 export const BATCH_SIZE = 50
 
 const ExcelImport = () => {
