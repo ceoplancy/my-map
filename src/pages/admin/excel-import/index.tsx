@@ -10,7 +10,6 @@ import { Excel } from "@/types/excel"
 import AdminLayout from "@/layouts/AdminLayout"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useRouter } from "next/navigation"
 
 interface GeocodingResult {
   success: boolean

@@ -144,17 +144,17 @@ const CustomMapMaker = ({ marker }: CustomMapMakerProps) => {
               <InfoWindowFooter>
                 <ActionButton variant="success" onClick={handleAddressCopy}>
                   <ContentCopy fontSize="small" />
-                  주소 복사
+                  <span>주소 복사</span>
                 </ActionButton>
                 <ActionButton
                   variant="primary"
                   onClick={() => setMakerDataUpdateIsModalOpen(true)}>
                   <Edit fontSize="small" />
-                  수정하기
+                  <span>수정하기</span>
                 </ActionButton>
                 <ActionButton variant="close" onClick={() => setIsOpen(false)}>
                   <Close fontSize="small" />
-                  닫기
+                  <span>닫기</span>
                 </ActionButton>
               </InfoWindowFooter>
             </InfoWindowContainer>
@@ -291,6 +291,11 @@ const InfoWindowFooter = styled.div`
   padding: 20px 24px;
   background: ${COLORS.gray[50]};
   border-top: 1px solid ${COLORS.gray[100]};
+
+  @media (max-width: 450px) {
+    gap: 8px;
+    padding: 16px;
+  }
 `
 
 const ActionButton = styled.button<{
@@ -298,6 +303,7 @@ const ActionButton = styled.button<{
 }>`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 16px;
   border-radius: 8px;
@@ -306,6 +312,7 @@ const ActionButton = styled.button<{
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  width: auto;
 
   background: ${({ variant }) =>
     variant === "primary"
@@ -357,6 +364,22 @@ const ActionButton = styled.button<{
 
   svg {
     font-size: 18px;
+  }
+
+  @media (max-width: 450px) {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+
+    span {
+      display: none;
+    }
+
+    svg {
+      font-size: 20px;
+      margin: 0;
+    }
   }
 `
 
