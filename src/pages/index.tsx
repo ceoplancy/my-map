@@ -145,7 +145,7 @@ const Home = () => {
     }
   }, [])
 
-  if (!excelData || !user?.user.email) return null
+  if (!excelData) return null
 
   return (
     <>

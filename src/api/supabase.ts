@@ -88,20 +88,9 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 }
 
 export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
-  const queryKey = [
-    "excel",
-    params?.status,
-    params?.company,
-    params?.city,
-    params?.stocks,
-    params?.userMetadata,
-  ]
+  const queryKey = ["excel"]
 
   return useQuery(queryKey, () => getExcel(mapLevel, params), {
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    enabled: true,
     staleTime: 60000, // 1분 동안 캐시된 데이터 사용
     cacheTime: 300000, // 5분 동안 캐시 유지
     onError: () => {
