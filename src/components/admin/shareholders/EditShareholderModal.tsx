@@ -5,6 +5,9 @@ import { useQueryClient } from "react-query"
 import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
 import { Excel } from "@/types/excel"
 import { toast } from "react-toastify"
+import { format } from "date-fns"
+import { ko } from "date-fns/locale"
+import { HistoryItem } from "@/component/excel-data-table"
 
 const Overlay = styled.div`
   position: fixed;
@@ -126,6 +129,119 @@ const Button = styled.button`
       background: ${COLORS.blue[600]};
     }
   }
+`
+
+const HistorySection = styled.div`
+  margin-top: 2rem;
+  border-top: 1px solid ${COLORS.gray[200]};
+  padding-top: 1.5rem;
+`
+
+const HistoryTitle = styled.h3`
+  font-size: 1rem;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+  margin-bottom: 1rem;
+`
+
+const HistoryList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${COLORS.gray[100]};
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${COLORS.gray[300]};
+    border-radius: 3px;
+  }
+`
+
+const HistoryCard = styled.div`
+  padding: 1rem;
+  background: ${COLORS.gray[50]};
+  border-radius: 0.5rem;
+  border: 1px solid ${COLORS.gray[200]};
+`
+
+const HistoryHeader = styled.div`
+  margin-bottom: 12px;
+`
+
+const ModifierInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`
+
+const ModifierName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+`
+
+const TimeStamp = styled.div`
+  font-size: 13px;
+  color: ${COLORS.gray[500]};
+`
+
+const HistoryDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`
+
+const ChangeItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+`
+
+const FieldName = styled.div`
+  font-size: 13px;
+  color: ${COLORS.gray[500]};
+  width: 40px;
+  flex-shrink: 0;
+`
+
+const ChangeContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+`
+
+const StatusBadge = styled.span<{ status: string }>`
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  background: ${({ status }) =>
+    status === "완료"
+      ? COLORS.green[50]
+      : status === "미방문"
+        ? COLORS.gray[100]
+        : status === "보류"
+          ? COLORS.yellow[50]
+          : COLORS.red[50]};
+  color: ${({ status }) =>
+    status === "완료"
+      ? COLORS.green[700]
+      : status === "미방문"
+        ? COLORS.gray[700]
+        : status === "보류"
+          ? COLORS.yellow[700]
+          : COLORS.red[700]};
 `
 
 interface Props {
@@ -268,6 +384,55 @@ export default function EditShareholderModal({ data, onClose }: Props) {
               </FormGroup>
             </FormSection>
           </FormGrid>
+
+          <HistorySection>
+            <HistoryTitle>변경 이력</HistoryTitle>
+            <HistoryList>
+              {Array.isArray(data.history) &&
+                (data.history as HistoryItem[]).map(
+                  (history: HistoryItem, index: number) => (
+                    <HistoryCard key={index}>
+                      <HistoryHeader>
+                        <ModifierInfo>
+                          <ModifierName>{history.modifier}</ModifierName>
+                          <TimeStamp>{history.modified_at}</TimeStamp>
+                        </ModifierInfo>
+                      </HistoryHeader>
+                      <HistoryDetails>
+                        {history.changes.memo && (
+                          <ChangeItem>
+                            <FieldName>메모</FieldName>
+                            <ChangeContent>
+                              <span>
+                                {history.changes.memo.original || "-"}
+                              </span>
+                              <span>→</span>
+                              <span>{history.changes.memo.modified}</span>
+                            </ChangeContent>
+                          </ChangeItem>
+                        )}
+                        {history.changes.status && (
+                          <ChangeItem>
+                            <FieldName>상태</FieldName>
+                            <ChangeContent>
+                              <StatusBadge
+                                status={history.changes.status.original}>
+                                {history.changes.status.original}
+                              </StatusBadge>
+                              <span>→</span>
+                              <StatusBadge
+                                status={history.changes.status.modified}>
+                                {history.changes.status.modified}
+                              </StatusBadge>
+                            </ChangeContent>
+                          </ChangeItem>
+                        )}
+                      </HistoryDetails>
+                    </HistoryCard>
+                  ),
+                )}
+            </HistoryList>
+          </HistorySection>
 
           <ButtonGroup>
             <Button type="button" className="cancel" onClick={onClose}>

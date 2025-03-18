@@ -8,12 +8,12 @@ import { useState } from "react"
 import ModalComponent from "./modal"
 
 // history 데이터 타입 정의 추가
-type HistoryChange = {
+export type HistoryChange = {
   memo?: { original: string; modified: string }
   status?: { original: string; modified: string }
 }
 
-type HistoryItem = {
+export type HistoryItem = {
   modified_at: string
   modifier: string
   changes: HistoryChange

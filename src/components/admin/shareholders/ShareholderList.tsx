@@ -1,4 +1,4 @@
-import { useGetExcel, useDeleteExcel } from "@/api/supabase"
+import { useGetExcel, useDeleteExcel, useGetUsers } from "@/api/supabase"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
@@ -14,6 +14,7 @@ import {
   Clear as ClearIcon,
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
+import { HistoryItem } from "@/component/excel-data-table"
 
 const Container = styled.div`
   background: white;
@@ -333,6 +334,7 @@ type Filters = {
   status: string
   stocksMin: string
   stocksMax: string
+  modifier: string
 }
 
 export default function ShareholderList() {
@@ -347,9 +349,11 @@ export default function ShareholderList() {
     status: "",
     stocksMin: "",
     stocksMax: "",
+    modifier: "",
   })
 
   const { data: excelData, isLoading, refetch } = useGetExcel(14)
+  const { data: usersData } = useGetUsers(1, 100)
   const deleteExcelMutation = useDeleteExcel()
 
   const handleModalClose = () => {
@@ -367,7 +371,7 @@ export default function ShareholderList() {
 
   const handleFilterChange = (field: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
-    setCurrentPage(1) // 필터 변경 시 첫 페이지로 이동
+    setCurrentPage(1)
   }
 
   const handleDelete = async (id: number) => {
@@ -392,22 +396,35 @@ export default function ShareholderList() {
       searchTerm === "" ||
       item.company?.toLowerCase().includes(searchTerm) ||
       item.name?.toLowerCase().includes(searchTerm) ||
-      item.maker?.toLowerCase().includes(searchTerm) ||
       item.memo?.toLowerCase().includes(searchTerm) ||
       item.address?.toLowerCase().includes(searchTerm) ||
       item.latlngaddress?.toLowerCase().includes(searchTerm)
 
     const matchesStatus =
       filters.status === "" || item.status === filters.status
+
     const matchesStocksMin = filters.stocksMin
       ? item.stocks >= parseInt(filters.stocksMin)
       : true
+
     const matchesStocksMax = filters.stocksMax
       ? item.stocks <= parseInt(filters.stocksMax)
       : true
 
+    // history 기반 수정자 필터링
+    const matchesModifier =
+      filters.modifier === "" ||
+      (Array.isArray(item.history) &&
+        (item.history as HistoryItem[]).some((historyItem: HistoryItem) =>
+          historyItem.modifier.includes(filters.modifier),
+        ))
+
     return (
-      matchesSearch && matchesStatus && matchesStocksMin && matchesStocksMax
+      matchesSearch &&
+      matchesStatus &&
+      matchesStocksMin &&
+      matchesStocksMax &&
+      matchesModifier
     )
   })
 
@@ -431,6 +448,13 @@ export default function ShareholderList() {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   )
+
+  // 최근 수정자 표시를 위한 함수
+  const getLatestModifier = (history: HistoryItem[] | undefined) => {
+    if (!Array.isArray(history) || history.length === 0) return "-"
+
+    return history[history.length - 1].modifier
+  }
 
   return (
     <Container>
@@ -486,6 +510,20 @@ export default function ShareholderList() {
             </StocksRangeContainer>
           </FormGroup>
 
+          <FormGroup>
+            <Label>수정자</Label>
+            <FilterSelect
+              value={filters.modifier}
+              onChange={(e) => handleFilterChange("modifier", e.target.value)}>
+              <option value="">모든 수정자</option>
+              {usersData?.users.map((user) => (
+                <option key={user.id} value={user.email}>
+                  {user.user_metadata?.name || user.email}
+                </option>
+              ))}
+            </FilterSelect>
+          </FormGroup>
+
           <ClearFiltersButton
             onClick={() => {
               setFilters({
@@ -493,6 +531,7 @@ export default function ShareholderList() {
                 status: "",
                 stocksMin: "",
                 stocksMax: "",
+                modifier: "",
               })
               setCurrentPage(1)
             }}>
@@ -546,6 +585,17 @@ export default function ShareholderList() {
                     ))}
                 </div>
               </ThSortable>
+              <ThSortable onClick={() => handleSort("history")}>
+                <div>
+                  최종 수정자
+                  {sort.field === "history" &&
+                    (sort.direction === "asc" ? (
+                      <ArrowUpward />
+                    ) : (
+                      <ArrowDownward />
+                    ))}
+                </div>
+              </ThSortable>
               <Th>작업</Th>
             </tr>
           </thead>
@@ -556,6 +606,7 @@ export default function ShareholderList() {
                 <Td>{item.status}</Td>
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
+                <Td>{getLatestModifier(item.history as HistoryItem[])}</Td>
                 <Td>
                   <ActionButton
                     className="edit"
