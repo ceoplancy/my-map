@@ -456,6 +456,13 @@ export default function ShareholderList() {
     return history[history.length - 1].modifier
   }
 
+  // getLatestModifiedDate 함수 추가
+  const getLatestModifiedDate = (history: HistoryItem[] | undefined) => {
+    if (!Array.isArray(history) || history.length === 0) return "-"
+
+    return history[history.length - 1].modified_at
+  }
+
   return (
     <Container>
       <FilterSection>
@@ -596,6 +603,17 @@ export default function ShareholderList() {
                     ))}
                 </div>
               </ThSortable>
+              <ThSortable onClick={() => handleSort("history")}>
+                <div>
+                  최종 수정일
+                  {sort.field === "history" &&
+                    (sort.direction === "asc" ? (
+                      <ArrowUpward />
+                    ) : (
+                      <ArrowDownward />
+                    ))}
+                </div>
+              </ThSortable>
               <Th>작업</Th>
             </tr>
           </thead>
@@ -607,6 +625,7 @@ export default function ShareholderList() {
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
                 <Td>{getLatestModifier(item.history as HistoryItem[])}</Td>
+                <Td>{getLatestModifiedDate(item.history as HistoryItem[])}</Td>
                 <Td>
                   <ActionButton
                     className="edit"
