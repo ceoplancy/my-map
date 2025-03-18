@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
 import { useFilterStore } from "@/store/filterState"
 

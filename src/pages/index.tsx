@@ -20,12 +20,16 @@ import supabase from "@/lib/supabase/supabaseClient"
 import MultipleMapMarker from "@/component/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
-import { UserMetadata } from "@supabase/supabase-js"
 import StatsCard from "@/components/StatsCard"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
   ne: { lat: number; lng: number }
+}
+
+const STORAGE_KEY = {
+  position: "mapLastPosition",
+  level: "mapLastLevel",
 }
 
 const Home = () => {
@@ -35,14 +39,30 @@ const Home = () => {
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
-  const [mapLevel, setMapLevel] = useState<number>(6)
+  const [mapLevel, setMapLevel] = useState<number>(() => {
+    if (typeof window === "undefined") {
+      return 6
+    }
+
+    const savedLevel = localStorage.getItem(STORAGE_KEY.level)
+
+    return savedLevel ? parseInt(savedLevel) : 6
+  })
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
   const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+  const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>(
+    () => {
+      if (typeof window === "undefined") {
+        return { lat: 37.5665, lng: 126.978 }
+      }
 
-  const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
-    lat: 37.5665,
-    lng: 126.978,
-  })
+      const savedPosition = localStorage.getItem(STORAGE_KEY.position)
+
+      return savedPosition
+        ? JSON.parse(savedPosition)
+        : { lat: 37.5665, lng: 126.978 }
+    },
+  )
   const { mutate: logout } = usePostSignOut()
   const [mapBounds, setMapBounds] = useState<MapBounds>({
     sw: { lat: 0, lng: 0 },
@@ -70,10 +90,13 @@ const Home = () => {
         const bounds = target.getBounds()
         const latlng = target.getCenter()
 
-        setCurrCenter({
+        const newCenter = {
           lat: latlng.getLat(),
           lng: latlng.getLng(),
-        })
+        }
+
+        setCurrCenter(newCenter)
+        localStorage.setItem(STORAGE_KEY.position, JSON.stringify(newCenter))
 
         setMapBounds({
           sw: {
@@ -95,6 +118,7 @@ const Home = () => {
 
       if (mapLevel !== currentLevel) {
         setMapLevel(currentLevel)
+        localStorage.setItem(STORAGE_KEY.level, currentLevel.toString())
         debouncedMapUpdate(target)
       }
     },
@@ -145,8 +169,6 @@ const Home = () => {
     }
   }, [])
 
-  if (!excelData) return null
-
   return (
     <>
       {excelIsLoading && (
@@ -176,7 +198,7 @@ const Home = () => {
           onDragEnd={handleDragEnd}>
           <MapTypeControl position={"TOPRIGHT"} />
           <ZoomControl position={"RIGHT"} />
-          <MultipleMapMarker markers={excelData} />
+          {excelData && <MultipleMapMarker markers={excelData} />}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />

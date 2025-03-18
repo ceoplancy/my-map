@@ -88,7 +88,7 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 }
 
 export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
-  const queryKey = ["excel"]
+  const queryKey = ["excel", mapLevel, params]
 
   return useQuery(queryKey, () => getExcel(mapLevel, params), {
     staleTime: 60000, // 1분 동안 캐시된 데이터 사용
