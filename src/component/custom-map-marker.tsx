@@ -59,8 +59,9 @@ export const getMarkerImage = (
 interface CustomMapMarkerProps {
   marker: Excel
   markers?: Excel[]
-  onMarkerSelect?: (marker: Excel) => void
+  onMarkerSelect?: (marker: Excel | null) => void
   initialInfoWindowOpen?: boolean
+  forceKeepOpen?: boolean
 }
 
 interface MarkerStatusProps {
@@ -76,6 +77,7 @@ const CustomMapMarker = ({
   markers,
   onMarkerSelect,
   initialInfoWindowOpen = false,
+  forceKeepOpen = false,
 }: CustomMapMarkerProps) => {
   const { data: filterMenu } = useGetFilterMenu()
   const isGroupMarker = markers && markers.length > 1
@@ -107,9 +109,7 @@ const CustomMapMarker = ({
 
   const handleMarkerSelect = (selectedMarker: Excel) => {
     setSelectedGroupMarker(selectedMarker)
-    if (onMarkerSelect) {
-      onMarkerSelect(selectedMarker)
-    }
+    onMarkerSelect?.(selectedMarker)
     setIsMarkerSelectModalOpen(false)
   }
 
@@ -125,6 +125,12 @@ const CustomMapMarker = ({
   useEffect(() => {
     setIsOpen(initialInfoWindowOpen)
   }, [initialInfoWindowOpen])
+
+  useEffect(() => {
+    if (forceKeepOpen) {
+      setIsOpen(true)
+    }
+  }, [forceKeepOpen])
 
   if (!filterMenu) return null
 
@@ -184,7 +190,9 @@ const CustomMapMarker = ({
             clickable={true}
             yAnchor={1.1}
             zIndex={100}>
-            <InfoWindowContainer onClick={(e) => e.stopPropagation()}>
+            <InfoWindowContainer
+              onClick={(e) => e.stopPropagation()}
+              className="info-window-persistent">
               <InfoWindowHeader>
                 <HeaderTitle>주주 정보</HeaderTitle>
                 <CloseButton
@@ -202,7 +210,6 @@ const CustomMapMarker = ({
                 <ActionButton
                   variant="success"
                   onClick={(e) => {
-                    e.stopPropagation()
                     handleAddressCopy(e)
                   }}>
                   <ContentCopy fontSize="small" />
@@ -211,7 +218,6 @@ const CustomMapMarker = ({
                 <ActionButton
                   variant="primary"
                   onClick={(e) => {
-                    e.stopPropagation()
                     setMakerDataUpdateIsModalOpen(true)
                   }}>
                   <Edit fontSize="small" />
@@ -220,8 +226,8 @@ const CustomMapMarker = ({
                 <ActionButton
                   variant="close"
                   onClick={(e) => {
-                    e.stopPropagation()
                     setIsOpen(false)
+                    onMarkerSelect?.(null)
                   }}>
                   <Close fontSize="small" />
                   <span>닫기</span>
@@ -310,6 +316,9 @@ const MarkerCounter = styled.div`
 `
 
 const InfoWindowContainer = styled.div`
+  &.info-window-persistent {
+    pointer-events: auto;
+  }
   background-color: white;
   padding: 16px;
   border-radius: 8px;
