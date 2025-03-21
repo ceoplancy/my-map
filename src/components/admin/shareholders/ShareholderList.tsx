@@ -324,8 +324,10 @@ const FilterSelect = styled.select`
   }
 `
 
+type SortField = keyof Excel | "history_modifier" | "history_modified_at"
+
 type SortConfig = {
-  field: keyof Excel | null
+  field: SortField | null
   direction: "asc" | "desc"
 }
 
@@ -352,6 +354,20 @@ export default function ShareholderList() {
     modifier: "",
   })
 
+  // 최근 수정자 표시를 위한 함수
+  const getLatestModifier = (history: HistoryItem[] | undefined) => {
+    if (!Array.isArray(history) || history.length === 0) return "-"
+
+    return history[history.length - 1].modifier
+  }
+
+  // 최근 수정일 표시를 위한 함수
+  const getLatestModifiedDate = (history: HistoryItem[] | undefined) => {
+    if (!Array.isArray(history) || history.length === 0) return "-"
+
+    return history[history.length - 1].modified_at
+  }
+
   const { data: excelData, isLoading, refetch } = useGetExcel(14)
   const { data: usersData } = useGetUsers(1, 100)
   const deleteExcelMutation = useDeleteExcel()
@@ -361,7 +377,7 @@ export default function ShareholderList() {
     refetch()
   }
 
-  const handleSort = (field: keyof Excel) => {
+  const handleSort = (field: SortField) => {
     setSort((prev) => ({
       field,
       direction:
@@ -432,6 +448,33 @@ export default function ShareholderList() {
   const sortedData = [...filteredData].sort((a, b) => {
     if (!sort.field) return 0
 
+    if (sort.field === "history_modifier") {
+      const aModifier = getLatestModifier(a.history as HistoryItem[])
+      const bModifier = getLatestModifier(b.history as HistoryItem[])
+
+      if (aModifier === "-" && bModifier !== "-") return 1
+      if (bModifier === "-" && aModifier !== "-") return -1
+      if (aModifier === "-" && bModifier === "-") return 0
+
+      const comparison =
+        aModifier < bModifier ? -1 : aModifier > bModifier ? 1 : 0
+
+      return sort.direction === "asc" ? comparison : -comparison
+    }
+
+    if (sort.field === "history_modified_at") {
+      const aDate = getLatestModifiedDate(a.history as HistoryItem[])
+      const bDate = getLatestModifiedDate(b.history as HistoryItem[])
+
+      if (aDate === "-" && bDate !== "-") return 1
+      if (bDate === "-" && aDate !== "-") return -1
+      if (aDate === "-" && bDate === "-") return 0
+
+      const comparison = aDate < bDate ? -1 : aDate > bDate ? 1 : 0
+
+      return sort.direction === "asc" ? comparison : -comparison
+    }
+
     const aValue = a[sort.field]
     const bValue = b[sort.field]
 
@@ -448,20 +491,6 @@ export default function ShareholderList() {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   )
-
-  // 최근 수정자 표시를 위한 함수
-  const getLatestModifier = (history: HistoryItem[] | undefined) => {
-    if (!Array.isArray(history) || history.length === 0) return "-"
-
-    return history[history.length - 1].modifier
-  }
-
-  // getLatestModifiedDate 함수 추가
-  const getLatestModifiedDate = (history: HistoryItem[] | undefined) => {
-    if (!Array.isArray(history) || history.length === 0) return "-"
-
-    return history[history.length - 1].modified_at
-  }
 
   return (
     <Container>
@@ -592,10 +621,10 @@ export default function ShareholderList() {
                     ))}
                 </div>
               </ThSortable>
-              <ThSortable onClick={() => handleSort("history")}>
+              <ThSortable onClick={() => handleSort("history_modifier")}>
                 <div>
                   최종 수정자
-                  {sort.field === "history" &&
+                  {sort.field === "history_modifier" &&
                     (sort.direction === "asc" ? (
                       <ArrowUpward />
                     ) : (
@@ -603,10 +632,10 @@ export default function ShareholderList() {
                     ))}
                 </div>
               </ThSortable>
-              <ThSortable onClick={() => handleSort("history")}>
+              <ThSortable onClick={() => handleSort("history_modified_at")}>
                 <div>
                   최종 수정일
-                  {sort.field === "history" &&
+                  {sort.field === "history_modified_at" &&
                     (sort.direction === "asc" ? (
                       <ArrowUpward />
                     ) : (

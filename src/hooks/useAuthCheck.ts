@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 const useAuthCheck = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  const { data } = useGetUserData(false)
+  const { data } = useGetUserData()
 
   useEffect(() => {
     if (!data) {

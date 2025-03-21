@@ -7,6 +7,7 @@ import { COLORS } from "@/styles/global-style"
 import { Clear as ClearIcon } from "@mui/icons-material"
 import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
+import { STORAGE_KEY } from "@/pages"
 
 interface FilterModalChildrenProps {
   handleClose: () => void
@@ -223,7 +224,17 @@ const FilterModalChildren = ({
       </FilterSection>
 
       <ButtonGroup>
-        <ResetButton onClick={resetFilters}>필터 초기화</ResetButton>
+        <ResetButton
+          onClick={() => {
+            localStorage.setItem(STORAGE_KEY.level, "6")
+            localStorage.setItem(
+              STORAGE_KEY.position,
+              JSON.stringify({ lat: 37.5665, lng: 126.978 }),
+            )
+            resetFilters()
+          }}>
+          필터 초기화
+        </ResetButton>
         <ApplyButton onClick={handleApplyFilters}>적용하기</ApplyButton>
       </ButtonGroup>
     </FilterContainer>

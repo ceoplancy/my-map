@@ -73,22 +73,15 @@ const getUserData = async () => {
   return data
 }
 
-export const useGetUserData = (redirect = true) => {
-  const router = useRouter()
-
-  return useQuery(["userData"], () => getUserData(), {
+export const useGetUserData = () => {
+  const { data, isLoading } = useQuery(["userData"], getUserData, {
     retry: 1,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     enabled: true,
     staleTime: 1000 * 60 * 5,
-
-    onError: () => {
-      if (redirect) {
-        toast.error("로그인 후 이용해 주세요.")
-        router.push("/sign-in")
-      }
-    },
   })
+
+  return { data, isLoading }
 }

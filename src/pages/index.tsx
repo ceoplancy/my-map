@@ -8,6 +8,7 @@ import {
   FilterAlt,
   LogoutOutlined,
   Clear as ClearIcon,
+  RestartAlt,
 } from "@mui/icons-material"
 
 import { useGetExcel } from "@/api/supabase"
@@ -21,13 +22,14 @@ import MultipleMapMarker from "@/component/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
+import { toast } from "react-toastify"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
   ne: { lat: number; lng: number }
 }
 
-const STORAGE_KEY = {
+export const STORAGE_KEY = {
   position: "mapLastPosition",
   level: "mapLastLevel",
 }
@@ -35,8 +37,9 @@ const STORAGE_KEY = {
 const Home = () => {
   const router = useRouter()
   const mapRef = useRef<kakao.maps.Map>(null)
-  const { data: user } = useGetUserData()
+  const { data: user, isLoading } = useGetUserData()
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
+  const { resetFilters } = useFilterStore()
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
   const [mapLevel, setMapLevel] = useState<number>(() => {
@@ -137,6 +140,16 @@ const Home = () => {
     setIsFilterModalOpen(false)
   }
 
+  const handleReset = useCallback(() => {
+    localStorage.setItem(STORAGE_KEY.level, "6")
+    localStorage.setItem(
+      STORAGE_KEY.position,
+      JSON.stringify({ lat: 37.5665, lng: 126.978 }),
+    )
+    resetFilters()
+    router.reload()
+  }, [router, resetFilters])
+
   useEffect(() => {
     if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
       excelDataRefetch()
@@ -169,9 +182,16 @@ const Home = () => {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isLoading && !user) {
+      toast.error("로그인이 필요합니다.")
+      router.push("/sign-in")
+    }
+  }, [isLoading, router, user])
+
   return (
     <>
-      {excelIsLoading && (
+      {(excelIsLoading || isLoading) && (
         <SpinnerFrame>
           <GlobalSpinner
             width={18}
@@ -198,7 +218,7 @@ const Home = () => {
           onDragEnd={handleDragEnd}>
           <MapTypeControl position={"TOPRIGHT"} />
           <ZoomControl position={"RIGHT"} />
-          {excelData && <MultipleMapMarker markers={excelData} />}
+          {excelData && user && <MultipleMapMarker markers={excelData} />}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
@@ -216,6 +236,10 @@ const Home = () => {
                 <ClearIcon />
               </CloseButton>
             </MenuHeader>
+            <MenuItem onClick={handleReset} style={{ color: COLORS.red[600] }}>
+              <RestartAlt />
+              초기화
+            </MenuItem>
             <MenuItem onClick={() => setIsFilterModalOpen(true)}>
               <FilterAlt />
               필터 설정
