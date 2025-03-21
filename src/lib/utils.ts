@@ -11,7 +11,7 @@ export const getCoordinateRanges = (mapLevel: number) => {
     7: 0.16,
     8: 0.6,
     9: 0.75,
-    10: 1,
+    10: 1.4,
     11: 1.8,
     12: 4,
     13: 100,

@@ -173,6 +173,9 @@ const ModalContainer = styled.div`
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   height: 100%;
   overflow-y: auto;
+  max-width: 95vw;
+  max-height: 90vh;
+  width: 100%;
 
   user-select: none;
   animation: slideUp 0.3s ease-out;
@@ -187,6 +190,10 @@ const ModalContainer = styled.div`
       transform: translateY(0);
     }
   }
+
+  @media (max-width: 768px) {
+    border-radius: 12px;
+  }
 `
 
 const ModalHeader = styled.div`
@@ -195,6 +202,14 @@ const ModalHeader = styled.div`
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid ${COLORS.gray[100]};
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `
 
 const HeaderTitle = styled.h2`
@@ -212,6 +227,10 @@ const HeaderTitle = styled.h2`
     height: 16px;
     background: ${COLORS.blue[500]};
     border-radius: 2px;
+  }
+
+  @media (max-width: 768px) {
+    font-size: 16px;
   }
 `
 
@@ -234,23 +253,9 @@ const CloseButton = styled.button`
 const ModalContent = styled.form`
   padding: 24px;
   overflow-y: auto;
-  height: 100%;
 
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: ${COLORS.gray[200]};
-    border-radius: 3px;
-
-    &:hover {
-      background: ${COLORS.gray[300]};
-    }
+  @media (max-width: 768px) {
+    padding: 16px;
   }
 `
 
@@ -284,6 +289,7 @@ const StyledSelect = styled.select`
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 1rem;
+  min-height: 48px;
 
   &:hover {
     border-color: ${COLORS.blue[300]};
@@ -293,6 +299,11 @@ const StyledSelect = styled.select`
     outline: none;
     border-color: ${COLORS.blue[500]};
     box-shadow: 0 0 0 3px ${COLORS.blue[100]};
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 14px;
+    font-size: 13px;
   }
 `
 
@@ -326,15 +337,21 @@ const ButtonGroup = styled.div`
   gap: 12px;
   justify-content: flex-end;
   margin-top: 32px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 8px;
+  }
 `
 
 const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-size: 14px;
   font-weight: 500;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 48px;
 
   background: ${({ variant }) =>
     variant === "primary" ? COLORS.blue[500] : "white"};
@@ -355,15 +372,16 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
       variant === "primary" ? COLORS.blue[600] : COLORS.gray[50]};
     border-color: ${({ variant }) =>
       variant === "primary" ? COLORS.blue[600] : COLORS.gray[400]};
-    box-shadow: 0 4px 8px
-      ${({ variant }) =>
-        variant === "primary"
-          ? "rgba(59, 130, 246, 0.3)"
-          : "rgba(0, 0, 0, 0.1)"};
   }
 
   &:active {
     transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 10px 20px;
+    font-size: 13px;
   }
 `
 
