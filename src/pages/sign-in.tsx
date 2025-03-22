@@ -1,7 +1,5 @@
 import { useState } from "react"
 import { usePostSignIn } from "@/api/auth"
-import { useRouter } from "next/router"
-import useAuthCheck from "@/hooks/useAuthCheck"
 import styled from "@emotion/styled"
 import Button from "@/component/button"
 import DotSpinner from "@/component/dot-spinner"
@@ -10,17 +8,9 @@ import Image from "next/image"
 import { SignInAnimation } from "@/components/animations/SignInAnimation"
 
 const SignIn = () => {
-  const router = useRouter()
-  const isLoggedIn = useAuthCheck()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const { mutate: signInMutate, isLoading: signInIsLoading } = usePostSignIn()
-
-  if (isLoggedIn) {
-    router.push("/")
-
-    return
-  }
 
   return (
     <Container>
