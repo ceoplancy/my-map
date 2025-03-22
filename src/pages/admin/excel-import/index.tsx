@@ -10,6 +10,7 @@ import { Excel } from "@/types/excel"
 import AdminLayout from "@/layouts/AdminLayout"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
+import * as Sentry from "@sentry/nextjs"
 
 interface GeocodingResult {
   success: boolean
@@ -228,6 +229,7 @@ const ExcelImport = () => {
           .select()
 
         if (error) {
+          Sentry.captureException(error)
           toast.error(`데이터 업로드 중 오류가 발생했습니다. ${error.message}`)
           throw error
         }
@@ -243,7 +245,7 @@ const ExcelImport = () => {
         )
       }
     } catch (error) {
-      console.error("Error:", error)
+      Sentry.captureException(error)
       toast.error("주소 변환에 실패하였습니다. 다시 시도해주세요.")
     } finally {
       setLoading(false)
@@ -283,7 +285,7 @@ const ExcelImport = () => {
         toast.error("주소 변환에 실패했습니다. 다른 주소로 시도해보세요.")
       }
     } catch (error) {
-      console.error("Error:", error)
+      Sentry.captureException(error)
       toast.error("데이터 처리 중 오류가 발생했습니다.")
     } finally {
       setLoading(false)
@@ -342,7 +344,7 @@ const ExcelImport = () => {
         )
       }
     } catch (error) {
-      console.error("Error:", error)
+      Sentry.captureException(error)
       toast.error("데이터 처리 중 오류가 발생했습니다.")
     } finally {
       setLoading(false)

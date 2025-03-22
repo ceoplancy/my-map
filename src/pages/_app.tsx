@@ -4,11 +4,11 @@ import Head from "next/head"
 import { Hydrate, QueryClient, QueryClientProvider } from "react-query"
 import { ReactQueryDevtools } from "react-query/devtools"
 import { RecoilRoot } from "recoil"
-import { ErrorBoundary } from "react-error-boundary"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
-import { ErrorFallback } from "@/components/error-boundary"
+import * as Sentry from "@sentry/nextjs"
 
 declare global {
   interface Window {
@@ -42,7 +42,6 @@ const queryClientOptions = {
     },
   },
 }
-
 const App = ({ Component, pageProps }: AppProps) => {
   const [queryClient] = useState(() => new QueryClient(queryClientOptions))
   const [mapLoaded, setMapLoaded] = useState(false)
@@ -58,7 +57,7 @@ const App = ({ Component, pageProps }: AppProps) => {
         window.kakaoMapsLoaded = true
       })
     } catch (error) {
-      console.error("Failed to initialize Kakao Maps:", error)
+      Sentry.captureException(error)
     }
   }, [mapLoaded])
 
@@ -126,10 +125,10 @@ const App = ({ Component, pageProps }: AppProps) => {
 
       <GlobalStyle />
 
-      <QueryClientProvider client={queryClient}>
-        <Hydrate state={pageProps.dehydratedState}>
-          <RecoilRoot>
-            <ErrorBoundary fallback={<ErrorFallback />}>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <Hydrate state={pageProps.dehydratedState}>
+            <RecoilRoot>
               {mapLoaded && <Component {...pageProps} />}
               <ToastContainer
                 position="top-center"
@@ -137,13 +136,13 @@ const App = ({ Component, pageProps }: AppProps) => {
                 autoClose={3000}
               />
               <div id="portal" />
-            </ErrorBoundary>
-          </RecoilRoot>
-        </Hydrate>
-        {process.env.NODE_ENV === "development" && (
-          <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
-        )}
-      </QueryClientProvider>
+            </RecoilRoot>
+          </Hydrate>
+          {process.env.NODE_ENV === "development" && (
+            <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+          )}
+        </QueryClientProvider>
+      </ErrorBoundary>
 
       <Script
         strategy="afterInteractive"

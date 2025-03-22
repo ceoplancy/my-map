@@ -3,30 +3,30 @@ import { recoilPersist } from "recoil-persist"
 
 // recoilPersist 설정 추가
 const { persistAtom } = recoilPersist({
-  key: "filter-persist", // 로컬 스토리지에 저장될 키 이름
+  key: "filter", // 로컬 스토리지에 저장될 키 이름
   storage: typeof window !== "undefined" ? localStorage : undefined,
 })
 
 export const statusFilterState = atom<string[]>({
-  key: "statusFilterState",
+  key: "status-filter-state",
   default: [],
   effects_UNSTABLE: [persistAtom], // persist 효과 추가
 })
 
 export const companyFilterState = atom<string[]>({
-  key: "companyFilterState",
+  key: "company-filter-state",
   default: [],
   effects_UNSTABLE: [persistAtom],
 })
 
 export const makerFilterState = atom<string[]>({
-  key: "makerFilterState",
+  key: "maker-filter-state",
   default: [],
   effects_UNSTABLE: [persistAtom],
 })
 
 export const cityFilterState = atom<string>({
-  key: "cityFilterState",
+  key: "city-filter-state",
   default: "",
   effects_UNSTABLE: [persistAtom],
 })
@@ -38,7 +38,7 @@ export interface StockRange {
 }
 
 export const stocksFilterState = atom<StockRange[]>({
-  key: "stocksFilterState",
+  key: "stocks-filter-state",
   default: [],
   effects_UNSTABLE: [persistAtom],
 })

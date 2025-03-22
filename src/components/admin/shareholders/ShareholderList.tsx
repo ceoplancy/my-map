@@ -15,6 +15,7 @@ import {
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
 import { HistoryItem } from "@/component/excel-data-table"
+import * as Sentry from "@sentry/nextjs"
 
 const Container = styled.div`
   background: white;
@@ -396,7 +397,7 @@ export default function ShareholderList() {
         await deleteExcelMutation.mutateAsync(id)
         toast.success("성공적으로 삭제되었습니다.")
       } catch (error) {
-        console.error("삭제 중 오류 발생:", error)
+        Sentry.captureException(error)
         toast.error("삭제 중 오류가 발생했습니다.")
       }
     }

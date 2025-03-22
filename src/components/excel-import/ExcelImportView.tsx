@@ -44,8 +44,10 @@ import {
 } from "@mui/icons-material"
 import { Excel } from "@/types/excel"
 import useDebounce from "@/hooks/useDebounce"
-import { FIELD_LABELS } from "../admin/shareholders/EditShareholderModal"
+import * as Sentry from "@sentry/nextjs"
 import { BATCH_SIZE } from "@/pages/admin/excel-import"
+
+import { FIELD_LABELS } from "../admin/shareholders/EditShareholderModal"
 import { ExcelImportViewProps, SearchResult } from "./types"
 
 export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
@@ -259,7 +261,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         setSearchLoading(false)
       }
     } catch (error) {
-      console.error("Error searching address:", error)
+      Sentry.captureException(error)
       setSearchLoading(false)
     }
   }
@@ -386,7 +388,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         // 다이얼로그 닫기
         handleEditDialogClose()
       } catch (error) {
-        console.error("Error saving edited data:", error)
+        Sentry.captureException(error)
       }
     }
   }

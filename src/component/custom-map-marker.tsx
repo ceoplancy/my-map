@@ -171,7 +171,7 @@ const CustomMapMarker = ({
             lat: marker.lat || 0,
             lng: marker.lng || 0,
           }}
-          xAnchor={0.475}
+          xAnchor={0.47}
           yAnchor={1.9}
           clickable>
           <MarkerCounter onClick={handleMarkerClick}>

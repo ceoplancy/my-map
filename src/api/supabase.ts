@@ -6,6 +6,7 @@ import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
 import { Excel } from "@/types/excel"
+import * as Sentry from "@sentry/nextjs"
 
 // =======================================
 // ============== get 엑셀 데이터 ===============
@@ -82,7 +83,10 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 
   const { data, error } = await query
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 
   return data
 }
@@ -119,7 +123,10 @@ const updateExcel = async (excelId: number, patchData: Excel) => {
     .eq("id", excelId)
     .select()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 }
 
 export const usePatchExcel = () => {
@@ -196,7 +203,10 @@ const getUsers = async (page: number = 1, limit: number = 10) => {
     perPage: limit,
   })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 
   return {
     users,
@@ -228,7 +238,10 @@ const getUser = async (userId: string) => {
     data: { user },
     error,
   } = await supabaseAdmin.auth.admin.getUserById(userId)
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 
   return user
 }
@@ -248,7 +261,10 @@ const createUser = async (
     email_confirm: true,
     user_metadata: userData,
   })
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 
   return user
 }
@@ -259,7 +275,10 @@ const updateUser = async (userId: string, updates: object) => {
     data: { user },
     error,
   } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 
   return user
 }
@@ -267,7 +286,10 @@ const updateUser = async (userId: string, updates: object) => {
 // 사용자 삭제
 const deleteUser = async (userId: string) => {
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 }
 
 export const useGetUser = (userId: string) => {
@@ -349,7 +371,7 @@ export const setUserRole = async (userId: string, role: "admin" | "user") => {
 
     return { success: true }
   } catch (error) {
-    console.error("사용자 권한 설정 중 오류:", error)
+    Sentry.captureException(error)
 
     return { success: false, error }
   }

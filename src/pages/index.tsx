@@ -23,6 +23,7 @@ import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
+import * as Sentry from "@sentry/nextjs"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
@@ -30,8 +31,8 @@ interface MapBounds {
 }
 
 export const STORAGE_KEY = {
-  position: "mapLastPosition",
-  level: "mapLastLevel",
+  position: "map_last_position",
+  level: "map_last_level",
 }
 
 const Home = () => {

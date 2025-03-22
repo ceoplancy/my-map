@@ -8,6 +8,7 @@ import { toast } from "react-toastify"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { HistoryItem } from "@/component/excel-data-table"
+import * as Sentry from "@sentry/nextjs"
 
 const Overlay = styled.div`
   position: fixed;
@@ -279,13 +280,16 @@ export default function EditShareholderModal({ data, onClose }: Props) {
         .update(formData)
         .eq("id", data.id)
 
-      if (error) throw error
+      if (error) {
+        Sentry.captureException(error)
+        throw new Error(error.message)
+      }
 
       queryClient.invalidateQueries(["excel"])
       toast.success("데이터가 성공적으로 수정되었습니다.")
       onClose()
     } catch (error) {
-      console.error("Error updating data:", error)
+      Sentry.captureException(error)
       toast.error("데이터 수정 중 오류가 발생했습니다.")
     }
   }

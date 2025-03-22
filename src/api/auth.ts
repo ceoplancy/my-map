@@ -2,7 +2,7 @@ import supabase from "@/lib/supabase/supabaseClient"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
 import { useQuery, useMutation, useQueryClient } from "react-query"
-
+import * as Sentry from "@sentry/nextjs"
 // =========================================
 // ============== post sign in
 // =========================================
@@ -12,7 +12,10 @@ const postSignIn = async (data: { email: string; password: string }) => {
     password: data.password,
   })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 }
 
 export const usePostSignIn = () => {
@@ -42,16 +45,21 @@ export const usePostSignIn = () => {
 const postSignOut = async () => {
   const { error } = await supabase.auth.signOut()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
 }
 
 export const usePostSignOut = () => {
+  const router = useRouter()
   const queryClient = useQueryClient()
 
   return useMutation(() => postSignOut(), {
     onSuccess: () => {
       queryClient.invalidateQueries(["userData"])
       toast.success("정상적으로 로그아웃 되었습니다.")
+      router.push("/")
     },
 
     onError: () => {
@@ -68,7 +76,16 @@ export const usePostSignOut = () => {
 const getUserData = async () => {
   const { data, error } = await supabase.auth.getUser()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    Sentry.captureException(error)
+    throw new Error(error.message)
+  }
+
+  Sentry.setUser({
+    email: data.user?.email,
+    id: data.user?.id,
+    metadata: data.user?.user_metadata,
+  })
 
   return data
 }
