@@ -14,15 +14,7 @@ import { format } from "date-fns"
 
 interface MakerPatchModalChildrenProps {
   makerData: Excel
-  makerDataMutate: UseMutateFunction<
-    void,
-    unknown,
-    {
-      id: number
-      patchData: Excel
-    },
-    unknown
-  >
+  makerDataMutate: UseMutateFunction<void, unknown, Excel, unknown>
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 }
 
@@ -81,23 +73,17 @@ const MakerPatchModalChildren = ({
             memo: values.memo,
             history: [{ modifier, modified_at, changes }],
           }
-      makerDataMutate(
-        {
-          id: makerData.id,
-          patchData,
+      makerDataMutate(patchData, {
+        onSuccess: () => {
+          toast.success("주주 정보가 수정되었습니다.")
         },
-        {
-          onSuccess: () => {
-            toast.success("주주 정보가 수정되었습니다.")
-          },
-          onError: () => {
-            toast.error("주주 정보 수정에 실패했습니다.")
-          },
-          onSettled: () => {
-            setMakerDataUpdateIsModalOpen(false)
-          },
+        onError: () => {
+          toast.error("주주 정보 수정에 실패했습니다.")
         },
-      )
+        onSettled: () => {
+          setMakerDataUpdateIsModalOpen(false)
+        },
+      })
     },
   })
 

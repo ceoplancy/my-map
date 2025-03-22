@@ -116,11 +116,12 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
 // =========================================
 // ============== patch 마커 정보 업데이트 ============
 // =========================================
-const updateExcel = async (excelId: number, patchData: Excel) => {
+const updateExcel = async (patchData: Excel) => {
+  const { id, ...attributes } = patchData
   const { error } = await supabase
     .from("excel")
-    .update(patchData)
-    .eq("id", excelId)
+    .update(attributes)
+    .eq("id", id)
     .select()
 
   if (error) {
@@ -132,21 +133,17 @@ const updateExcel = async (excelId: number, patchData: Excel) => {
 export const usePatchExcel = () => {
   const queryClient = useQueryClient()
 
-  return useMutation(
-    ({ id, patchData }: { id: number; patchData: Excel }) =>
-      updateExcel(id, patchData),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(["excel"])
-        queryClient.invalidateQueries(["filteredStats"])
-      },
-      onError: () => {
-        toast.error(
-          "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
-        )
-      },
+  return useMutation((patchData: Excel) => updateExcel(patchData), {
+    onSuccess: () => {
+      queryClient.invalidateQueries(["excel"])
+      queryClient.invalidateQueries(["filteredStats"])
     },
-  )
+    onError: () => {
+      toast.error(
+        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
+      )
+    },
+  })
 }
 
 // =======================================
