@@ -1,6 +1,6 @@
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
-import { Dispatch, SetStateAction } from "react"
+import { Dispatch, SetStateAction, useEffect } from "react"
 import { UseMutateFunction } from "react-query"
 import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
@@ -13,7 +13,7 @@ import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
 
 interface MakerPatchModalChildrenProps {
-  makerData: Excel
+  makerData: Excel | null
   makerDataMutate: UseMutateFunction<void, unknown, Excel, unknown>
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 }
@@ -39,9 +39,26 @@ const MakerPatchModalChildren = ({
   setMakerDataUpdateIsModalOpen,
 }: MakerPatchModalChildrenProps) => {
   const { data: user } = useGetUserData()
+
   const formik = useFormik({
-    initialValues: makerData,
+    initialValues: {
+      id: makerData?.id ?? 0,
+      address: makerData?.address ?? "",
+      company: makerData?.company ?? "",
+      lat: makerData?.lat ?? 0,
+      lng: makerData?.lng ?? 0,
+      latlngaddress: makerData?.latlngaddress ?? "",
+      maker: makerData?.maker ?? "",
+      name: makerData?.name ?? "",
+      status: makerData?.status ?? "미방문",
+      memo: makerData?.memo ?? "",
+      stocks: makerData?.stocks ?? 0,
+      image: makerData?.image ?? "",
+      history: makerData?.history ?? [],
+    },
     onSubmit: (values) => {
+      if (!makerData) return
+
       const original = {
         status: makerData.status,
         memo: makerData.memo,
@@ -58,7 +75,7 @@ const MakerPatchModalChildren = ({
       const changes = findDifferences(original, modified)
 
       const patchData = makerData.history
-        ? {
+        ? ({
             ...values,
             status: values.status,
             memo: values.memo,
@@ -66,13 +83,13 @@ const MakerPatchModalChildren = ({
               ...(makerData.history as string[]),
               { modifier, modified_at, changes },
             ] as Json,
-          }
-        : {
+          } as Excel)
+        : ({
             ...values,
             status: values.status,
             memo: values.memo,
             history: [{ modifier, modified_at, changes }],
-          }
+          } as Excel)
       makerDataMutate(patchData, {
         onSuccess: () => {
           toast.success("주주 정보가 수정되었습니다.")
@@ -87,6 +104,26 @@ const MakerPatchModalChildren = ({
     },
   })
 
+  useEffect(() => {
+    if (makerData) {
+      formik.setValues({
+        id: makerData.id,
+        address: makerData.address ?? "",
+        company: makerData.company ?? "",
+        lat: makerData.lat ?? 0,
+        lng: makerData.lng ?? 0,
+        latlngaddress: makerData.latlngaddress ?? "",
+        maker: makerData.maker ?? "",
+        name: makerData.name ?? "",
+        status: makerData.status ?? "미방문",
+        memo: makerData.memo ?? "",
+        stocks: makerData.stocks ?? 0,
+        image: makerData.image ?? "",
+        history: makerData.history ?? [],
+      })
+    }
+  }, [makerData])
+
   return (
     <>
       <ModalHeader>
@@ -99,7 +136,7 @@ const MakerPatchModalChildren = ({
         <ModalContent onSubmit={formik.handleSubmit}>
           <Section>
             <SectionTitle>현재 정보</SectionTitle>
-            <ExcelDataTable data={makerData} />
+            {makerData && <ExcelDataTable data={makerData} />}
           </Section>
 
           <Section>

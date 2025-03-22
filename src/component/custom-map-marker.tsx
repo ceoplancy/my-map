@@ -114,15 +114,6 @@ const CustomMapMarker = ({
   }
 
   useEffect(() => {
-    return () => {
-      setIsOpen(false)
-      setMakerDataUpdateIsModalOpen(false)
-      setIsMarkerSelectModalOpen(false)
-      setSelectedGroupMarker(null)
-    }
-  }, [])
-
-  useEffect(() => {
     setIsOpen(initialInfoWindowOpen)
   }, [initialInfoWindowOpen])
 
@@ -243,7 +234,7 @@ const CustomMapMarker = ({
         open={makerDataUpdateIsModalOpen}
         setOpen={setMakerDataUpdateIsModalOpen}>
         <MakerPatchModalChildren
-          makerData={marker}
+          makerData={isGroupMarker ? selectedGroupMarker : marker}
           makerDataMutate={makerDataMutate}
           setMakerDataUpdateIsModalOpen={setMakerDataUpdateIsModalOpen}
         />
