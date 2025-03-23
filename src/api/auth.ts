@@ -14,6 +14,7 @@ const postSignIn = async (data: { email: string; password: string }) => {
 
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("로그인에 실패했습니다.")
     throw new Error(error.message)
   }
 }
@@ -47,6 +48,7 @@ const postSignOut = async () => {
 
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("로그아웃에 실패했습니다.")
     throw new Error(error.message)
   }
 }
@@ -78,6 +80,7 @@ const getUserData = async () => {
 
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 정보 조회에 실패했습니다.")
     throw new Error(error.message)
   }
 

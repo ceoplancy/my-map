@@ -86,7 +86,7 @@ const ExcelImport = () => {
     const selectedFile = e.target.files[0]
 
     if (!fileTypes.includes(selectedFile.type)) {
-      toast.error("Please select only excel file types")
+      toast.error("오직 엑셀 파일만 업로드 가능합니다.")
       clearFileName()
 
       return
@@ -230,6 +230,9 @@ const ExcelImport = () => {
 
         if (error) {
           Sentry.captureException(error)
+          Sentry.captureMessage(
+            "주소 데이터 업로드(excel upsert)에 실패했습니다.",
+          )
           toast.error(`데이터 업로드 중 오류가 발생했습니다. ${error.message}`)
           throw error
         }
@@ -246,6 +249,7 @@ const ExcelImport = () => {
       }
     } catch (error) {
       Sentry.captureException(error)
+      Sentry.captureMessage("(don't know why) 주소 변환에 실패했습니다.")
       toast.error("주소 변환에 실패하였습니다. 다시 시도해주세요.")
     } finally {
       setLoading(false)
@@ -286,7 +290,10 @@ const ExcelImport = () => {
       }
     } catch (error) {
       Sentry.captureException(error)
-      toast.error("데이터 처리 중 오류가 발생했습니다.")
+      Sentry.captureMessage("카카오 주소 변환에 실패했습니다.")
+      toast.error(
+        "데이터 처리 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
     } finally {
       setLoading(false)
     }
@@ -345,7 +352,10 @@ const ExcelImport = () => {
       }
     } catch (error) {
       Sentry.captureException(error)
-      toast.error("데이터 처리 중 오류가 발생했습니다.")
+      Sentry.captureMessage("카카오 주소 변환에 실패했습니다.")
+      toast.error(
+        "데이터 처리 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
     } finally {
       setLoading(false)
       setProcessingItem(null)

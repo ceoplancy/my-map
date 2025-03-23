@@ -85,6 +85,7 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
 
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("엑셀 데이터 조회에 실패했습니다.")
     throw new Error(error.message)
   }
 
@@ -126,6 +127,7 @@ const updateExcel = async (patchData: Excel) => {
 
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("엑셀 데이터 수정에 실패했습니다.")
     throw new Error(error.message)
   }
 }
@@ -202,6 +204,7 @@ const getUsers = async (page: number = 1, limit: number = 10) => {
 
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 목록 조회에 실패했습니다.")
     throw new Error(error.message)
   }
 
@@ -224,7 +227,9 @@ export const useGetUsers = (page: number = 1, limit: number = 10) => {
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      toast.error("사용자 목록을 불러오는데 실패했습니다.")
+      toast.error(
+        "사용자 목록을 불러오는데 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
     },
   })
 }
@@ -237,6 +242,7 @@ const getUser = async (userId: string) => {
   } = await supabaseAdmin.auth.admin.getUserById(userId)
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 조회에 실패했습니다.")
     throw new Error(error.message)
   }
 
@@ -260,6 +266,7 @@ const createUser = async (
   })
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 생성에 실패했습니다.")
     throw new Error(error.message)
   }
 
@@ -274,6 +281,7 @@ const updateUser = async (userId: string, updates: object) => {
   } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 정보 수정에 실패했습니다.")
     throw new Error(error.message)
   }
 
@@ -285,6 +293,7 @@ const deleteUser = async (userId: string) => {
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
   if (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 삭제에 실패했습니다.")
     throw new Error(error.message)
   }
 }
@@ -294,7 +303,9 @@ export const useGetUser = (userId: string) => {
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,
     onError: () => {
-      toast.error("사용자 정보를 불러오는데 실패했습니다.")
+      toast.error(
+        "사용자 정보를 불러오는데 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
     },
   })
 }
@@ -318,7 +329,9 @@ export const useCreateUser = () => {
         toast.success("사용자가 성공적으로 생성되었습니다.")
       },
       onError: () => {
-        toast.error("사용자 생성에 실패했습니다.")
+        toast.error(
+          "사용자 생성에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+        )
       },
     },
   )
@@ -337,7 +350,9 @@ export const useUpdateUser = () => {
         toast.success("사용자 정보가 성공적으로 수정되었습니다.")
       },
       onError: () => {
-        toast.error("사용자 정보 수정에 실패했습니다.")
+        toast.error(
+          "사용자 정보 수정에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+        )
       },
     },
   )
@@ -352,7 +367,9 @@ export const useDeleteUser = () => {
       toast.success("사용자가 성공적으로 삭제되었습니다.")
     },
     onError: () => {
-      toast.error("사용자 삭제에 실패했습니다.")
+      toast.error(
+        "사용자 삭제에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
     },
   })
 }
@@ -369,6 +386,7 @@ export const setUserRole = async (userId: string, role: "admin" | "user") => {
     return { success: true }
   } catch (error) {
     Sentry.captureException(error)
+    Sentry.captureMessage("사용자 권한 설정에 실패했습니다.")
 
     return { success: false, error }
   }

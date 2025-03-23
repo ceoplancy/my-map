@@ -58,6 +58,7 @@ const App = ({ Component, pageProps }: AppProps) => {
       })
     } catch (error) {
       Sentry.captureException(error)
+      Sentry.captureMessage("카카오 맵 로딩에 실패했습니다.")
     }
   }, [mapLoaded])
 

@@ -95,7 +95,9 @@ const MakerPatchModalChildren = ({
           toast.success("주주 정보가 수정되었습니다.")
         },
         onError: () => {
-          toast.error("주주 정보 수정에 실패했습니다.")
+          toast.error(
+            "주주 정보 수정에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+          )
         },
         onSettled: () => {
           setMakerDataUpdateIsModalOpen(false)

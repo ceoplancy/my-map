@@ -398,7 +398,10 @@ export default function ShareholderList() {
         toast.success("성공적으로 삭제되었습니다.")
       } catch (error) {
         Sentry.captureException(error)
-        toast.error("삭제 중 오류가 발생했습니다.")
+        Sentry.captureMessage("주주 정보 삭제에 실패했습니다.")
+        toast.error(
+          "삭제 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+        )
       }
     }
   }

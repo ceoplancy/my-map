@@ -210,6 +210,7 @@ export default function Header() {
       router.push("/sign-in")
     } catch (error) {
       Sentry.captureException(error)
+      Sentry.captureMessage("로그아웃에 실패했습니다.")
     }
   }
 

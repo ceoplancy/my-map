@@ -262,6 +262,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
       }
     } catch (error) {
       Sentry.captureException(error)
+      Sentry.captureMessage("카카오 주소 검색에 실패했습니다.")
       setSearchLoading(false)
     }
   }
@@ -389,6 +390,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         handleEditDialogClose()
       } catch (error) {
         Sentry.captureException(error)
+        Sentry.captureMessage("주소 수정에 실패했습니다.")
       }
     }
   }
