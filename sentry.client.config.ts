@@ -24,6 +24,11 @@ Sentry.init({
         return !url.startsWith(`${SUPABASE_URL}/rest`)
       },
     }),
+    Sentry.replayIntegration({
+      // Additional SDK configuration goes in here, for example:
+      // sessionSampleRate: 0.1,
+      // errorSampleRate: 1.0,
+    }),
   ],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
