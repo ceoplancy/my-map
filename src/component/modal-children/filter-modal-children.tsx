@@ -40,7 +40,13 @@ const STOCK_RANGES = [
   { label: "3만주 ~ 4만주", start: 30000, end: 39999 },
   { label: "4만주 ~ 5만주", start: 40000, end: 49999 },
   { label: "5만주 ~ 10만주", start: 50000, end: 99999 },
-  { label: "10만주 이상", start: 100000, end: 99999999999 },
+  { label: "10만주 이상", start: 100000, end: 199999 },
+  { label: "20만주 이상", start: 200000, end: 399999 },
+  { label: "40만주 이상", start: 400000, end: 599999 },
+  { label: "60만주 이상", start: 600000, end: 799999 },
+  { label: "80만주 이상", start: 800000, end: 999999 },
+  { label: "100만주 이상", start: 1000000, end: 1499999 },
+  { label: "150만주 이상", start: 1500000, end: 99999999999 },
 ] as const
 
 const FilterModalChildren = ({
