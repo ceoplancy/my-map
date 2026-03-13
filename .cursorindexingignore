@@ -1,0 +1,24 @@
+# ============================================
+# CURSOR INDEXING IGNORE
+# Files excluded from search but still accessible
+# ============================================
+
+# Large auto-generated type files (reference when needed)
+src/types/db.ts
+
+# Memory Bank (reference when needed; don't pollute code search)
+memory-bank/*.md
+memory-bank/archive/
+
+# Large JSON data files
+**/*.json
+!package.json
+!tsconfig.json
+!components.json
+
+# Cursor rules (loaded separately, not needed in code search)
+.cursor/rules/**/*.mdc
+.cursor/rules/**/*.md
+
+# Skills reference files (loaded by skill system)
+.cursor/skills/**/rules/*.md

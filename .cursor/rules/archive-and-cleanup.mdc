@@ -1,0 +1,58 @@
+---
+description: 통합 아카이브 위치 및 불필요 파일 정리 규칙
+globs: ["memory-bank/**", "archive/**"]
+alwaysApply: false
+---
+
+# Archive & 정리 (Archive and Cleanup)
+
+> **아카이브는 `memory-bank/archive/` 한 곳만 사용한다.**
+
+---
+
+## 아카이브 위치 (단일)
+
+| 항목 | 경로 |
+|------|------|
+| **통합 아카이브** | `memory-bank/archive/` |
+| 인덱스 | `memory-bank/archive/index.md` |
+| 설명 | `memory-bank/archive/README.md` |
+
+- 루트 `archive/`는 **사용 중단**. 모든 과거 문서·가이드·백업은 `memory-bank/archive/`로 통합됨.
+- ARCHIVE 모드 또는 작업 완료 후 아카이빙 시 **반드시** `memory-bank/archive/`에 저장하고 `index.md`에 항목 추가.
+
+---
+
+## 아카이브 대상
+
+- 완료된 **INIT/PLAN/REFLECT** 문서 (작업 완료 후 루트에서 제거한 것)
+- **reflect-*.md**, **creative-*.md** 등 회고·설계 문서
+- 마이그레이션·스키마 점검·한 번 쓰인 계획 문서
+- 과거 작업 기록: `memory-bank/archive/work-history/`
+- 운영·참조 가이드: `memory-bank/archive/guides/`
+- 규칙 백업: `memory-bank/archive/cursor-rules-backup/`
+
+---
+
+## 아카이빙 절차
+
+1. 보관할 파일을 `memory-bank/archive/` 또는 적절한 하위 디렉터리(`work-history/`, `guides/` 등)로 이동.
+2. `memory-bank/archive/index.md`에 날짜·제목·파일 경로 추가.
+3. 원본 위치에서 해당 파일 삭제(이미 이동했으면 생략).
+
+---
+
+## 불필요한 파일 정리 규칙
+
+- **아카이브로 이동**: 내용이 참고 가치가 있는 문서 → `memory-bank/archive/`로 이동 후 인덱스 갱신.
+- **삭제**: 중복본, 임시 파일, 완전히 구버전이고 참고할 필요 없는 문서. 삭제 전 필요 시 팀 확인.
+- **유지하지 말 것**: memory-bank 루트 또는 프로젝트 루트에 완료된 일회성 INIT/PLAN/REFLECT를 장기 보관하지 않음 → 아카이브로 이동.
+- **SoT 유지**: `tasks.md`, `activeContext.md`, `progress.md`, `domainKnowledge.md`, `techStack.md`, `projectBrief.md` 등은 memory-bank 루트에 유지; 이들은 아카이브 대상이 아님.
+
+---
+
+## 참조
+
+- 워크플로우: `.cursor/rules/workflow-modes.mdc`
+- Memory Bank: `memory-bank/README.md`
+- 에이전트 가이드: `AGENTS.md`

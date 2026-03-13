@@ -1,0 +1,130 @@
+# my-map (앤트리맵) — Cursor Rules
+
+> **모든 작업은 `AGENTS.md` 프로세스를 따릅니다.**
+> 작업 요청 → 자동 INIT → 복잡도 판단 → 워크플로우 실행
+
+---
+
+## 프로젝트 구조
+
+| 계층 | 역할 |
+|------|------|
+| **Next.js** (`src/`) | UI, API Routes, Server/Client 컴포넌트, 라우팅 |
+| **Supabase** | DB·인증·스토리지 (클라이언트/서버 공통) |
+
+- 단일 Next.js 앱 (Pages Router). 비즈니스 로직은 API Routes 또는 Serverless 함수에서 처리.
+- DB 타입: `pnpm typegen` → `src/types/db.ts`
+- **도메인**: 주주·주식 관리 (앤트리맵) — 단일 회사 → B2B SaaS 플랫폼 전환 예정. `memory-bank/domainKnowledge.md` 참조.
+
+---
+
+## Skills
+
+| Skill | 적용 시점 |
+|-------|-----------|
+| vercel-react-best-practices | React/Next.js |
+| supabase-postgres-best-practices | SQL/DB |
+| ui-ux-pro-max | CREATIVE UI/UX |
+| web-design-guidelines | 접근성/UX |
+
+→ `.cursor/skills/`
+
+---
+
+## 워크플로우
+
+```
+INIT → PLAN → CREATIVE → BUILD → REFLECT → ARCHIVE
+ Ask    Plan    Plan     Agent   Ask/Debug  Agent
+```
+
+- L1→INIT→BUILD→REFLECT | L2→+PLAN | L3→+CREATIVE | L4→전체
+- → `.cursor/rules/workflow-modes.mdc`
+
+---
+
+## 코드 표준
+
+### TypeScript
+- strict 필수, `any` → `unknown` + 타입 가드
+- 제네릭 활용
+
+### React/Next.js
+- 함수형만, Server/Client 분리
+- `'use client'` 필요 시에만
+- Waterfall → `Promise.all()` 권장
+- barrel file 피하기, 직접 import
+- API·DB 접근: Supabase 클라이언트 또는 `src/api/`·`pages/api/` 활용
+
+### Supabase
+- RLS 권장: `(select auth.uid())` 등
+- FK 인덱스 권장
+- `pnpm typegen` → `src/types/db.ts`
+
+### 에러 핸들링
+- API/Server: try/catch 후 적절한 HTTP 상태·JSON 응답
+- 클라이언트: React Query 등에서 error UI 처리
+
+### 테스트
+- E2E: 필요 시 Playwright 등
+- 버그 수정: 실패 재현 → 수정 → 검증
+
+---
+
+## 커밋
+
+`type(scope): description`
+
+| type | 용도 |
+|------|------|
+| feat | 새 기능 |
+| fix | 버그 |
+| refactor | 리팩토링 |
+| docs | 문서 |
+
+**`--no-verify` 금지** → `.cursor/rules/commit-verification.mdc`
+
+---
+
+## 주요 경로
+
+| 용도 | 경로 |
+|------|------|
+| API Routes | `src/pages/api/` 또는 `src/api/` |
+| 페이지 | `src/pages/` |
+| 컴포넌트 | `src/components/`, `src/component/` |
+| 훅 | `src/hooks/` |
+| DB 타입 | `src/types/db.ts` |
+| 스토어 | `src/store/` |
+| **통합 아카이브** | `memory-bank/archive/` (인덱스: `memory-bank/archive/index.md`) |
+
+---
+
+## Archive & 정리
+
+- **아카이브**: 완료 문서·회고·가이드는 **`memory-bank/archive/`** 사용. 루트 `archive/` 사용 중단.
+- **정리**: 불필요 문서는 아카이브로 이동 후 `memory-bank/archive/index.md` 갱신.
+- → `.cursor/rules/archive-and-cleanup.mdc`
+
+---
+
+## 앤트리맵 도메인 (요약)
+
+| 용어 | 설명 |
+|------|------|
+| 주주명부 | 엑셀 기반 주주 목록 (주소, 주식 수, 상태) |
+| 용역 | 현장 요원 — 방문·상태·메모·사진 |
+| 상장사/의결권 대행사 | 플랫폼화 시 가입 주체 (B2B) |
+
+→ `memory-bank/domainKnowledge.md`
+
+---
+
+## 핵심 파일 (삭제 금지)
+
+```
+memory-bank/tasks.md, activeContext.md, progress.md
+.cursor/skills/, .cursor/rules/
+```
+
+**AI 활용**: `AGENTS.md` 및 `.cursor/rules/workflow-modes.mdc`

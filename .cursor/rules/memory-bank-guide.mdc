@@ -1,0 +1,52 @@
+---
+description: Memory Bank 활용 가이드 (포인터)
+globs: ["memory-bank/**"]
+alwaysApply: false
+---
+
+# Memory Bank Guide
+
+> **상세 가이드**: `memory-bank/README.md` 참조  
+> **AI 활용 전반** (Cursor 진입점·규칙·Skills): `docs/AI_USAGE.md`
+
+---
+
+## 빠른 시작
+
+### 새 작업 시
+
+```
+1. activeContext.md → 현재 상태
+2. tasks.md → 작업 목록
+3. INIT 모드로 시작
+```
+
+### 파일 우선순위
+
+| 순서 | 파일 | 용도 |
+|------|------|------|
+| 1 | tasks.md | 작업 목록 (SoT) |
+| 2 | activeContext.md | 현재 컨텍스트 |
+| 3 | domainKnowledge.md | 앤트리맵 도메인 |
+| 4 | databaseSchema.md | DB 스키마 |
+| 5 | techStack.md | 기술 스택 |
+
+---
+
+## 갱신 트리거
+
+| 파일 | 갱신 시점 |
+|------|-----------|
+| tasks.md | INIT(새 작업), PLAN(계획), 완료 시 |
+| activeContext.md | **매 모드 전환** |
+| progress.md | BUILD 중 단계별 완료 |
+
+---
+
+## 핵심 원칙
+
+1. **Memory Bank = 최소 핵심 정보**
+2. **Archive = 읽기 전용 참조** — 단일 위치: `memory-bank/archive/` (인덱스: `memory-bank/archive/index.md`)
+3. **중복 문서 금지** — 기존 문서 재사용
+
+→ 워크플로우: `workflow-modes.mdc` | 아카이브·정리: `archive-and-cleanup.mdc` | AI 활용: `docs/AI_USAGE.md`

@@ -1,0 +1,166 @@
+---
+description: Memory Bank Workflow + Cursor 모드 통합 가이드
+globs: []
+alwaysApply: true
+---
+
+# Memory Bank Workflow
+
+> 단일 소스: 워크플로우 + Cursor 모드 통합
+
+---
+
+## 워크플로우 & Cursor 모드 매핑
+
+```
+INIT(VAN) → PLAN → CREATIVE → BUILD → REFLECT → ARCHIVE
+    ↓         ↓        ↓         ↓        ↓         ↓
+   Ask      Plan     Plan      Agent   Ask/Debug  Agent
+```
+
+| 모드 | Cursor | 목적 | 다음 단계 |
+|------|--------|------|-----------|
+| **INIT** | Ask→Agent | 분석, 복잡도 판단 | L1→BUILD / L2+→PLAN |
+| **PLAN** | **Plan** | 계획 수립 | CREATIVE 필요시→CREATIVE / 아니면→BUILD |
+| **CREATIVE** | Plan | 설계 결정, UI→ui-ux-pro-max | BUILD |
+| **BUILD** | **Agent** | 구현 (에러→Debug) | REFLECT |
+| **REFLECT** | Ask/Debug | 검토, 이슈 정리 | L4→ARCHIVE / 완료 |
+| **ARCHIVE** | Agent | 문서화, 아카이빙 | 완료 |
+
+**아카이브 위치**: 모든 아카이브는 `memory-bank/archive/`만 사용. 인덱스: `memory-bank/archive/index.md`. 상세: `.cursor/rules/archive-and-cleanup.mdc`
+
+---
+
+## 복잡도별 워크플로우
+
+| Level | 설명 | 워크플로우 |
+|-------|------|-----------|
+| L1 | 버그 수정, 단일 파일 | INIT→BUILD→REFLECT |
+| L2 | 기능 개선, 2-5 파일 | INIT→PLAN→BUILD→REFLECT |
+| L3 | 새 기능, 5+ 파일, 설계 필요 | INIT→PLAN→CREATIVE→BUILD→REFLECT |
+| L4 | 아키텍처 변경, 시스템 전반 | 전체 + ARCHIVE |
+
+### 복잡도 판단 기준
+
+| 기준 | L1 | L2 | L3 | L4 |
+|------|----|----|----|----|
+| 파일 수 | 1 | 2-5 | 5+ | 10+ |
+| 설계 결정 | 불필요 | 불필요 | 필요 | 다수 |
+| DB 변경 | 없음 | 경미 | 스키마 | 마이그레이션 |
+
+---
+
+## INIT 체크리스트
+
+```
+□ memory-bank/ 확인 (tasks.md, activeContext.md)
+□ domainKnowledge.md 참조 (앤트리맵 용어)
+□ 관련 파일 탐색 (/explorer)
+□ 복잡도 판단 → 워크플로우 결정
+```
+
+### 출력 형식
+
+```
+✅ INIT 완료
+━━━━━━━━━━━━━━━━━━
+📁 파일: [n개]
+📊 복잡도: L[1-4]
+   - 파일 수: n / 설계: 필요·불필요 / DB: 있음·없음
+➡️ 다음: [PLAN/BUILD]
+```
+
+---
+
+## 모드별 핵심 가이드
+
+### PLAN (Cursor Plan 모드)
+
+**트리거**: L2+ 작업, "어떻게 구현?" 질문
+
+```
+1. ⌘I → 드롭다운에서 Plan 선택
+2. 계획 논의 (읽기 전용)
+3. 완료 후 Agent에서 tasks.md 업데이트
+```
+
+### CREATIVE (Cursor Plan 모드)
+
+**트리거**: 설계 결정 필요, 옵션 비교
+
+- **UI/UX 작업**: `.cursor/skills/ui-ux-pro-max/SKILL.md` 필수
+- 결정 후 `creative-[feature].md` 작성
+
+### BUILD (Cursor Agent 모드)
+
+**트리거**: "구현하자", 코드 수정 필요
+
+```
+1. ⌘I → Agent (기본)
+2. 에러 발생 → Debug 전환
+3. progress.md 단계별 업데이트
+```
+
+**서브에이전트**:
+- `/frontend-engineer` - UI
+- `/implementer` - 로직/API
+- `/debugger` - 에러 분석
+
+### REFLECT (Cursor Ask/Debug)
+
+**트리거**: 구현 완료, 검토 필요
+
+- **이슈/버그**: Debug 모드 → Error Analysis→Solution→Verification
+- **일반 검토**: Ask 모드 (읽기 전용)
+
+---
+
+## 서브에이전트
+
+| 호출 | 역할 | 시점 |
+|------|------|------|
+| `/explorer` | 파일 탐색 | INIT |
+| `/architect` | 설계 결정 | PLAN, CREATIVE |
+| `/frontend-engineer` | UI 구현 | BUILD |
+| `/implementer` | 로직 구현 | BUILD |
+| `/debugger` | 에러 분석 | BUILD, REFLECT |
+| `/verifier` | 완료 검증 | REFLECT |
+
+---
+
+## 핵심 파일
+
+| 파일 | 용도 | 갱신 시점 |
+|------|------|-----------|
+| `tasks.md` | 작업 목록 (SoT) | INIT, PLAN, 완료 시 |
+| `activeContext.md` | 현재 컨텍스트 | 매 모드 전환 |
+| `progress.md` | 구현 진행 | BUILD 중 |
+| `creative-*.md` | 설계 결정 | CREATIVE |
+| `memory-bank/archive/` | 통합 아카이브 (완료 문서) | ARCHIVE, 정리 시 |
+
+→ 상세: `memory-bank/README.md` | 아카이브·정리: `.cursor/rules/archive-and-cleanup.mdc`  
+→ **AI 활용 전반** (진입점·Skills·디렉터리·서브에이전트): `docs/AI_USAGE.md`
+
+---
+
+## 빠른 참조
+
+### 모드 전환 신호
+
+| 신호 | 전환 |
+|------|------|
+| "어떻게 구현?" | → Plan |
+| "이제 구현하자" | → Agent |
+| 에러 발생 | → Debug |
+| "검토해줘" | → Ask |
+
+### 자주 쓰는 명령
+
+```bash
+INIT [작업]  # 또는 VAN
+PLAN
+CREATIVE
+BUILD
+REFLECT
+ARCHIVE
+```

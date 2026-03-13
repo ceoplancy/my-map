@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=sujcnuhxtddbwqmwapkt"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1amNudWh4dGRkYndxbXdhcGt0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyNDA0NDAxNiwiZXhwIjoyMDM5NjIwMDE2fQ.EO0TefoCrzyVa2w9Hud6_FOsIOEZqqjJbyBGrpgxqPM"
+      }
+    },
+    "tosspayments-integration-guide": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@tosspayments/integration-guide-mcp@latest"
+      ]
+    }
+  }
+}

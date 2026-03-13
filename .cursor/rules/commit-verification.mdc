@@ -1,0 +1,11 @@
+---
+description: 커밋 시 검증 훅을 건너뛰지 않고 항상 정석대로 커밋한다.
+globs: 
+alwaysApply: true
+---
+
+# 커밋 검증 규칙
+
+- **`git commit --no-verify`, `git commit -n` 절대 사용 금지.**
+- pre-commit(lint-staged, TypeScript 검사)과 commit-msg(Conventional Commits) 훅을 건너뛰지 않는다.
+- 커밋이 오래 걸리는 이유가 빌드/린트/타입 검사라면, 훅을 통과한 뒤에만 커밋한다. 해결 방법: 에러 수정, 또는 훅/스크립트 최적화. **훅 스킵은 선택지가 아님.**

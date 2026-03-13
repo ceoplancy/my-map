@@ -1,0 +1,786 @@
+---
+description: PRD and ADR Integration for IMPLEMENT Mode
+globs: ["docs/**", "memory-bank/**"]
+alwaysApply: false
+---
+
+# PRD & ADR Integration Guide
+
+## Purpose
+
+PLAN 모드에서 생성된 PRD(Product Requirements Document)와 CREATIVE 모드에서 생성된 ADR(Architecture Decision Records)을 IMPLEMENT 모드에서 효과적으로 활용하여 정확하고 일관된 구현을 보장합니다.
+
+---
+
+## Documentation Structure
+
+### Core Documents
+
+```
+docs/v2/{feature}/
+├── VAN_AUDIT.md           # Current state analysis
+├── PRD.md                 # ⭐ Product Requirements Document (PLAN 결과물)
+├── TECHNICAL_DESIGN.md    # Technical specifications
+└── CREATIVE_DECISIONS.md  # ⭐ Architecture Decision Records (CREATIVE 결과물)
+
+memory-bank/
+├── activeContext.md       # Current context and status
+├── tasks.md               # Task breakdown and checklist
+└── progress.md            # Progress tracking
+```
+
+### Document Purposes
+
+**PRD.md** - Product Requirements:
+
+- What to build (features)
+- Why we're building it (business goals)
+- Who it's for (user personas)
+- Success criteria and metrics
+- Implementation timeline
+- Testing requirements
+
+**CREATIVE_DECISIONS.md** - Architecture Decisions:
+
+- How to build it (architectural patterns)
+- Why specific approaches were chosen
+- Alternatives considered
+- Trade-offs and consequences
+- Implementation guidelines
+
+---
+
+## IMPLEMENT Mode Workflow
+
+### Phase Entry Checklist
+
+Before starting ANY implementation task:
+
+1. **Read PRD Section**
+
+   - Locate relevant feature in PRD.md
+   - Review acceptance criteria
+   - Understand success metrics
+   - Note technical specs
+
+2. **Read Related ADRs**
+
+   - Find relevant ADRs in CREATIVE_DECISIONS.md
+   - Understand architectural decisions
+   - Review implementation patterns
+   - Note consequences and mitigations
+
+3. **Check Memory Bank**
+
+   - Review activeContext.md for current status
+   - Check tasks.md for task details
+   - Update progress.md when starting/completing
+
+4. **Implement with References**
+   - Follow PRD acceptance criteria exactly
+   - Apply ADR patterns and guidelines
+   - Use provided code examples as templates
+   - Maintain consistency with decisions
+
+---
+
+## Usage Patterns
+
+### Pattern 1: Starting a New Component
+
+```markdown
+BEFORE CODING:
+
+1. Check PRD.md:
+
+   - Section: "Feature X: Component Name"
+   - Read: User Story, Acceptance Criteria, Technical Specs
+   - Note: Success Metrics
+
+2. Check CREATIVE_DECISIONS.md:
+
+   - Find: ADR for relevant pattern (e.g., ADR-004 Component Naming)
+   - Apply: Naming conventions, file structure
+   - Use: Code examples as templates
+
+3. Implement:
+
+   - File location: Follow ADR-004 (feature-based grouping)
+   - Component name: Follow naming convention
+   - Props/types: Match PRD technical specs
+   - Acceptance criteria: Implement ALL items
+
+4. Verify:
+   - ✅ All acceptance criteria met
+   - ✅ ADR patterns followed
+   - ✅ Success metrics achievable
+   - ✅ Code matches examples
+```
+
+### Pattern 2: Implementing Data Fetching
+
+````markdown
+BEFORE CODING:
+
+1. Check PRD.md:
+
+   - Section: "8. Data Requirements"
+   - Review: Data models (TypeScript types)
+   - Note: Fetch strategies
+
+2. Check CREATIVE_DECISIONS.md:
+
+   - ADR-002: Lazy Loading Strategy
+   - ADR-005: React Query Configuration
+   - Apply: Stale times, cache times, enabled flags
+
+3. Implement:
+   ```typescript
+   // Follow ADR-005 pattern exactly
+   const { data } = useProjectAddons(projectId, {
+     enabled: isAddonsPageActive, // Lazy load (ADR-002)
+     staleTime: 2 * 60 * 1000, // 2 min (ADR-005)
+   })
+   ```
+````
+
+4. Verify:
+   - ✅ Lazy loading works (ADR-002)
+   - ✅ Cache configuration correct (ADR-005)
+   - ✅ Data model matches PRD types
+
+````
+
+### Pattern 3: Building a Page
+
+```markdown
+STEP-BY-STEP WITH PRD/ADR:
+
+Phase 1: Read Requirements
+├── PRD.md → Find "Feature X: Page Name"
+│   ├── User Story: Understand user goal
+│   ├── Acceptance Criteria: Checklist of features
+│   ├── Technical Specs: Components, data, layout
+│   └── Success Metrics: Performance targets
+└── CREATIVE_DECISIONS.md → Find related ADRs
+    ├── ADR-001: Sidebar pattern (if applicable)
+    ├── ADR-002: Data loading strategy
+    ├── ADR-004: Component naming
+    └── ADR-006: Route structure
+
+Phase 2: Plan Implementation
+├── File location: Apply ADR-004 (naming conventions)
+├── Route setup: Apply ADR-006 (nested routes)
+├── Data fetching: Apply ADR-002, ADR-005
+└── Error handling: Apply ADR-008
+
+Phase 3: Implement
+├── Create component with PRD technical specs
+├── Implement ALL acceptance criteria items
+├── Follow ADR code examples
+└── Use PRD data models (TypeScript types)
+
+Phase 4: Verify
+├── Acceptance criteria: All checkboxes ✅
+├── Success metrics: Load time, interaction speed
+├── ADR compliance: Patterns followed
+└── Update Memory Bank: Mark task complete
+````
+
+---
+
+## Quick Reference Commands
+
+### Find PRD Requirements
+
+```bash
+# In IMPLEMENT mode, reference:
+docs/v2/{feature}/PRD.md
+
+# Search for feature:
+"Feature N: {Feature Name}"
+
+# Get acceptance criteria:
+Look for "**Acceptance Criteria**:" section
+
+# Get technical specs:
+Look for "**Technical Specs**:" section
+```
+
+### Find ADR Guidance
+
+```bash
+# Reference:
+docs/v2/{feature}/CREATIVE_DECISIONS.md
+
+# Common ADRs:
+- ADR-001: Sidebar pattern
+- ADR-002: Lazy loading
+- ADR-003: Addon architecture
+- ADR-004: Naming conventions
+- ADR-005: React Query config
+- ADR-006: Route structure
+- ADR-007: State management
+- ADR-008: Error handling
+```
+
+### Update Memory Bank
+
+```bash
+# After completing task:
+1. Update tasks.md → Mark task as complete
+2. Update progress.md → Add to completed section
+3. Update activeContext.md → Update current focus
+```
+
+---
+
+## Implementation Checklist Template
+
+For EACH task, follow this checklist:
+
+```markdown
+## Task {ID}: {Task Name}
+
+### 1. PRD Reference ✅
+
+- [ ] Read PRD feature section
+- [ ] Review acceptance criteria
+- [ ] Note technical specs
+- [ ] Understand success metrics
+
+### 2. ADR Reference ✅
+
+- [ ] Identify relevant ADRs
+- [ ] Review implementation patterns
+- [ ] Note code examples
+- [ ] Understand consequences
+
+### 3. Implementation ✅
+
+- [ ] Create files (follow ADR-004 naming)
+- [ ] Implement acceptance criteria (ALL items)
+- [ ] Apply ADR patterns
+- [ ] Use PRD data models
+
+### 4. Verification ✅
+
+- [ ] All acceptance criteria met
+- [ ] ADR patterns followed
+- [ ] TypeScript compiles (0 errors)
+- [ ] Manual test passes
+
+### 5. Documentation ✅
+
+- [ ] Update tasks.md (mark complete)
+- [ ] Update progress.md (add to completed)
+- [ ] Add JSDoc comments
+- [ ] Update activeContext if needed
+```
+
+---
+
+## ADR Application Matrix
+
+| Implementation Area | Relevant ADRs    | Must Follow                     |
+| ------------------- | ---------------- | ------------------------------- |
+| Creating new routes | ADR-006          | Route structure, URL design     |
+| Creating layouts    | ADR-001          | Sidebar pattern, collapsible UI |
+| Data fetching       | ADR-002, ADR-005 | Lazy loading, cache config      |
+| Component naming    | ADR-004          | Feature-based grouping          |
+| State management    | ADR-007          | React Query + Zustand           |
+| Error handling      | ADR-008          | 3-layer pattern                 |
+| Addon features      | ADR-003          | Marketplace architecture        |
+
+---
+
+## Code Example Usage
+
+### When to Use PRD Code Examples
+
+**PRD contains**:
+
+- Data model TypeScript types
+- UI component structures
+- Loading/error state examples
+- Layout specifications
+
+**Example**:
+
+```typescript
+// PRD Section 8.1: Data Models
+// Copy this EXACTLY into your implementation
+type Project = {
+  id: string
+  name: string
+  description: string | null
+  status: "active" | "archived" | "deleted"
+  created_at: string
+  updated_at: string
+}
+```
+
+### When to Use ADR Code Examples
+
+**ADRs contain**:
+
+- Architectural patterns
+- Configuration setups
+- Best practice implementations
+- Reusable code templates
+
+**Example**:
+
+```typescript
+// ADR-005: React Query Configuration
+// Use this pattern for ALL queries
+const queryConfig = {
+  staleTime: 5 * 60 * 1000, // From ADR
+  cacheTime: 10 * 60 * 1000, // From ADR
+  refetchOnWindowFocus: false, // From ADR
+  retry: 1, // From ADR
+}
+```
+
+---
+
+## Validation Rules
+
+### PRD Compliance Check
+
+Before marking task complete:
+
+- [ ] **Acceptance Criteria**: ALL items implemented (not partial)
+- [ ] **Technical Specs**: Components match specified names
+- [ ] **Data Models**: TypeScript types match PRD exactly
+- [ ] **Success Metrics**: Performance targets achievable
+- [ ] **User Story**: Feature solves stated user problem
+
+### ADR Compliance Check
+
+Before marking task complete:
+
+- [ ] **Naming**: Follows ADR-004 conventions
+- [ ] **Routes**: Follows ADR-006 structure
+- [ ] **Data Fetching**: Follows ADR-002, ADR-005
+- [ ] **State**: Follows ADR-007 (React Query + Zustand)
+- [ ] **Errors**: Follows ADR-008 (3-layer pattern)
+- [ ] **Code Style**: Matches ADR examples
+
+---
+
+## Common Mistakes to Avoid
+
+### ❌ Mistake 1: Partial Implementation
+
+**Wrong**:
+
+```typescript
+// Only implementing 2 out of 5 acceptance criteria
+<ProjectInfoCard>
+  <h2>{project.name}</h2>
+  {/* Missing: description, status, created_at */}
+</ProjectInfoCard>
+```
+
+**Correct**:
+
+```typescript
+// Implement ALL acceptance criteria from PRD
+<ProjectInfoCard>
+  <h2>{project.name}</h2>
+  <Badge>{project.status}</Badge>  {/* ✅ From criteria */}
+  <p>{project.description}</p>     {/* ✅ From criteria */}
+  <span>{formatDate(project.created_at)}</span>  {/* ✅ From criteria */}
+</ProjectInfoCard>
+```
+
+### ❌ Mistake 2: Ignoring ADR Patterns
+
+**Wrong**:
+
+```typescript
+// Custom query configuration (ignores ADR-005)
+const { data } = useQuery({
+  queryKey: ["myCustomKey"],
+  staleTime: 0, // Not following ADR
+})
+```
+
+**Correct**:
+
+```typescript
+// Follow ADR-005 pattern exactly
+const { data } = useProject(projectId, {
+  staleTime: 5 * 60 * 1000, // From ADR-005
+})
+```
+
+### ❌ Mistake 3: Wrong File Location
+
+**Wrong**:
+
+```
+src/components/OverviewPage.tsx  // Not following ADR-004
+```
+
+**Correct**:
+
+```
+src/features/workspace/components/project-detail/overview/OverviewPage.tsx
+// Follows ADR-004: Feature-based grouping
+```
+
+---
+
+## Memory Bank Integration
+
+### Document References in Memory Bank
+
+**activeContext.md** should always reference:
+
+```markdown
+## 📚 Reference Documents
+
+**Planning Documents**:
+
+- [PRD](../docs/v2/workspace/PRD.md) - Product requirements and features
+- [CREATIVE_DECISIONS](../docs/v2/workspace/CREATIVE_DECISIONS.md) - ADRs
+
+**Quick Access**:
+
+- Acceptance Criteria: PRD Section 4
+- Data Models: PRD Section 8
+- ADR Summary: CREATIVE_DECISIONS Summary table
+```
+
+**tasks.md** should reference PRD tasks:
+
+```markdown
+### Task X.Y: {Task Name}
+
+**PRD Reference**: Section 7.1, Phase X, Task Y
+**ADR Reference**: ADR-00X, ADR-00Y
+**Acceptance Criteria**: [Link to specific PRD section]
+```
+
+---
+
+## Best Practices
+
+### 1. Always Start with Documentation
+
+```
+1. Open PRD.md → Find feature section
+2. Open CREATIVE_DECISIONS.md → Find relevant ADRs
+3. Read acceptance criteria completely
+4. Review code examples
+5. THEN start coding
+```
+
+### 2. Code Review Against Documents
+
+```
+Before committing:
+1. Re-read acceptance criteria
+2. Check off each item
+3. Verify ADR patterns applied
+4. Ensure success metrics achievable
+5. Update Memory Bank
+```
+
+### 3. Continuous Reference
+
+```
+Keep these documents open while coding:
+- PRD.md (for requirements)
+- CREATIVE_DECISIONS.md (for patterns)
+- tasks.md (for progress tracking)
+```
+
+### 4. Update as You Go
+
+```
+After each task:
+1. Mark task complete in tasks.md
+2. Add to completed section in progress.md
+3. Update activeContext.md if needed
+4. Commit with reference: "feat: Task X.Y - {description} (PRD Section Y)"
+```
+
+---
+
+## Automation Helpers
+
+### Git Commit Message Template
+
+```bash
+feat: Task {ID} - {Description}
+
+PRD: Section {X}, Feature {Y}
+ADR: {ADR-XXX}
+Acceptance Criteria: {N}/{N} complete
+
+- [x] Criterion 1
+- [x] Criterion 2
+- [x] Criterion 3
+```
+
+### Task Completion Template
+
+```markdown
+## ✅ Task {ID} Complete
+
+**Duration**: {actual time}
+**PRD Compliance**: {acceptance criteria count}/{total}
+**ADR Applied**: {list of ADRs}
+**Verification**: {test results}
+
+**Next Task**: Task {ID+1}
+```
+
+---
+
+## Quick Reference Tables
+
+### PRD Quick Lookup
+
+| Need                  | PRD Section | Contains             |
+| --------------------- | ----------- | -------------------- |
+| What to build         | Section 4   | Feature requirements |
+| Who it's for          | Section 3   | User personas        |
+| How users will use it | Section 5   | User flows           |
+| What data is needed   | Section 8   | Data models & types  |
+| When to complete      | Section 7   | Timeline & phases    |
+| How to test           | Section 11  | Testing checklist    |
+
+### ADR Quick Lookup
+
+| Implementation Task  | Relevant ADR     | Key Guidance                |
+| -------------------- | ---------------- | --------------------------- |
+| Creating layout      | ADR-001          | Collapsible sidebar pattern |
+| Fetching data        | ADR-002, ADR-005 | Lazy loading + cache config |
+| Building addon pages | ADR-003          | Marketplace architecture    |
+| Naming files         | ADR-004          | Feature-based grouping      |
+| Managing state       | ADR-007          | React Query + Zustand       |
+| Defining routes      | ADR-006          | Nested route structure      |
+| Handling errors      | ADR-008          | 3-layer error handling      |
+
+---
+
+## Success Criteria
+
+### Task is Complete When
+
+**PRD Compliance**:
+
+- [x] ALL acceptance criteria implemented (100%, not 80%)
+- [x] Technical specs matched exactly
+- [x] Data models use PRD types
+- [x] Success metrics achievable
+
+**ADR Compliance**:
+
+- [x] Relevant ADRs identified and applied
+- [x] Code patterns match ADR examples
+- [x] Architectural decisions followed
+- [x] Consequences understood and mitigated
+
+**Memory Bank Updated**:
+
+- [x] tasks.md task marked complete
+- [x] progress.md updated with completion
+- [x] activeContext.md reflects current state
+
+**Quality Checks**:
+
+- [x] TypeScript: 0 errors
+- [x] ESLint: 0 warnings
+- [x] Manual test: Passing
+- [x] PRD metrics: Met
+
+---
+
+## Integration with Existing Rules
+
+### Hierarchical Loading
+
+```
+1. Load Main Rule (isolation_rules/main.mdc)
+2. Load Mode-Specific Rule (visual-maps/implement-mode-map.mdc)
+3. Load This Rule (prd-adr-integration.mdc) ← NEW
+4. Load Task-Specific Rules (as needed)
+```
+
+### Mode Transition
+
+```
+VAN Mode → Creates: VAN_AUDIT.md
+PLAN Mode → Creates: PRD.md
+CREATIVE Mode → Creates: CREATIVE_DECISIONS.md
+IMPLEMENT Mode → Uses: PRD.md + CREATIVE_DECISIONS.md ← THIS RULE
+```
+
+---
+
+## Example: Complete Task Flow
+
+### Task 0.1: Create Route Structure
+
+**Step 1: Read PRD**
+
+```markdown
+PRD Section 7.1, Phase 0, Task 0.1:
+
+- Create route structure
+- Est: 15 minutes
+- Priority: P0
+- Dependencies: None
+```
+
+**Step 2: Read ADR**
+
+```markdown
+ADR-006: Route Structure
+
+- Decision: Nested routes
+- Pattern: /workspace/org/:id/project/:projectId/{section}
+- Example code provided
+```
+
+**Step 3: Implement**
+
+```bash
+# Create files (following ADR-006 structure)
+mkdir -p src/app/workspace/org/[organizerId]/project/[projectId]
+touch src/app/workspace/org/[organizerId]/project/[projectId]/layout.tsx
+touch src/app/workspace/org/[organizerId]/project/[projectId]/page.tsx
+```
+
+**Step 4: Code**
+
+```typescript
+// layout.tsx - Use ADR-001 pattern
+import { ProjectDetailLayout } from '@/features/workspace/components/project-detail/ProjectDetailLayout'
+
+export default async function ProjectDetailLayoutPage({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Promise<{ organizerId: string; projectId: string }>
+}) {
+  const resolvedParams = await params
+  return (
+    <ProjectDetailLayout params={resolvedParams}>
+      {children}
+    </ProjectDetailLayout>
+  )
+}
+```
+
+**Step 5: Verify**
+
+```markdown
+PRD Compliance:
+
+- [x] Route created at correct location
+- [x] Follows nested route pattern
+- [x] Matches technical specs
+
+ADR Compliance:
+
+- [x] ADR-006: Nested routes ✅
+- [x] ADR-004: File naming ✅
+
+Memory Bank:
+
+- [x] tasks.md: Task 0.1 marked complete
+- [x] progress.md: Added to completed tasks
+```
+
+**Step 6: Commit**
+
+```bash
+git commit -m "feat: Task 0.1 - Create route structure
+
+PRD: Section 7.1, Phase 0
+ADR: ADR-006 (Nested Routes)
+Acceptance Criteria: Route structure created
+
+- Created layout.tsx and page.tsx
+- Follows nested route pattern
+- Ready for component implementation"
+```
+
+---
+
+## Troubleshooting
+
+### If Confused During Implementation
+
+**Question**: "What should this component do?"
+→ **Answer**: Check PRD Section 4 (Feature Requirements) → Find feature → Read Acceptance Criteria
+
+**Question**: "How should I name this file?"
+→ **Answer**: Check ADR-004 (Component Naming) → Apply feature-based grouping pattern
+
+**Question**: "How should I fetch this data?"
+→ **Answer**: Check ADR-002 (Lazy Loading) + ADR-005 (React Query) → Apply patterns
+
+**Question**: "What TypeScript type should I use?"
+→ **Answer**: Check PRD Section 8 (Data Requirements) → Copy exact type definition
+
+**Question**: "How do I handle this error?"
+→ **Answer**: Check ADR-008 (Error Handling) → Apply 3-layer pattern
+
+---
+
+## Enforcement
+
+### IMPLEMENT Mode Rules
+
+**MUST READ before starting task**:
+
+1. PRD acceptance criteria for the feature
+2. Relevant ADRs for the implementation area
+3. Memory Bank current task details
+
+**MUST UPDATE after completing task**:
+
+1. tasks.md → Mark task complete
+2. progress.md → Add completion details
+3. Git commit → Reference PRD + ADR
+
+**MUST VERIFY before marking complete**:
+
+1. ALL acceptance criteria checked off
+2. ADR patterns applied correctly
+3. TypeScript/ESLint passing
+4. Manual test successful
+
+---
+
+## Benefits
+
+### For Developers
+
+✅ **Clear requirements**: No guessing what to build
+✅ **Proven patterns**: ADRs provide tested solutions
+✅ **Faster implementation**: Copy from examples
+✅ **Consistent code**: Everyone follows same patterns
+✅ **Easy review**: Check against documented criteria
+
+### For Product Quality
+
+✅ **Complete features**: All acceptance criteria met
+✅ **Architectural consistency**: ADRs ensure coherent design
+✅ **Maintainability**: Well-documented decisions
+✅ **Testability**: Clear success criteria
+✅ **Traceability**: PRD → ADR → Code → Commit
+
+---
+
+**Usage**: REQUIRED for all IMPLEMENT Mode tasks
+**Last Updated**: 2025-10-27
+**Version**: 1.0

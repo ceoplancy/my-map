@@ -1,0 +1,32 @@
+---
+description: 작업 완료 시 에러 해결·리팩터링·정석 커밋 요청에 대한 절차. 사용자가 "에러 해결하고 리팩터링하고 커밋해줘" 등으로 요청하면 이 규칙을 따른다.
+globs:
+alwaysApply: false
+---
+
+# 완료 시 에러 해결·리팩터링·정석 커밋
+
+사용자가 **"모든 에러 해결하고 리팩터링하고 커밋해줘"** / **"에러 해결하고 정석적으로 커밋해줘"** 등으로 요청할 때:
+
+## 1. 에러 해결 (필수)
+
+- **Web**: `pnpm lint`, `pnpm build`(또는 타입체크) 실행 후 발생한 에러 전부 수정.
+- **Rust API** (해당 시): `cargo fmt -p mice-api -- --check`, `cargo clippy -p mice-api -- -D warnings`, `cargo test -p mice-api` 실행 후 실패 항목 수정. *현재 my-map은 Next.js 단일 앱.*
+- pre-push와 동일한 검증 기준으로, **push 전에 실패할 수 있는 항목을 미리 제거**한다.
+
+## 2. 리팩터링 (가능한 범위)
+
+- 작업한 파일 기준으로 불필요한 import/변수 제거, 타입 정리(`any` 제거), 짧은 함수·상수 추출 등 **명백히 개선되는 부분만** 수행.
+- 대규모 구조 변경은 사용자 요청이 있을 때만 진행.
+
+## 3. 정석 커밋
+
+- **`git commit --no-verify` / `-n` 사용 금지** (commit-verification.mdc 준수).
+- Conventional Commits: `type(scope): description` (feat, fix, refactor, docs 등).
+- 변경 파일 스테이징 후, 검증 훅이 통과하는 상태에서 커밋.
+
+## 4. 작업 완료 시 기본 점검 (권장)
+
+사용자가 "커밋해줘"만 요청하지 않더라도, **구현/수정 작업을 마친 뒤**에는:
+
+- 린트·타입체크·Clippy·테스트가 통과하는지 한 번 확인하고, 실패 시 에러를 먼저 해결한 뒤 커밋 단계로 진행한다.

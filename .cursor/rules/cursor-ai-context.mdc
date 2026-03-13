@@ -1,0 +1,28 @@
+---
+description: Cursor AI 활용 맵 — 진입점·규칙·Skills·서브에이전트 한눈에 보기
+globs: []
+alwaysApply: false
+---
+
+# Cursor AI 활용 맵
+
+> **전체 정리**: `docs/AI_USAGE.md` (진입점, 역할별 디렉터리, Skills, 서브에이전트, 필요/불필요 구분)
+
+---
+
+## 이 폴더(.cursor/rules)에서의 역할
+
+| 규칙 | 용도 |
+|------|------|
+| **auto-workflow.mdc** | 작업 요청 시 자동 INIT, 트리거 키워드, 복잡도별 진행 |
+| **workflow-modes.mdc** | 워크플로우 ↔ Cursor 모드 매핑, 서브에이전트, 핵심 파일 |
+| **memory-bank-guide.mdc** | Memory Bank 파일·갱신 트리거 (memory-bank/** glob) |
+| **archive-and-cleanup.mdc** | 아카이브 위치, 정리 규칙 |
+| **rust-first-architecture.mdc** | Rust vs Next.js 역할, 금지 사항 |
+| **rust-api-conventions.mdc** | Rust API 코드 표준 |
+| **commit-verification.mdc** | 커밋 시 --no-verify 금지 |
+| **completion-and-commit.mdc** | 완료 시 에러 해결·리팩터링·커밋 절차 |
+| **posthog-integration.mdc** | PostHog 플래그·이벤트 규칙 |
+| **prd-adr-integration.mdc** | PRD/ADR 연동 |
+
+상세·Skills·서브에이전트 호출 시점: **docs/AI_USAGE.md**

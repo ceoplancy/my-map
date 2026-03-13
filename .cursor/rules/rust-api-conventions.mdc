@@ -1,0 +1,165 @@
+# Rust API Conventions (참조용)
+
+> **현재 my-map에는 Rust API 없음.** 향후 `apps/api/` 도입 시 적용.  
+> `apps/api/src/**/*.rs` 파일 작업 시 적용
+
+---
+
+## ⚡ Rust-First Architecture (최우선 원칙)
+
+> **Rust API가 모든 비즈니스 로직과 컴퓨팅의 단일 소스이다.**
+> Next.js는 UI/UX 인터랙션 전용 — DB 조회, 비즈니스 로직, 외부 API 호출은 반드시 Rust에서 구현한다.
+
+- 새 기능 요청 시 → Rust 엔드포인트 먼저 구현 → 프론트엔드에서 호출
+- Next.js API Route/Server Action에서 DB 직접 조회 금지
+
+---
+
+## 핵심 설계 원칙
+
+1. **Fail-Closed** — 알 수 없는 입력은 거부 (silent default → `BadRequest` 에러)
+2. **Defense-in-Depth** — 테이블/함수/연산자/컬럼명 4중 검증
+3. **Proper HTTP Semantics** — 에러는 HTTP 상태 코드로 (`200 + success:false` 금지)
+4. **Secret Hygiene** — `AppConfig::Debug`는 비밀 `[REDACTED]`, 로그에 안전
+
+---
+
+## 핸들러 작성
+
+### PostgREST 프록시 패턴 (일반 CRUD)
+
+```rust
+async fn handler(
+    claims: AuthClaims,                 // 인증 (protected_routes에서만)
+    token: BearerToken,                 // JWT 전달용 (PostgREST RLS)
+    State(state): State<AppState>,
+    AppJson(req): AppJson<RequestType>,
+) -> Result<AppJson<ResponseType>, AppError> {
+    // postgrest::query/mutate/rpc → AppJson 반환
+}
+```
+
+### Typed sqlx 패턴 (고성능 엔드포인트)
+
+```rust
+async fn handler(
+    claims: AuthClaims,
+    State(state): State<AppState>,
+    AppJson(req): AppJson<RequestType>,
+) -> Result<AppJson<ResponseType>, AppError> {
+    // sqlx::query_as → AppJson 반환
+}
+```
+
+- `axum::Json` 대신 `AppJson` 사용 (일관된 에러 응답)
+- `Result<_, AppError>` — 통일된 에러 타입
+- 서비스 레이어에 비즈니스 로직 위임, 핸들러는 thin wrapper
+- **프록시 → PostgREST**, **타입드 → sqlx** (하이브리드)
+
+---
+
+## 라우트 그룹 (CRITICAL)
+
+| 그룹 | 인증 | 용도 |
+|------|------|------|
+| `public_routes` | 없음 | health, themes, docs, sign-in, refresh |
+| `protected_routes` | JWT 자동 | proxy, storage, auth/me, auth/sign-out, exhibitions |
+
+**`AuthClaims`/`BearerToken` 사용 핸들러는 반드시 `protected_routes`에 배치.**
+`public_routes`에 넣으면 영구 401 버그 발생.
+
+---
+
+## 검증 (Defense-in-Depth)
+
+프록시 핸들러에서:
+1. **테이블명** — `ALLOWED_TABLES` allowlist
+2. **함수명** — `ALLOWED_FUNCTIONS` allowlist
+3. **필터 연산자** — `ALLOWED_FILTER_OPS` (Fail-Closed)
+4. **컬럼명** — `validate_column_name()` (alphanumeric + `_`, 최대 2단계 `table.column`)
+
+신규 추가 시: `routes/proxy/validation.rs` 수정
+
+---
+
+## 에러 처리
+
+| 상황 | 방법 |
+|------|------|
+| DB 에러 | `?` 연산자 (자동 `Database` 변환) |
+| 입력 검증 | `AppError::BadRequest(msg)` |
+| 인증 실패 | `AppError::Unauthorized(msg)` |
+| 권한 없음 | `AppError::Forbidden(msg)` |
+| 외부 서비스 | `AppError::Internal(msg)` |
+| 없는 리소스 | `AppError::NotFound(msg)` |
+
+**에러 삼킴 금지** — `200 OK + success:false` 패턴 사용 불가
+
+---
+
+## HTTP 클라이언트
+
+`reqwest::Client::new()` 금지 → `state.http_client` 사용 (커넥션 풀링)
+
+---
+
+## PostgREST 프록시
+
+- `services/postgrest.rs` — PostgREST 프로토콜 클라이언트
+- `BearerToken` 추출기 → 사용자 JWT를 PostgREST에 전달 (RLS 적용)
+- 관계 쿼리 네이티브 지원: `select("*, relation(*)")`
+- SQL injection 원천 차단 (PostgREST가 파라미터화 처리)
+- Ref: [postgrest-rs](https://github.com/supabase-community/postgrest-rs), [supabase-rust](https://docs.rs/supabase-rust)
+
+---
+
+## TypeGen (Rust→TypeScript 타입 동기화)
+
+클라이언트가 사용하는 API 타입은 Rust 코드에서 자동 생성됨.
+
+### 새 타입 추가 시
+```rust
+use ts_rs::TS;
+
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "bindings/카테고리/")]
+pub struct NewType { ... }
+```
+
+### 타입 생성 명령
+```bash
+pnpm typegen:api     # Rust→TS 타입 동기화
+pnpm typegen:all     # DB + API 타입 전체
+```
+
+### 출력 위치
+- `packages/shared-types/src/api-types/` — 자동 생성 (수동 수정 금지)
+- `packages/shared-types/src/api-types/_version.ts` — API 버전 + 생성 시각
+
+### 카테고리
+| export_to | 용도 |
+|-----------|------|
+| `"bindings/"` | 공통 (Health, Paginated 등) |
+| `"bindings/proxy/"` | 프록시 프로토콜 (Filter, Query, Mutate, Rpc) |
+| `"bindings/auth/"` | 인증 (AuthTokens, UserInfo) |
+| `"bindings/models/"` | 도메인 모델 (Theme 등) |
+
+---
+
+## 배포
+
+```bash
+cargo check -p mice-api     # 타입 체크 (0 warnings 필수)
+cargo test -p mice-api       # 테스트 (전체 통과 필수)
+pnpm typegen:api             # TypeScript 타입 동기화
+fly deploy                   # Fly.io 배포
+```
+
+---
+
+## 참조
+
+- **스킬**: `.agents/skills/rust-axum-best-practices/SKILL.md`
+- **아키텍처**: `apps/api/src/` 디렉토리 구조
+- **마이그레이션 가이드**: `memory-bank/migration-supabase-to-rust.md`
+- **TypeGen 스크립트**: `scripts/typegen-api.sh`

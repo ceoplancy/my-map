@@ -1,0 +1,12 @@
+{
+  "setup-worktree": [
+    "pnpm install",
+    "cp -r \"$ROOT_WORKTREE_PATH/../.cursor/agents\" .cursor/ 2>/dev/null || true",
+    "cp -r \"$ROOT_WORKTREE_PATH/../.cursor/rules\" .cursor/ 2>/dev/null || true",
+    "cp -r \"$ROOT_WORKTREE_PATH/../.cursor/skills\" .cursor/ 2>/dev/null || true",
+    "cp \"$ROOT_WORKTREE_PATH/../.cursorignore\" . 2>/dev/null || true",
+    "cp \"$ROOT_WORKTREE_PATH/../.cursorindexingignore\" . 2>/dev/null || true",
+    "cp \"$ROOT_WORKTREE_PATH/../.cursorrules\" . 2>/dev/null || true",
+    "echo '✅ Worktree 설정 완료'"
+  ]
+}
