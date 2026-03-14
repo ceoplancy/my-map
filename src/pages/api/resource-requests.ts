@@ -1,26 +1,23 @@
-import type { NextApiRequest, NextApiResponse } from "next"
 import { createSupabaseWithToken } from "@/lib/supabase/supabaseServer"
+import { getBearerToken, getAuthUser } from "@/lib/api-auth"
+import { withApiHandler } from "@/lib/withApiHandler"
 import { sendResourceRequestNotificationStub } from "@/lib/emailStub"
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const auth = req.headers.authorization
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
+  const token = getBearerToken(req)
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" })
   }
-  const client = createSupabaseWithToken(token)
-  const {
-    data: { user },
-  } = await client.auth.getUser()
-  if (!user) {
+  const auth = await getAuthUser(token)
+  if (!auth) {
     return res.status(401).json({ error: "Unauthorized" })
   }
+  const { user, token: accessToken } = auth
+  const client = createSupabaseWithToken(accessToken)
+
   const workspaceId =
     typeof req.body?.workspace_id === "string" ? req.body.workspace_id : null
 
@@ -43,4 +40,4 @@ export default async function handler(
   })
 
   return res.status(200).json(data)
-}
+})

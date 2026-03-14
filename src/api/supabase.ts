@@ -10,7 +10,7 @@ import supabase from "@/lib/supabase/supabaseClient"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
 import { Excel } from "@/types/excel"
-import * as Sentry from "@sentry/nextjs"
+import { reportError, reportMessage } from "@/lib/reportError"
 
 // =======================================
 // ============== get 엑셀 데이터 ===============
@@ -88,8 +88,7 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
   const { data, error } = await query
 
   if (error) {
-    Sentry.captureException(error)
-    Sentry.captureMessage("엑셀 데이터 조회에 실패했습니다.")
+    reportError(error, { toastMessage: "엑셀 데이터 조회에 실패했습니다." })
     throw new Error(error.message)
   }
 
@@ -127,8 +126,7 @@ const updateExcel = async (patchData: Excel) => {
     .select()
 
   if (error) {
-    Sentry.captureException(error)
-    Sentry.captureMessage("엑셀 데이터 수정에 실패했습니다.")
+    reportError(error, { toastMessage: "엑셀 데이터 수정에 실패했습니다." })
     throw new Error(error.message)
   }
 }
@@ -220,7 +218,7 @@ const getUsers = async (
   })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("사용자 목록 조회에 실패했습니다.")
+    reportMessage("사용자 목록 조회에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
 
@@ -244,7 +242,7 @@ const getUser = async (userId: string) => {
   const res = await fetch(`/api/admin/users/${userId}`, { headers })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("사용자 조회에 실패했습니다.")
+    reportMessage("사용자 조회에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
 
@@ -265,7 +263,7 @@ const createUser = async (
   })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("사용자 생성에 실패했습니다.")
+    reportMessage("사용자 생성에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
 
@@ -282,7 +280,7 @@ const updateUser = async (userId: string, updates: object) => {
   })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("사용자 정보 수정에 실패했습니다.")
+    reportMessage("사용자 정보 수정에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
 
@@ -298,7 +296,7 @@ const deleteUser = async (userId: string) => {
   })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("사용자 삭제에 실패했습니다.")
+    reportMessage("사용자 삭제에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
 }
@@ -382,7 +380,7 @@ const getAdminWorkspaces = async (): Promise<AdminWorkspaceItem[]> => {
   const res = await fetch("/api/admin/workspaces", { headers })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("관리자 워크스페이스 목록 조회에 실패했습니다.")
+    reportMessage("관리자 워크스페이스 목록 조회에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
   const json = await res.json()
@@ -410,7 +408,7 @@ const createAdminWorkspace = async (payload: {
   })
   if (!res.ok) {
     const msg = await res.text()
-    Sentry.captureMessage("워크스페이스 생성에 실패했습니다.")
+    reportMessage("워크스페이스 생성에 실패했습니다.", "error")
     throw new Error(msg || res.statusText)
   }
 
@@ -449,8 +447,7 @@ export const setUserRole = async (
 
     return { success: true }
   } catch (error) {
-    Sentry.captureException(error)
-    Sentry.captureMessage("사용자 권한 설정에 실패했습니다.")
+    reportError(error, { toastMessage: "사용자 권한 설정에 실패했습니다." })
 
     return { success: false, error }
   }

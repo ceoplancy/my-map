@@ -27,12 +27,12 @@ import {
   useShareholders,
   useWorkspaceMembers,
 } from "@/api/workspace"
-import Modal from "@/component/modal"
-import GlobalSpinner from "@/component/global-spinner"
+import Modal from "@/components/ui/modal"
+import GlobalSpinner from "@/components/ui/global-spinner"
 import styled from "@emotion/styled"
-import FilterModalChildren from "@/component/modal-children/filter-modal-children"
+import FilterModalChildren from "@/components/ui/modal-children/filter-modal-children"
 import supabase from "@/lib/supabase/supabaseClient"
-import MultipleMapMarker from "@/component/multiple-map-marker"
+import MultipleMapMarker from "@/components/ui/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"

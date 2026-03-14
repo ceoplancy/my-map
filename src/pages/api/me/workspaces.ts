@@ -1,26 +1,18 @@
-import type { NextApiRequest, NextApiResponse } from "next"
-import {
-  createSupabaseAdmin,
-  createSupabaseWithToken,
-} from "@/lib/supabase/supabaseServer"
+import { createSupabaseAdmin } from "@/lib/supabase/supabaseServer"
+import { getBearerToken, getAuthUser } from "@/lib/api-auth"
+import { withApiHandler } from "@/lib/withApiHandler"
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const auth = req.headers.authorization
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
+  const token = getBearerToken(req)
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" })
   }
-  const client = createSupabaseWithToken(token)
-  const {
-    data: { user },
-  } = await client.auth.getUser()
-  if (!user) return res.status(401).json({ error: "Unauthorized" })
+  const auth = await getAuthUser(token)
+  if (!auth) return res.status(401).json({ error: "Unauthorized" })
+  const { user } = auth
   const admin = createSupabaseAdmin()
 
   // 통합 관리자(service_admin): workspace_id가 NULL인 멤버십이 있으면 전체 워크스페이스 목록 반환
@@ -55,7 +47,6 @@ export default async function handler(
     ),
   ]
   if (workspaceIds.length === 0) {
-    // 로그인 사용자이지만 workspace_members에 해당 user_id의 워크스페이스가 없음 (시드 미적용 또는 다른 이메일)
     console.warn(
       "[api/me/workspaces] No workspace memberships for user",
       user.id,
@@ -70,4 +61,4 @@ export default async function handler(
     .in("id", workspaceIds)
 
   return res.status(200).json(workspaces ?? [])
-}
+})

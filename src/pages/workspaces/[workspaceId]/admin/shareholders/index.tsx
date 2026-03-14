@@ -4,7 +4,7 @@ import AdminLayout from "@/layouts/AdminLayout"
 import { useGetUserData, useMyWorkspaces } from "@/api/auth"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import { ShareholdersPageContent } from "@/pages/admin/shareholders"
-import GlobalSpinner from "@/component/global-spinner"
+import GlobalSpinner from "@/components/ui/global-spinner"
 import styled from "@emotion/styled"
 
 const SpinnerFrame = styled.div`

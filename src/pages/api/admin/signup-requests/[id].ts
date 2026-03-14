@@ -1,26 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from "next"
 import {
   createSupabaseAdmin,
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
-
-async function isServiceAdmin(accessToken: string): Promise<boolean> {
-  const client = createSupabaseWithToken(accessToken)
-  const {
-    data: { user },
-  } = await client.auth.getUser()
-  if (!user) return false
-  const admin = createSupabaseAdmin()
-  const { data } = await admin
-    .from("workspace_members")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("role", "service_admin")
-    .is("workspace_id", null)
-    .limit(1)
-
-  return (data?.length ?? 0) > 0
-}
+import { getBearerToken, isServiceAdmin } from "@/lib/api-auth"
+import { withApiHandler } from "@/lib/withApiHandler"
 
 /** 해당 워크스페이스명에 대한 가입 승인/반려 권한 여부 */
 async function canManageSignupForWorkspaceName(
@@ -50,15 +33,11 @@ async function canManageSignupForWorkspaceName(
   return (names ?? []).some((n) => n.name === workspaceName)
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const auth = req.headers.authorization
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
+  const token = getBearerToken(req)
   if (!token) return res.status(401).json({ error: "Unauthorized" })
   const id = req.query.id as string
   const body = req.body as { action: "approve" | "reject" }
@@ -145,4 +124,4 @@ export default async function handler(
   }
 
   return res.status(400).json({ error: "Invalid action or missing user_id" })
-}
+})

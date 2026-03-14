@@ -12,7 +12,7 @@ import type { TablesInsert } from "@/types/db"
 import AdminLayout from "@/layouts/AdminLayout"
 import Link from "next/link"
 import styled from "@emotion/styled"
-import * as Sentry from "@sentry/nextjs"
+import { reportError } from "@/lib/reportError"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import { getWorkspaceAdminBase } from "@/lib/utils"
 
@@ -288,11 +288,9 @@ export function ExcelImportPageContent() {
           .select()
 
         if (error) {
-          Sentry.captureException(error)
-          Sentry.captureMessage(
-            "주소 데이터 업로드(shareholders insert)에 실패했습니다.",
-          )
-          toast.error(`데이터 업로드 중 오류가 발생했습니다. ${error.message}`)
+          reportError(error, {
+            toastMessage: `데이터 업로드 중 오류가 발생했습니다. ${error.message}`,
+          })
           throw error
         }
 
@@ -307,9 +305,9 @@ export function ExcelImportPageContent() {
         )
       }
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("(don't know why) 주소 변환에 실패했습니다.")
-      toast.error("주소 변환에 실패하였습니다. 다시 시도해주세요.")
+      reportError(error, {
+        toastMessage: "주소 변환에 실패하였습니다. 다시 시도해주세요.",
+      })
     } finally {
       setLoading(false)
     }
@@ -355,11 +353,10 @@ export function ExcelImportPageContent() {
         toast.error("주소 변환에 실패했습니다. 다른 주소로 시도해보세요.")
       }
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("카카오 주소 변환에 실패했습니다.")
-      toast.error(
-        "데이터 처리 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-      )
+      reportError(error, {
+        toastMessage:
+          "데이터 처리 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      })
     } finally {
       setLoading(false)
     }
@@ -418,11 +415,10 @@ export function ExcelImportPageContent() {
         )
       }
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("카카오 주소 변환에 실패했습니다.")
-      toast.error(
-        "데이터 처리 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-      )
+      reportError(error, {
+        toastMessage:
+          "데이터 처리 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      })
     } finally {
       setLoading(false)
       setProcessingItem(null)

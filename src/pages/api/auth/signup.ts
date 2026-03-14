@@ -1,5 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from "next"
 import { createSupabaseAdmin } from "@/lib/supabase/supabaseServer"
+import { withApiHandler } from "@/lib/withApiHandler"
 
 type Body = {
   email: string
@@ -8,10 +8,7 @@ type Body = {
   user_name: string
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" })
   }
@@ -51,4 +48,4 @@ export default async function handler(
   }
 
   return res.status(200).json({ success: true })
-}
+})

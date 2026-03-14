@@ -1,10 +1,8 @@
-import type { NextApiRequest, NextApiResponse } from "next"
 import { createSupabaseWithToken } from "@/lib/supabase/supabaseServer"
+import { getBearerToken, getAuthUser } from "@/lib/api-auth"
+import { withApiHandler } from "@/lib/withApiHandler"
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" })
   }
@@ -12,18 +10,16 @@ export default async function handler(
   if (typeof listId !== "string") {
     return res.status(400).json({ error: "listId required" })
   }
-  const auth = req.headers.authorization
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
+  const token = getBearerToken(req)
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" })
   }
-  const client = createSupabaseWithToken(token)
-  const {
-    data: { user },
-  } = await client.auth.getUser()
-  if (!user) {
+  const auth = await getAuthUser(token)
+  if (!auth) {
     return res.status(401).json({ error: "Unauthorized" })
   }
+  const { user, token: accessToken } = auth
+  const client = createSupabaseWithToken(accessToken)
 
   const { data: list } = await client
     .from("shareholder_lists")
@@ -65,4 +61,4 @@ export default async function handler(
     .limit(200)
 
   return res.status(200).json({ history: history ?? [], nameById })
-}
+})

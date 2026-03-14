@@ -7,6 +7,7 @@ import {
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import type { WorkspaceRole } from "@/types/db"
+import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import { useEffect } from "react"
 import { useRouter } from "next/router"
 
@@ -90,13 +91,6 @@ const EmptyMessage = styled.div`
   text-align: center;
   color: ${COLORS.gray[600]};
 `
-
-const WORKSPACE_ROLE_LABELS: Record<WorkspaceRole, string> = {
-  service_admin: "서비스 관리자",
-  top_admin: "최고 관리자",
-  admin: "관리자",
-  field_agent: "용역",
-}
 
 /** 워크스페이스 멤버 본문 (workspace 설정된 상태에서 사용) */
 export function MembersPageContent() {

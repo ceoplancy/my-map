@@ -5,7 +5,7 @@ import styled from "@emotion/styled"
 import Image from "next/image"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
-import DotSpinner from "@/component/dot-spinner"
+import DotSpinner from "@/components/ui/dot-spinner"
 
 type StatusResult = "pending" | "approved" | "rejected" | null
 

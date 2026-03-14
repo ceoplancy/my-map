@@ -13,7 +13,7 @@ import { useRouter } from "next/router"
 import { useState, useRef, useEffect } from "react"
 import styled from "@emotion/styled"
 import { toast } from "react-toastify"
-import * as Sentry from "@sentry/nextjs"
+import { reportError } from "@/lib/reportError"
 
 const HeaderContainer = styled.header`
   background-color: white;
@@ -244,8 +244,7 @@ export default function Header() {
       await supabase.auth.signOut()
       router.push("/sign-in")
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("로그아웃에 실패했습니다.")
+      reportError(error, { toastMessage: "로그아웃에 실패했습니다." })
     }
   }
 

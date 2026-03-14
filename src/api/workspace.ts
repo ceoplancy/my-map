@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "react-toastify"
 import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables } from "@/types/db"
-import * as Sentry from "@sentry/nextjs"
+import { reportError } from "@/lib/reportError"
 import { getCoordinateRanges } from "@/lib/utils"
 
 type ShareholderList = Tables<"shareholder_lists">
@@ -30,7 +30,7 @@ const getShareholderLists = async (workspaceId: string) => {
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
   if (error) {
-    Sentry.captureException(error)
+    reportError(error)
     throw new Error(error.message)
   }
 
@@ -48,7 +48,7 @@ const getWorkspaceMembers = async (
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
   if (error) {
-    Sentry.captureException(error)
+    reportError(error)
     throw new Error(error.message)
   }
 
@@ -196,7 +196,7 @@ const getShareholders = async (params: ShareholdersParams) => {
   }
   const { data, error } = await query
   if (error) {
-    Sentry.captureException(error)
+    reportError(error)
     throw new Error(error.message)
   }
 
@@ -380,7 +380,7 @@ const getShareholderChangeHistory = async (
     .eq("shareholder_id", shareholderId)
     .order("changed_at", { ascending: false })
   if (error) {
-    Sentry.captureException(error)
+    reportError(error)
 
     return []
   }

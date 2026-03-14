@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import * as Sentry from "@sentry/nextjs"
+import { reportError } from "@/lib/reportError"
 // =========================================
 // ============== post sign in
 // =========================================
@@ -14,8 +15,7 @@ const postSignIn = async (data: { email: string; password: string }) => {
   })
 
   if (error) {
-    Sentry.captureException(error)
-    Sentry.captureMessage("로그인에 실패했습니다.")
+    reportError(error)
     throw new Error(error.message)
   }
 }
@@ -46,8 +46,7 @@ const postSignOut = async () => {
   const { error } = await supabase.auth.signOut()
 
   if (error) {
-    Sentry.captureException(error)
-    Sentry.captureMessage("로그아웃에 실패했습니다.")
+    reportError(error)
     throw new Error(error.message)
   }
 }
@@ -78,8 +77,7 @@ const getUserData = async () => {
   const { data, error } = await supabase.auth.getUser()
 
   if (error) {
-    Sentry.captureException(error)
-    Sentry.captureMessage("사용자 정보 조회에 실패했습니다.")
+    reportError(error)
     throw new Error(error.message)
   }
 

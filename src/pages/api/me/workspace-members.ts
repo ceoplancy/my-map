@@ -1,8 +1,6 @@
-import type { NextApiRequest, NextApiResponse } from "next"
-import {
-  createSupabaseAdmin,
-  createSupabaseWithToken,
-} from "@/lib/supabase/supabaseServer"
+import { createSupabaseAdmin } from "@/lib/supabase/supabaseServer"
+import { getBearerToken, getAuthUser, isServiceAdmin } from "@/lib/api-auth"
+import { withApiHandler } from "@/lib/withApiHandler"
 
 export type WorkspaceMemberWithUser = {
   id: string
@@ -17,23 +15,17 @@ export type WorkspaceMemberWithUser = {
 }
 
 /** GET: workspace members with email/name from Auth. Requester must be a member of the workspace. */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const auth = req.headers.authorization
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
+  const token = getBearerToken(req)
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" })
   }
-  const client = createSupabaseWithToken(token)
-  const {
-    data: { user },
-  } = await client.auth.getUser()
-  if (!user) return res.status(401).json({ error: "Unauthorized" })
+  const auth = await getAuthUser(token)
+  if (!auth) return res.status(401).json({ error: "Unauthorized" })
+  const { user } = auth
 
   const workspaceId = req.query.workspaceId
   if (typeof workspaceId !== "string" || !workspaceId) {
@@ -55,18 +47,9 @@ export default async function handler(
   }
 
   const requesterMember = (members ?? []).find((m) => m.user_id === user.id)
-  const isServiceAdmin =
-    (
-      await admin
-        .from("workspace_members")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("role", "service_admin")
-        .is("workspace_id", null)
-        .maybeSingle()
-    ).data != null
+  const isAdmin = await isServiceAdmin(token)
 
-  if (!requesterMember && !isServiceAdmin) {
+  if (!requesterMember && !isAdmin) {
     return res.status(403).json({ error: "Not a member of this workspace" })
   }
 
@@ -95,4 +78,4 @@ export default async function handler(
   }
 
   return res.status(200).json(withUsers)
-}
+})

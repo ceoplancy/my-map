@@ -12,7 +12,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
-import * as Sentry from "@sentry/nextjs"
+import { reportError } from "@/lib/reportError"
 
 declare global {
   interface Window {
@@ -61,8 +61,7 @@ const App = ({ Component, pageProps }: AppProps) => {
         window.kakaoMapsLoaded = true
       })
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("카카오 맵 로딩에 실패했습니다.")
+      reportError(error)
     }
   }, [])
 

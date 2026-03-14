@@ -2,8 +2,8 @@ import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import { toast } from "react-toastify"
-import { HistoryItem } from "@/component/excel-data-table"
-import * as Sentry from "@sentry/nextjs"
+import { HistoryItem } from "@/components/ui/excel-data-table"
+import { reportError } from "@/lib/reportError"
 import type { Tables } from "@/types/db"
 import {
   usePatchShareholder,
@@ -292,11 +292,10 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
       toast.success("데이터가 성공적으로 수정되었습니다.")
       onClose()
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("주주 정보 수정에 실패했습니다.")
-      toast.error(
-        "데이터 수정 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-      )
+      reportError(error, {
+        toastMessage:
+          "데이터 수정 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      })
     }
   }
 

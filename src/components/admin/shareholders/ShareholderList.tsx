@@ -13,8 +13,8 @@ import {
   Clear as ClearIcon,
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
-import { HistoryItem } from "@/component/excel-data-table"
-import * as Sentry from "@sentry/nextjs"
+import { HistoryItem } from "@/components/ui/excel-data-table"
+import { reportError } from "@/lib/reportError"
 import type { Tables } from "@/types/db"
 import { useShareholders, useDeleteShareholder } from "@/api/workspace"
 import { useSession } from "@/api/auth"
@@ -409,11 +409,10 @@ export default function ShareholderList({ listId }: Props) {
         await deleteShareholderMutation.mutateAsync(id)
         toast.success("성공적으로 삭제되었습니다.")
       } catch (error) {
-        Sentry.captureException(error)
-        Sentry.captureMessage("주주 정보 삭제에 실패했습니다.")
-        toast.error(
-          "삭제 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-        )
+        reportError(error, {
+          toastMessage:
+            "삭제 중 오류가 발생했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+        })
       }
     }
   }

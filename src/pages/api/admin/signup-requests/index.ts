@@ -1,26 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from "next"
 import {
   createSupabaseAdmin,
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
-
-async function isServiceAdmin(accessToken: string): Promise<boolean> {
-  const client = createSupabaseWithToken(accessToken)
-  const {
-    data: { user },
-  } = await client.auth.getUser()
-  if (!user) return false
-  const admin = createSupabaseAdmin()
-  const { data } = await admin
-    .from("workspace_members")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("role", "service_admin")
-    .is("workspace_id", null)
-    .limit(1)
-
-  return (data?.length ?? 0) > 0
-}
+import { getBearerToken, isServiceAdmin } from "@/lib/api-auth"
+import { withApiHandler } from "@/lib/withApiHandler"
 
 /** 워크스페이스 관리자(top_admin/admin) 여부 및 해당 워크스페이스명 반환 */
 async function getWorkspaceNameIfAdmin(
@@ -51,15 +34,11 @@ async function getWorkspaceNameIfAdmin(
   return workspace?.name ?? null
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
+export default withApiHandler(async (req, res) => {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const auth = req.headers.authorization
-  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
+  const token = getBearerToken(req)
   if (!token) return res.status(401).json({ error: "Unauthorized" })
 
   const workspaceId =
@@ -96,4 +75,4 @@ export default async function handler(
   if (error) return res.status(500).json({ error: error.message })
 
   return res.status(200).json(data ?? [])
-}
+})

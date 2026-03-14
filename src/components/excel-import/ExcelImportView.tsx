@@ -44,7 +44,7 @@ import {
 } from "@mui/icons-material"
 import { Excel } from "@/types/excel"
 import useDebounce from "@/hooks/useDebounce"
-import * as Sentry from "@sentry/nextjs"
+import { reportError } from "@/lib/reportError"
 import { BATCH_SIZE } from "@/pages/admin/excel-import"
 
 import { FIELD_LABELS } from "../admin/shareholders/EditShareholderModal"
@@ -261,8 +261,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         setSearchLoading(false)
       }
     } catch (error) {
-      Sentry.captureException(error)
-      Sentry.captureMessage("카카오 주소 검색에 실패했습니다.")
+      reportError(error, { toastMessage: "카카오 주소 검색에 실패했습니다." })
       setSearchLoading(false)
     }
   }
@@ -389,8 +388,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         // 다이얼로그 닫기
         handleEditDialogClose()
       } catch (error) {
-        Sentry.captureException(error)
-        Sentry.captureMessage("주소 수정에 실패했습니다.")
+        reportError(error, { toastMessage: "주소 수정에 실패했습니다." })
       }
     }
   }

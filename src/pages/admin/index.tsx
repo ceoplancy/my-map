@@ -15,6 +15,7 @@ import {
 } from "@/api/workspace"
 import * as XLSX from "xlsx"
 import { type Tables, type WorkspaceRole } from "@/types/db"
+import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 
 const WelcomeSection = styled.div`
   background: linear-gradient(135deg, white, #f8fafc);
@@ -350,13 +351,6 @@ const ExportButton = styled.button`
 `
 
 const STATUS_OPTIONS = ["미방문", "보류", "완료", "실패"] as const
-
-const WORKSPACE_ROLE_LABELS: Record<WorkspaceRole, string> = {
-  service_admin: "서비스 관리자",
-  top_admin: "최고 관리자",
-  admin: "관리자",
-  field_agent: "용역",
-}
 
 /** 워크스페이스 대시보드 본문 (useCurrentWorkspace 기준). /admin 또는 /workspaces/[id]/admin 에서 사용 */
 export function WorkspaceDashboardBody() {
