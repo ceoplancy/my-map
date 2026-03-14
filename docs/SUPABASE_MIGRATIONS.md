@@ -85,3 +85,42 @@ pnpm supabase:typegen
    - `excel` 테이블은 **수정/삭제하지 않음**.  
    - 이미 해당 명부에 주주가 있으면 이관 INSERT는 건너뜀(한 번만 이관됨).
 4. **워크스페이스 멤버**: `auth.users` 중 role에 admin이 포함된 사용자를 기본 워크스페이스의 `top_admin`으로 등록(이미 있으면 무시).
+
+---
+
+## "워크스페이스가 없습니다"가 나올 때
+
+로그인은 되는데 `/workspaces`에서 "워크스페이스가 없습니다"만 보인다면, **해당 사용자가 `workspace_members`에 한 건도 없다**는 뜻입니다.
+
+### 원인
+
+- **프로덕션 Supabase에 시드 미적용**: `20250314000002`(기본 워크스페이스), `20250314000003`(ceo@antre.com → 기본 워크스페이스), `20250314000004`(ceo@antre.com → service_admin)를 **배포용 DB**에서 아직 실행하지 않았을 수 있음.
+- **다른 이메일로 로그인**: 시드는 **ceo@antre.com** 한 계정만 기본 워크스페이스/서비스관리자로 넣음. 그 이메일이 아니면 워크스페이스가 비어 있음.
+- **사용자 생성 시점**: `20250314000002`는 마이그레이션 실행 시점의 `auth.users` 중 `role`에 admin이 포함된 사람만 멤버로 넣음. 나중에 만든 admin 사용자는 시드에 포함되지 않음.
+
+### 확인 방법
+
+1. **Vercel 로그**: 배포 후 `/workspaces` 접속 시 `[api/me/workspaces] No workspace memberships for user <user_id> <email>` 로그가 보이면, API까지는 정상 호출된 것이고 DB에 멤버십이 없다는 뜻.
+2. **Supabase Dashboard**  
+   - **Authentication → Users**: 로그인에 쓰는 이메일의 `id`(UUID) 확인.  
+   - **Table Editor → workspace_members**: 위 `user_id`로 조회했을 때 행이 있는지 확인.  
+   - **Table Editor → workspaces**: 행이 하나 이상 있는지 확인.
+
+### 해결
+
+- **ceo@antre.com**으로 테스트하는 경우: 위 마이그레이션 순서대로 **3, 4, 5번** SQL을 배포용 Supabase SQL Editor에서 실행.  
+  - 3: `20250314000002_seed_default_workspace.sql` (기본 워크스페이스 + admin 역할 사용자 멤버 등록)  
+  - 4: `20250314000003_seed_ceo_default_workspace.sql` (ceo@antre.com → 기본 워크스페이스 top_admin)  
+  - 5: `20250314000004_seed_ceo_service_admin.sql` (ceo@antre.com → service_admin)
+- **다른 이메일** 사용자를 기본 워크스페이스에 넣으려면 SQL Editor에서 한 번만 실행:
+
+```sql
+-- 기본 워크스페이스가 있다고 가정. YOUR_USER_EMAIL을 실제 이메일로 바꿈.
+INSERT INTO public.workspace_members (workspace_id, user_id, role)
+SELECT w.id, u.id, 'top_admin'
+FROM public.workspaces w
+CROSS JOIN auth.users u
+WHERE w.name = '기본 워크스페이스'
+  AND u.email = 'YOUR_USER_EMAIL'
+ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = 'top_admin';
+```

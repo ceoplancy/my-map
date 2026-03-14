@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/router"
 import Head from "next/head"
 import styled from "@emotion/styled"
@@ -23,11 +24,31 @@ const Container = styled.div`
   margin: 0 auto;
 `
 
+const TitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+`
+
 const Title = styled.h1`
   font-size: 1.75rem;
   font-weight: 800;
   color: ${COLORS.gray[900]};
-  margin-bottom: 0.5rem;
+  margin: 0;
+`
+
+const IntegratedAdminLink = styled(Link)`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: ${COLORS.purple[600]};
+  text-decoration: none;
+  white-space: nowrap;
+  &:hover {
+    text-decoration: underline;
+    color: ${COLORS.purple[700]};
+  }
 `
 
 const Subtitle = styled.p`
@@ -300,7 +321,14 @@ export default function WorkspacesPage() {
       </Head>
       <Page>
         <Container>
-          <Title>워크스페이스</Title>
+          <TitleRow>
+            <Title>워크스페이스</Title>
+            {isServiceAdmin && (
+              <IntegratedAdminLink href="/admin/integrated">
+                통합 관리 →
+              </IntegratedAdminLink>
+            )}
+          </TitleRow>
           <Subtitle>
             사용할 워크스페이스를 선택하거나, 관리자인 경우 새 워크스페이스를
             만들 수 있습니다.

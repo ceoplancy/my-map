@@ -55,6 +55,13 @@ export default async function handler(
     ),
   ]
   if (workspaceIds.length === 0) {
+    // 로그인 사용자이지만 workspace_members에 해당 user_id의 워크스페이스가 없음 (시드 미적용 또는 다른 이메일)
+    console.warn(
+      "[api/me/workspaces] No workspace memberships for user",
+      user.id,
+      user.email,
+    )
+
     return res.status(200).json([])
   }
   const { data: workspaces } = await admin

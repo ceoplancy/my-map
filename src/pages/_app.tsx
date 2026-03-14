@@ -55,7 +55,9 @@ const App = ({ Component, pageProps }: AppProps) => {
     if (!window.kakao) return
     try {
       window.kakao.maps.load(() => {
-        console.info("Kakao Maps API loaded successfully")
+        if (process.env.NODE_ENV === "development") {
+          console.info("Kakao Maps API loaded successfully")
+        }
         window.kakaoMapsLoaded = true
       })
     } catch (error) {
@@ -92,7 +94,7 @@ const App = ({ Component, pageProps }: AppProps) => {
         />
         <meta property="og:type" content="website" />
         {/* <meta property="og:url" content="https://antre.co.kr" /> */}
-        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:image" content="/antre-logo-square.png" />
 
         {/* Viewport */}
         <meta
