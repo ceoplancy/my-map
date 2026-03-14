@@ -49,23 +49,20 @@ const queryClientOptions = {
 const App = ({ Component, pageProps }: AppProps) => {
   const { dehydratedState, ...restPageProps } = pageProps
   const [queryClient] = useState(() => new QueryClient(queryClientOptions))
-  const [mapLoaded, setMapLoaded] = useState(false)
 
-  // 카카오맵 로딩 로직 분리 및 에러 처리 개선
+  // 카카오맵 로딩: 스크립트 로드 후 초기화. 맵이 필요한 페이지는 window.kakao / useKakaoMaps 사용.
   const initializeKakaoMap = useCallback(() => {
-    if (!window.kakao || mapLoaded) return
-
+    if (!window.kakao) return
     try {
       window.kakao.maps.load(() => {
         console.info("Kakao Maps API loaded successfully")
-        setMapLoaded(true)
         window.kakaoMapsLoaded = true
       })
     } catch (error) {
       Sentry.captureException(error)
       Sentry.captureMessage("카카오 맵 로딩에 실패했습니다.")
     }
-  }, [mapLoaded])
+  }, [])
 
   useEffect(() => {
     initializeKakaoMap()
@@ -103,25 +100,8 @@ const App = ({ Component, pageProps }: AppProps) => {
           content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
         />
 
-        {/* Favicon */}
+        {/* Favicon - only link assets that exist in public/ */}
         <link rel="icon" href="/favicon.ico" />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/favicon-32x32.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="16x16"
-          href="/favicon-16x16.png"
-        />
         <link rel="manifest" href="/site.webmanifest" />
 
         {/* 추가 메타 태그 */}
@@ -134,7 +114,7 @@ const App = ({ Component, pageProps }: AppProps) => {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <HydrationBoundary state={dehydratedState}>
-            {mapLoaded && <Component {...restPageProps} />}
+            <Component {...restPageProps} />
             <ToastContainer position="top-center" limit={3} autoClose={3000} />
             <div id="portal" />
           </HydrationBoundary>
@@ -144,12 +124,14 @@ const App = ({ Component, pageProps }: AppProps) => {
         </QueryClientProvider>
       </ErrorBoundary>
 
-      <Script
-        strategy="afterInteractive"
-        src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_APP_KEY}&libraries=services&autoload=false`}
-        onError={(e) => console.error("Kakao Maps script load error:", e)}
-        onLoad={initializeKakaoMap}
-      />
+      {process.env.NEXT_PUBLIC_KAKAO_APP_KEY && (
+        <Script
+          strategy="afterInteractive"
+          src={`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_APP_KEY}&libraries=services&autoload=false`}
+          onError={(e) => console.error("Kakao Maps script load error:", e)}
+          onLoad={initializeKakaoMap}
+        />
+      )}
     </>
   )
 }
