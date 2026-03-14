@@ -1,6 +1,9 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import { useCurrentWorkspace } from "@/store/workspaceState"
-import { useWorkspaceMembers, useShareholderLists } from "@/api/workspace"
+import {
+  useWorkspaceMembersWithUsers,
+  useShareholderLists,
+} from "@/api/workspace"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import type { WorkspaceRole } from "@/types/db"
@@ -98,7 +101,7 @@ const WORKSPACE_ROLE_LABELS: Record<WorkspaceRole, string> = {
 /** 워크스페이스 멤버 본문 (workspace 설정된 상태에서 사용) */
 export function MembersPageContent() {
   const [workspace] = useCurrentWorkspace()
-  const { data: members = [], isLoading } = useWorkspaceMembers(
+  const { data: members = [], isLoading } = useWorkspaceMembersWithUsers(
     workspace?.id ?? null,
   )
   const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
@@ -121,7 +124,8 @@ export function MembersPageContent() {
           <Table>
             <thead>
               <tr>
-                <Th>사용자 ID</Th>
+                <Th>이름</Th>
+                <Th>이메일</Th>
                 <Th>역할</Th>
                 <Th>담당 명부</Th>
                 <Th>팀장</Th>
@@ -130,10 +134,11 @@ export function MembersPageContent() {
             <tbody>
               {members.map((m) => (
                 <tr key={m.id}>
-                  <Td>{m.user_id}</Td>
+                  <Td>{m.name ?? "-"}</Td>
+                  <Td>{m.email ?? "-"}</Td>
                   <Td>
-                    <RoleBadge role={m.role}>
-                      {WORKSPACE_ROLE_LABELS[m.role]}
+                    <RoleBadge role={m.role as WorkspaceRole}>
+                      {WORKSPACE_ROLE_LABELS[m.role as WorkspaceRole]}
                     </RoleBadge>
                   </Td>
                   <Td>

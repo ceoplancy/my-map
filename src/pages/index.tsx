@@ -38,6 +38,15 @@ export default function HomeRedirect() {
     signupStatus &&
     signupStatus.status === "pending"
 
+  const rejectedApproval =
+    user?.user &&
+    !workspacesLoading &&
+    !signupStatusLoading &&
+    !hasWorkspace &&
+    !legacyAdmin &&
+    signupStatus &&
+    signupStatus.status === "rejected"
+
   useEffect(() => {
     if (isLoading || !router.isReady) return
     if (!user?.user) {
@@ -45,14 +54,21 @@ export default function HomeRedirect() {
 
       return
     }
-    if (pendingApproval) return
+    if (pendingApproval || rejectedApproval) return
     if (!currentWorkspace) {
       router.replace("/workspaces")
 
       return
     }
     router.replace(`/workspaces/${currentWorkspace.id}`)
-  }, [isLoading, router, user?.user, currentWorkspace, pendingApproval])
+  }, [
+    isLoading,
+    router,
+    user?.user,
+    currentWorkspace,
+    pendingApproval,
+    rejectedApproval,
+  ])
 
   if (pendingApproval) {
     return (
@@ -62,6 +78,21 @@ export default function HomeRedirect() {
           <PendingText>
             가입 신청이 접수되었습니다. 운영사 승인 후 서비스를 이용할 수
             있습니다.
+          </PendingText>
+          <LogoutButton onClick={() => logout()}>로그아웃</LogoutButton>
+        </PendingCard>
+      </PendingContainer>
+    )
+  }
+
+  if (rejectedApproval) {
+    return (
+      <PendingContainer>
+        <PendingCard>
+          <PendingTitle>가입이 반려되었습니다</PendingTitle>
+          <PendingText>
+            가입 신청이 반려되었습니다. 문의가 필요하시면 운영사에 연락해
+            주세요.
           </PendingText>
           <LogoutButton onClick={() => logout()}>로그아웃</LogoutButton>
         </PendingCard>

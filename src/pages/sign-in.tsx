@@ -79,10 +79,20 @@ const SignIn = () => {
 
             <LoginButton type="submit">로그인</LoginButton>
             <SignUpLink href="/sign-up">회원가입</SignUpLink>
+            <SignUpLink
+              href="/application-status"
+              style={{ marginTop: "0.25rem" }}>
+              신청 조회
+            </SignUpLink>
           </LoginForm>
         </LoginContainer>
 
         <Footer>
+          <FooterLinks>
+            <FooterLink href="/privacy">개인정보처리방침</FooterLink>
+            <span> | </span>
+            <FooterLink href="/terms">서비스이용약관</FooterLink>
+          </FooterLinks>
           <Copyright>
             <Font $size={12} color="#999">
               © 2024 ANTRE. All rights reserved.
@@ -256,6 +266,21 @@ const StyledDotSpinner = styled(DotSpinner)`
 const Footer = styled.footer`
   text-align: center;
   padding: 2rem 0;
+`
+
+const FooterLinks = styled.div`
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+`
+
+const FooterLink = styled(Link)`
+  color: #9ca3af;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+    color: #6b7280;
+  }
 `
 
 const _CompanyInfo = styled.div`

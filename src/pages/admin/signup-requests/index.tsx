@@ -205,7 +205,7 @@ export function SignupRequestsContent({
               <Tr>
                 <Th>이메일</Th>
                 <Th>유형</Th>
-                <Th>워크스페이스명</Th>
+                <Th>사용자명</Th>
                 <Th>상태</Th>
                 <Th>신청일</Th>
                 <Th>처리</Th>
@@ -223,7 +223,7 @@ export function SignupRequestsContent({
                   <Tr key={r.id}>
                     <Td>{r.email}</Td>
                     <Td>{accountTypeLabel(r.account_type)}</Td>
-                    <Td>{r.workspace_name}</Td>
+                    <Td>{r.workspace_name || "-"}</Td>
                     <Td>
                       <Badge status={r.status}>
                         {r.status === "pending"

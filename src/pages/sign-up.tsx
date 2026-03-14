@@ -26,14 +26,21 @@ const SignUp = () => {
   const [accountType, setAccountType] = useState<
     "listed_company" | "proxy_company"
   >("listed_company")
-  const [workspaceName, setWorkspaceName] = useState("")
+  const [userName, setUserName] = useState("")
+  const [agreePrivacy, setAgreePrivacy] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [done, setDone] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password || !workspaceName) {
-      toast.error("이메일, 비밀번호, 워크스페이스명을 입력해 주세요.")
+    if (!email || !password || !userName) {
+      toast.error("이메일, 비밀번호, 사용자명을 입력해 주세요.")
+
+      return
+    }
+    if (!agreePrivacy || !agreeTerms) {
+      toast.error("개인정보처리방침과 서비스이용약관에 동의해 주세요.")
 
       return
     }
@@ -46,7 +53,7 @@ const SignUp = () => {
           email,
           password,
           account_type: accountType,
-          workspace_name: workspaceName,
+          user_name: userName,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -85,6 +92,10 @@ const SignUp = () => {
               가입 신청이 접수되었습니다.
               <br />
               운영사 승인 후 로그인하여 이용해 주세요.
+              <br />
+              <small style={{ color: "#6b7280", marginTop: "0.5rem" }}>
+                신청 상태는 로그인 화면의 「신청 조회」에서 확인할 수 있습니다.
+              </small>
             </DoneMessage>
             <SignUpLink href="/sign-in">로그인 화면으로</SignUpLink>
           </LoginContainer>
@@ -157,22 +168,69 @@ const SignUp = () => {
               </StyledSelect>
               <StyledInput
                 type="text"
-                placeholder="워크스페이스명 (회사명 등)"
-                value={workspaceName}
-                onChange={(e) => setWorkspaceName(e.target.value)}
+                placeholder="사용자명"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
               />
             </InputGroup>
 
-            <LoginButton type="submit" disabled={isLoading}>
+            <AgreeBlock>
+              <AgreeLabel>
+                <input
+                  type="checkbox"
+                  checked={agreePrivacy}
+                  onChange={(e) => setAgreePrivacy(e.target.checked)}
+                />
+                <span>
+                  <AgreeLink
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                    개인정보처리방침
+                  </AgreeLink>
+                  에 동의합니다.
+                </span>
+              </AgreeLabel>
+              <AgreeLabel>
+                <input
+                  type="checkbox"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                />
+                <span>
+                  <AgreeLink
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                    서비스이용약관
+                  </AgreeLink>
+                  에 동의합니다.
+                </span>
+              </AgreeLabel>
+            </AgreeBlock>
+
+            <LoginButton
+              type="submit"
+              disabled={isLoading || !agreePrivacy || !agreeTerms}>
               가입 신청
             </LoginButton>
             <SignUpLink href="/sign-in">
               이미 계정이 있으신가요? 로그인
             </SignUpLink>
+            <SignUpLink
+              href="/application-status"
+              style={{ marginTop: "0.25rem" }}>
+              신청 조회
+            </SignUpLink>
           </LoginForm>
         </LoginContainer>
 
         <Footer>
+          <FooterLinks>
+            <FooterLink href="/privacy">개인정보처리방침</FooterLink>
+            <span> · </span>
+            <FooterLink href="/terms">서비스이용약관</FooterLink>
+          </FooterLinks>
           <Copyright>
             <Font $size={12} color="#999">
               © 2024 ANTRE. All rights reserved.
@@ -288,6 +346,33 @@ const InputGroup = styled.div`
   gap: 1rem;
 `
 
+const AgreeBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`
+
+const AgreeLabel = styled.label`
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+  cursor: pointer;
+  input {
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+  }
+`
+
+const AgreeLink = styled(Link)`
+  color: #1a73e8;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+`
+
 const StyledInput = styled.input`
   width: 100%;
   padding: 1rem;
@@ -303,11 +388,16 @@ const StyledInput = styled.input`
 
 const StyledSelect = styled.select`
   width: 100%;
-  padding: 1rem;
+  padding: 1rem 2.25rem 1rem 1rem;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-size: 1rem;
   background: white;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  cursor: pointer;
   &:focus {
     border-color: #1a73e8;
     outline: none;
@@ -362,6 +452,21 @@ const SignUpLink = styled(Link)`
 const Footer = styled.footer`
   text-align: center;
   padding: 2rem 0;
+`
+
+const FooterLinks = styled.div`
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+`
+
+const FooterLink = styled(Link)`
+  color: #9ca3af;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+    color: #6b7280;
+  }
 `
 
 const Copyright = styled.div`

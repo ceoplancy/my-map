@@ -72,6 +72,8 @@ export type WorkspaceMemberWithUser = {
   created_at: string
   email: string | null
   name: string | null
+  allowed_list_ids?: string[] | null
+  is_team_leader?: boolean | null
 }
 
 const getWorkspaceMembersWithUsers = async (

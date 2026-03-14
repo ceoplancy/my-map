@@ -24,7 +24,7 @@ export default async function handler(
     .from("signup_requests")
     .select("id, status, created_at")
     .eq("user_id", user.id)
-    .eq("status", "pending")
+    .order("created_at", { ascending: false })
     .limit(1)
 
   return res.status(200).json(data?.[0] ?? null)

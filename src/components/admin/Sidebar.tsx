@@ -6,7 +6,6 @@ import {
   People,
   Description,
   CloudUpload,
-  HowToReg,
   List as ListIcon,
   Business,
 } from "@mui/icons-material"
@@ -108,13 +107,6 @@ const INTEGRATED_MENU_ITEMS = [
   { title: "사용자 관리", path: ADMIN.USERS, icon: <People /> },
   { title: "워크스페이스 관리", path: ADMIN.WORKSPACES, icon: <Business /> },
 ]
-
-/** 워크스페이스: 가입 승인 (대시보드 다음) */
-const WORKSPACE_SIGNUP = {
-  title: "가입 승인",
-  path: "/signup-requests",
-  icon: <HowToReg />,
-}
 
 /** 워크스페이스: 주주명부 그룹 - 목록, 관리, 엑셀 업로드 */
 const WORKSPACE_SHAREHOLDER_ITEMS = [
@@ -229,13 +221,6 @@ export default function Sidebar() {
                   </NavIcon>
                   <NavText>대시보드</NavText>
                 </NavLink>
-              )}
-              {currentWorkspace && (
-                <SingleNavLink
-                  item={WORKSPACE_SIGNUP}
-                  pathname={pathname}
-                  pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
-                />
               )}
               {currentWorkspace && (
                 <>

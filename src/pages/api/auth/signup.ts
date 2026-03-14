@@ -5,7 +5,7 @@ type Body = {
   email: string
   password: string
   account_type: "listed_company" | "proxy_company"
-  workspace_name: string
+  user_name: string
 }
 
 export default async function handler(
@@ -16,10 +16,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" })
   }
   const body = req.body as Body
-  const { email, password, account_type, workspace_name } = body
-  if (!email || !password || !account_type || !workspace_name) {
+  const { email, password, account_type, user_name } = body
+  if (!email || !password || !account_type || !user_name) {
     return res.status(400).json({
-      error: "email, password, account_type, workspace_name are required",
+      error: "email, password, account_type, user_name are required",
     })
   }
   const admin = createSupabaseAdmin()
@@ -30,7 +30,7 @@ export default async function handler(
     email,
     password,
     email_confirm: false,
-    user_metadata: { account_type, workspace_name },
+    user_metadata: { account_type, name: user_name },
   })
   if (createError) {
     return res.status(400).json({ error: createError.message })
@@ -38,10 +38,11 @@ export default async function handler(
   if (!user) {
     return res.status(500).json({ error: "User not created" })
   }
+  // workspace_name in DB is used as initial workspace name on approval; we store user_name there
   const { error: insertError } = await admin.from("signup_requests").insert({
     email,
     account_type,
-    workspace_name,
+    workspace_name: user_name.trim(),
     user_id: user.id,
     status: "pending",
   })

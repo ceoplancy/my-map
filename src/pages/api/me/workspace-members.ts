@@ -12,6 +12,8 @@ export type WorkspaceMemberWithUser = {
   created_at: string
   email: string | null
   name: string | null
+  allowed_list_ids: string[] | null
+  is_team_leader: boolean | null
 }
 
 /** GET: workspace members with email/name from Auth. Requester must be a member of the workspace. */
@@ -42,7 +44,9 @@ export default async function handler(
 
   const { data: members, error: membersError } = await admin
     .from("workspace_members")
-    .select("id, user_id, workspace_id, role, created_at")
+    .select(
+      "id, user_id, workspace_id, role, created_at, allowed_list_ids, is_team_leader",
+    )
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
 
@@ -85,6 +89,8 @@ export default async function handler(
       created_at: m.created_at,
       email: email ?? null,
       name: name ?? null,
+      allowed_list_ids: m.allowed_list_ids ?? null,
+      is_team_leader: m.is_team_leader ?? null,
     })
   }
 
