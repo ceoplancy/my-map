@@ -427,6 +427,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- progress.current는 ref, 의존성에서 제외
   }, [loading, progress.current, progress.total])
 
   // 시간 포맷팅 함수

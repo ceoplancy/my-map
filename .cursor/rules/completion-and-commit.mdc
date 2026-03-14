@@ -11,7 +11,7 @@ alwaysApply: false
 ## 1. 에러 해결 (필수)
 
 - **Web**: `pnpm lint`, `pnpm build`(또는 타입체크) 실행 후 발생한 에러 전부 수정.
-- **Rust API** (해당 시): `cargo fmt -p mice-api -- --check`, `cargo clippy -p mice-api -- -D warnings`, `cargo test -p mice-api` 실행 후 실패 항목 수정. *현재 my-map은 Next.js 단일 앱.*
+- **Rust API** (해당 시): `cargo fmt -p mice-api -- --check`, `cargo clippy -p mice-api -- -D warnings`, `cargo test -p mice-api` 실행 후 실패 항목 수정. *현재 entre-map은 Next.js 단일 앱.*
 - pre-push와 동일한 검증 기준으로, **push 전에 실패할 수 있는 항목을 미리 제거**한다.
 
 ## 2. 리팩터링 (가능한 범위)

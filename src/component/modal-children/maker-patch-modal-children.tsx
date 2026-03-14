@@ -1,7 +1,7 @@
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction, useEffect } from "react"
-import { UseMutateFunction } from "react-query"
+import type { UseMutateFunction } from "@tanstack/react-query"
 import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
@@ -124,6 +124,7 @@ const MakerPatchModalChildren = ({
         history: makerData.history ?? [],
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formik ref 동기화 제외
   }, [makerData])
 
   return (

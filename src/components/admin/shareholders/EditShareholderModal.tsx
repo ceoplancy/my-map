@@ -1,14 +1,14 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
-import { useQueryClient } from "react-query"
-import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
-import { Excel } from "@/types/excel"
 import { toast } from "react-toastify"
-import { format } from "date-fns"
-import { ko } from "date-fns/locale"
 import { HistoryItem } from "@/component/excel-data-table"
 import * as Sentry from "@sentry/nextjs"
+import type { Tables } from "@/types/db"
+import {
+  usePatchShareholder,
+  useShareholderChangeHistory,
+} from "@/api/workspace"
 
 const Overlay = styled.div`
   position: fixed;
@@ -245,14 +245,15 @@ const StatusBadge = styled.span<{ status: string }>`
           : COLORS.red[700]};
 `
 
+type Shareholder = Tables<"shareholders">
+
 interface Props {
-  data: Excel
+  data: Shareholder
+  userId: string
   onClose: () => void
 }
 
-// 필드 라벨 매핑 객체 추가
-export const FIELD_LABELS: Record<keyof Excel, string> = {
-  id: "아이디",
+export const FIELD_LABELS: Record<string, string> = {
   name: "이름",
   company: "회사명(구분1)",
   status: "상태",
@@ -263,32 +264,31 @@ export const FIELD_LABELS: Record<keyof Excel, string> = {
   maker: "마커(구분2)",
   stocks: "주식수",
   memo: "메모",
-  history: "히스토리",
-  image: "이미지",
 }
 
-export default function EditShareholderModal({ data, onClose }: Props) {
-  const [formData, setFormData] = useState(data)
-  const queryClient = useQueryClient()
+export default function EditShareholderModal({ data, userId, onClose }: Props) {
+  const [formData, setFormData] = useState<Shareholder>(data)
+  const patchShareholder = usePatchShareholder()
+  const { data: changeHistory = [] } = useShareholderChangeHistory(data.id)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
-      const { error } = await supabaseAdmin
-        .from("excel")
-        .update(formData)
-        .eq("id", data.id)
-
-      if (error) {
-        Sentry.captureException(error)
-        Sentry.captureMessage(
-          "주주 정보 수정에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-        )
-        throw new Error(error.message)
-      }
-
-      queryClient.invalidateQueries(["excel"])
+      await patchShareholder.mutateAsync({
+        patch: {
+          id: data.id,
+          name: formData.name,
+          address: formData.address,
+          status: formData.status,
+          company: formData.company,
+          stocks: formData.stocks,
+          latlngaddress: formData.latlngaddress,
+          memo: formData.memo,
+          maker: formData.maker,
+        },
+        userId,
+      })
       toast.success("데이터가 성공적으로 수정되었습니다.")
       onClose()
     } catch (error) {
@@ -300,7 +300,10 @@ export default function EditShareholderModal({ data, onClose }: Props) {
     }
   }
 
-  const handleChange = (field: keyof Excel, value: any) => {
+  const handleChange = (
+    field: keyof Shareholder,
+    value: string | number | null,
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -398,49 +401,72 @@ export default function EditShareholderModal({ data, onClose }: Props) {
           <HistorySection>
             <HistoryTitle>변경 이력</HistoryTitle>
             <HistoryList>
-              {Array.isArray(data.history) &&
-                (data.history as HistoryItem[]).map(
-                  (history: HistoryItem, index: number) => (
-                    <HistoryCard key={index}>
+              {changeHistory.length > 0
+                ? changeHistory.map((row) => (
+                    <HistoryCard key={row.id}>
                       <HistoryHeader>
                         <ModifierInfo>
-                          <ModifierName>{history.modifier}</ModifierName>
-                          <TimeStamp>{history.modified_at}</TimeStamp>
+                          <ModifierName>{row.changed_by}</ModifierName>
+                          <TimeStamp>{row.changed_at}</TimeStamp>
                         </ModifierInfo>
                       </HistoryHeader>
                       <HistoryDetails>
-                        {history.changes.memo && (
-                          <ChangeItem>
-                            <FieldName>메모</FieldName>
-                            <ChangeContent>
-                              <span>
-                                {history.changes.memo.original || "-"}
-                              </span>
-                              <span>→</span>
-                              <span>{history.changes.memo.modified}</span>
-                            </ChangeContent>
-                          </ChangeItem>
-                        )}
-                        {history.changes.status && (
-                          <ChangeItem>
-                            <FieldName>상태</FieldName>
-                            <ChangeContent>
-                              <StatusBadge
-                                status={history.changes.status.original}>
-                                {history.changes.status.original}
-                              </StatusBadge>
-                              <span>→</span>
-                              <StatusBadge
-                                status={history.changes.status.modified}>
-                                {history.changes.status.modified}
-                              </StatusBadge>
-                            </ChangeContent>
-                          </ChangeItem>
-                        )}
+                        <ChangeItem>
+                          <FieldName>
+                            {FIELD_LABELS[row.field] ?? row.field}
+                          </FieldName>
+                          <ChangeContent>
+                            <span>{row.old_value ?? "-"}</span>
+                            <span>→</span>
+                            <span>{row.new_value ?? "-"}</span>
+                          </ChangeContent>
+                        </ChangeItem>
                       </HistoryDetails>
                     </HistoryCard>
-                  ),
-                )}
+                  ))
+                : Array.isArray(data.history) &&
+                  (data.history as HistoryItem[]).map(
+                    (history: HistoryItem, index: number) => (
+                      <HistoryCard key={index}>
+                        <HistoryHeader>
+                          <ModifierInfo>
+                            <ModifierName>{history.modifier}</ModifierName>
+                            <TimeStamp>{history.modified_at}</TimeStamp>
+                          </ModifierInfo>
+                        </HistoryHeader>
+                        <HistoryDetails>
+                          {history.changes?.memo && (
+                            <ChangeItem>
+                              <FieldName>메모</FieldName>
+                              <ChangeContent>
+                                <span>
+                                  {history.changes.memo.original || "-"}
+                                </span>
+                                <span>→</span>
+                                <span>{history.changes.memo.modified}</span>
+                              </ChangeContent>
+                            </ChangeItem>
+                          )}
+                          {history.changes?.status && (
+                            <ChangeItem>
+                              <FieldName>상태</FieldName>
+                              <ChangeContent>
+                                <StatusBadge
+                                  status={history.changes.status.original}>
+                                  {history.changes.status.original}
+                                </StatusBadge>
+                                <span>→</span>
+                                <StatusBadge
+                                  status={history.changes.status.modified}>
+                                  {history.changes.status.modified}
+                                </StatusBadge>
+                              </ChangeContent>
+                            </ChangeItem>
+                          )}
+                        </HistoryDetails>
+                      </HistoryCard>
+                    ),
+                  )}
             </HistoryList>
           </HistorySection>
 

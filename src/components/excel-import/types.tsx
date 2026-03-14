@@ -23,11 +23,11 @@ export interface ExcelImportViewProps {
   progress: { current: number; total: number }
   onFileChange: ChangeEventHandler<HTMLInputElement>
   onClearFileName: () => void
-  onSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>
-  onExport: (data: Excel[]) => void
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void
-  onDragEnter: (e: React.DragEvent<HTMLDivElement>) => void
-  onEditFailedData: (editedData: Excel) => Promise<void>
+  onSubmit: (_e: FormEvent<HTMLFormElement>) => Promise<void>
+  onExport: (_data: Excel[]) => void
+  onDrop: (_e: React.DragEvent<HTMLDivElement>) => void
+  onDragOver: (_e: React.DragEvent<HTMLDivElement>) => void
+  onDragEnter: (_e: React.DragEvent<HTMLDivElement>) => void
+  onEditFailedData: (_editedData: Excel) => Promise<void>
   onRetryAllFailedData: () => Promise<void>
 }

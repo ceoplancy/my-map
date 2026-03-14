@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "react-query"
+import type { User } from "@supabase/supabase-js"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "react-toastify"
 
 import supabase from "@/lib/supabase/supabaseClient"
-import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
 import { Excel } from "@/types/excel"
@@ -103,14 +103,11 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
     params?.userMetadata,
   ]
 
-  return useQuery(queryKey, () => getExcel(mapLevel, params), {
-    staleTime: 60000, // 1분 동안 캐시된 데이터 사용
-    cacheTime: 300000, // 5분 동안 캐시 유지
-    onError: () => {
-      toast.error(
-        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
-      )
-    },
+  return useQuery({
+    queryKey,
+    queryFn: () => getExcel(mapLevel, params),
+    staleTime: 60_000,
+    gcTime: 300_000,
   })
 }
 
@@ -135,10 +132,11 @@ const updateExcel = async (patchData: Excel) => {
 export const usePatchExcel = () => {
   const queryClient = useQueryClient()
 
-  return useMutation((patchData: Excel) => updateExcel(patchData), {
+  return useMutation({
+    mutationFn: (patchData: Excel) => updateExcel(patchData),
     onSuccess: () => {
-      queryClient.invalidateQueries(["excel"])
-      queryClient.invalidateQueries(["filteredStats"])
+      queryClient.invalidateQueries({ queryKey: ["excel"] })
+      queryClient.invalidateQueries({ queryKey: ["filteredStats"] })
     },
     onError: () => {
       toast.error(
@@ -174,17 +172,13 @@ const getFilterMenu = async () => {
 }
 
 export const useGetFilterMenu = () => {
-  return useQuery(["filterMenu"], () => getFilterMenu(), {
+  return useQuery({
+    queryKey: ["filterMenu"],
+    queryFn: getFilterMenu,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: true,
     staleTime: 1000 * 60 * 5,
-    onError: () => {
-      toast.error(
-        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
-      )
-    },
   })
 }
 
@@ -192,129 +186,133 @@ export const useGetFilterMenu = () => {
 // ============== 사용자 관리 기능 ===============
 // =======================================
 
-// 페이지네이션이 적용된 사용자 목록 조회
-const getUsers = async (page: number = 1, limit: number = 10) => {
+async function getAdminAuthHeaders(): Promise<HeadersInit> {
   const {
-    data: { users },
-    error,
-  } = await supabaseAdmin.auth.admin.listUsers({
-    page: page - 1, // Supabase는 0-based pagination
-    perPage: limit,
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error("Unauthorized")
+
+  return { Authorization: `Bearer ${session.access_token}` }
+}
+
+export type GetUsersResponse = {
+  users: User[]
+  metadata: {
+    currentPage: number
+    perPage: number
+    totalPages: number
+    hasMore: boolean
+  }
+}
+
+// 페이지네이션이 적용된 사용자 목록 조회 (서버 API 경유)
+const getUsers = async (
+  page: number = 1,
+  limit: number = 10,
+): Promise<GetUsersResponse> => {
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(`/api/admin/users?page=${page}&limit=${limit}`, {
+    headers,
   })
-
-  if (error) {
-    Sentry.captureException(error)
+  if (!res.ok) {
+    const msg = await res.text()
     Sentry.captureMessage("사용자 목록 조회에 실패했습니다.")
-    throw new Error(error.message)
+    throw new Error(msg || res.statusText)
   }
 
-  return {
-    users,
-    metadata: {
-      currentPage: page,
-      perPage: limit,
-      // Supabase Admin API에서 전체 사용자 수를 제공하지 않아 임시로 처리
-      totalPages: Math.ceil(users.length / limit),
-      hasMore: users.length === limit,
-    },
-  }
+  return res.json() as Promise<GetUsersResponse>
 }
 
 export const useGetUsers = (page: number = 1, limit: number = 10) => {
-  return useQuery(["users", page, limit], () => getUsers(page, limit), {
-    keepPreviousData: true, // 페이지 전환 시 이전 데이터 유지
+  return useQuery({
+    queryKey: ["users", page, limit],
+    queryFn: () => getUsers(page, limit),
+    placeholderData: (prev) => prev,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     staleTime: 1000 * 60 * 5,
-    onError: () => {
-      toast.error(
-        "사용자 목록을 불러오는데 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-      )
-    },
   })
 }
 
-// 특정 사용자 조회
+// 특정 사용자 조회 (서버 API 경유)
 const getUser = async (userId: string) => {
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.admin.getUserById(userId)
-  if (error) {
-    Sentry.captureException(error)
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(`/api/admin/users/${userId}`, { headers })
+  if (!res.ok) {
+    const msg = await res.text()
     Sentry.captureMessage("사용자 조회에 실패했습니다.")
-    throw new Error(error.message)
+    throw new Error(msg || res.statusText)
   }
 
-  return user
+  return res.json()
 }
 
-// 사용자 생성
+// 사용자 생성 (서버 API 경유)
 const createUser = async (
   email: string,
   password: string,
   userData?: object,
 ) => {
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: userData,
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch("/api/admin/users", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, userData }),
   })
-  if (error) {
-    Sentry.captureException(error)
+  if (!res.ok) {
+    const msg = await res.text()
     Sentry.captureMessage("사용자 생성에 실패했습니다.")
-    throw new Error(error.message)
+    throw new Error(msg || res.statusText)
   }
 
-  return user
+  return res.json()
 }
 
-// 사용자 정보 수정
+// 사용자 정보 수정 (서버 API 경유)
 const updateUser = async (userId: string, updates: object) => {
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
-  if (error) {
-    Sentry.captureException(error)
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(`/api/admin/users/${userId}`, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  })
+  if (!res.ok) {
+    const msg = await res.text()
     Sentry.captureMessage("사용자 정보 수정에 실패했습니다.")
-    throw new Error(error.message)
+    throw new Error(msg || res.statusText)
   }
 
-  return user
+  return res.json()
 }
 
-// 사용자 삭제
+// 사용자 삭제 (서버 API 경유)
 const deleteUser = async (userId: string) => {
-  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
-  if (error) {
-    Sentry.captureException(error)
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(`/api/admin/users/${userId}`, {
+    method: "DELETE",
+    headers,
+  })
+  if (!res.ok) {
+    const msg = await res.text()
     Sentry.captureMessage("사용자 삭제에 실패했습니다.")
-    throw new Error(error.message)
+    throw new Error(msg || res.statusText)
   }
 }
 
 export const useGetUser = (userId: string) => {
-  return useQuery(["user", userId], () => getUser(userId), {
+  return useQuery({
+    queryKey: ["user", userId],
+    queryFn: () => getUser(userId),
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,
-    onError: () => {
-      toast.error(
-        "사용자 정보를 불러오는데 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-      )
-    },
   })
 }
 
 export const useCreateUser = () => {
   const queryClient = useQueryClient()
 
-  return useMutation(
-    ({
+  return useMutation({
+    mutationFn: ({
       email,
       password,
       userData,
@@ -323,47 +321,44 @@ export const useCreateUser = () => {
       password: string
       userData?: object
     }) => createUser(email, password, userData),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(["users"])
-        toast.success("사용자가 성공적으로 생성되었습니다.")
-      },
-      onError: () => {
-        toast.error(
-          "사용자 생성에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-        )
-      },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast.success("사용자가 성공적으로 생성되었습니다.")
     },
-  )
+    onError: () => {
+      toast.error(
+        "사용자 생성에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
+    },
+  })
 }
 
 export const useUpdateUser = () => {
   const queryClient = useQueryClient()
 
-  return useMutation(
-    ({ userId, updates }: { userId: string; updates: object }) =>
+  return useMutation({
+    mutationFn: ({ userId, updates }: { userId: string; updates: object }) =>
       updateUser(userId, updates),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(["users"])
-        queryClient.invalidateQueries(["user"])
-        toast.success("사용자 정보가 성공적으로 수정되었습니다.")
-      },
-      onError: () => {
-        toast.error(
-          "사용자 정보 수정에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
-        )
-      },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      queryClient.invalidateQueries({ queryKey: ["user"] })
+      toast.success("사용자 정보가 성공적으로 수정되었습니다.")
     },
-  )
+    onError: () => {
+      toast.error(
+        "사용자 정보 수정에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+      )
+    },
+  })
 }
 
 export const useDeleteUser = () => {
   const queryClient = useQueryClient()
 
-  return useMutation((userId: string) => deleteUser(userId), {
+  return useMutation({
+    mutationFn: (userId: string) => deleteUser(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries(["users"])
+      queryClient.invalidateQueries({ queryKey: ["users"] })
       toast.success("사용자가 성공적으로 삭제되었습니다.")
     },
     onError: () => {
@@ -374,14 +369,19 @@ export const useDeleteUser = () => {
   })
 }
 
-// 사용자 권한 설정 함수
-export const setUserRole = async (userId: string, role: "admin" | "user") => {
+// 사용자 권한 설정 (서버 API 경유)
+export const setUserRole = async (
+  userId: string,
+  role: "admin" | "user",
+): Promise<{ success: boolean; error?: unknown }> => {
   try {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      user_metadata: { role },
+    const headers = await getAdminAuthHeaders()
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ user_metadata: { role } }),
     })
-
-    if (error) throw error
+    if (!res.ok) throw new Error(await res.text())
 
     return { success: true }
   } catch (error) {

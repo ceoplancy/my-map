@@ -41,7 +41,6 @@
     "**/*.mjs",
     ".next/types/**/*.ts",
     "eslint.config.mjs",
-    "src/component/dot-spinner.ㅅsx"
   ],
   "exclude": [
     "**/node_modules",

@@ -6,6 +6,8 @@ import {
   People,
   Description,
   CloudUpload,
+  HowToReg,
+  List as ListIcon,
 } from "@mui/icons-material"
 import { usePathname } from "next/navigation"
 import { normalizePathname } from "@/lib/utils"
@@ -70,7 +72,13 @@ const NavText = styled.span`
 
 const menuItems = [
   { title: "대시보드", path: "/admin", icon: <Dashboard /> },
+  { title: "가입 승인", path: "/admin/signup-requests", icon: <HowToReg /> },
   { title: "사용자 관리", path: "/admin/users", icon: <People /> },
+  {
+    title: "주주명부 목록",
+    path: "/admin/lists",
+    icon: <ListIcon />,
+  },
   {
     title: "주주명부 관리",
     path: "/admin/shareholders",
@@ -80,6 +88,11 @@ const menuItems = [
     title: "엑셀 업로드",
     path: "/admin/excel-import",
     icon: <CloudUpload />,
+  },
+  {
+    title: "워크스페이스 멤버",
+    path: "/admin/members",
+    icon: <People />,
   },
 ]
 

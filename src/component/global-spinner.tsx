@@ -10,10 +10,10 @@ interface GlobalSpinnerProps {
 
 const GlobalSpinner = ({
   color,
-  width,
-  height,
-  marginRight,
-  dotColor,
+  width: _width,
+  height: _height,
+  marginRight: _marginRight,
+  dotColor: _dotColor,
 }: GlobalSpinnerProps) => {
   return (
     <Frame>

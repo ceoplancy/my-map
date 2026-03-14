@@ -10,7 +10,7 @@
 
 | 항목 | 내용 |
 |------|------|
-| **요청** | (1) AI 구조 리팩터링 — my-map 프로젝트에 맞게 전반 정리 (2) 앤트리맵 SaaS 플랫폼화 구현 준비 |
+| **요청** | (1) AI 구조 리팩터링 — entre-map 프로젝트에 맞게 전반 정리 (2) 앤트리맵 SaaS 플랫폼화 구현 준비 |
 | **복잡도** | **L4** (아키텍처·시스템 전반, 10+ 파일, 다수 설계 결정) |
 | **워크플로우** | INIT → PLAN → CREATIVE → BUILD → REFLECT → ARCHIVE |
 | **다음 단계** | PLAN (우선순위·페이즈·스코프 확정) |
@@ -21,7 +21,7 @@
 
 ### 2.1 프로젝트
 
-- **이름**: my-map (앤트리맵)
+- **이름**: entre-map (앤트리맵)
 - **구조**: 단일 Next.js (Pages Router) + Supabase
 - **역할**: 1개 회사 대상 주주·주식 관리 (엑셀 주주명부, 지도 마커, 용역 현장·상태·메모·사진)
 - **경로**: `src/pages/`, `src/api/`, `src/components/`, `src/component/`, `src/types/db.ts`, `src/store/` 등
@@ -89,4 +89,19 @@
 
 ---
 
-**INIT 완료.** 다음: **PLAN**으로 우선순위·스코프·페이즈 확정 후 BUILD 진행.
+---
+
+## 6. 기존 구현 참고 (리팩터링 시)
+
+| 영역 | 현재 구현 | 비고 |
+|------|-----------|------|
+| **DB** | 단일 `excel` 테이블 (company, address, status, stocks, history, image, lat/lng, name, memo, maker) | 플랫폼화 시 워크스페이스·명부 메타·주주·이력 등 **신규 테이블**로 재구성 예정 |
+| **Auth** | Supabase Auth, `user_metadata`: role(admin/user), allowedStatus, allowedCompany, name | 가입·승인 대기·상장사/의결권 대행사 구분 추가 |
+| **데이터 접근** | `src/api/supabase.ts` (useGetExcel, usePatchExcel, useGetFilterMenu, 사용자 CRUD) | 테넌트/명부 스코프·RLS 반영 필요 |
+| **페이지** | `index`(지도), `admin`(대시), `admin/excel-import`, `admin/shareholders`, `admin/users`, `sign-in` | 로그인/회원가입 중심 진입, 관리자·용역 분리 유지 |
+| **엑셀 업로드** | 클라이언트 지오코딩 → 성공 건 upsert, 실패 건 failData 다운로드 | PRD: 실패 건 화면 내 오류 리스트·인라인 수정으로 개선 |
+| **용역 스코프** | user_metadata.allowedCompany / allowedStatus로 필터 | 용역 계정·권한(일반/팀장)·담당 상장사로 재정의 |
+
+---
+
+**INIT 완료.** 다음: **PLAN**으로 인터뷰·우선순위·스코프·페이즈 확정 후 BUILD 진행.

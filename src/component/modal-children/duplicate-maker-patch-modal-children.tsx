@@ -6,7 +6,7 @@ import { format } from "date-fns"
 import ExcelDataTable from "../excel-data-table"
 import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction } from "react"
-import { UseMutateFunction } from "react-query"
+import type { UseMutateFunction } from "@tanstack/react-query"
 import { removeTags } from "@/lib/utils"
 
 interface DuplicateMakerPatchModalChildrenProps {

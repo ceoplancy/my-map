@@ -2,7 +2,8 @@ import AdminLayout from "@/layouts/AdminLayout"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import ShareholderList from "@/components/admin/shareholders/ShareholderList"
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/router"
+import Link from "next/link"
 
 const Container = styled.div`
   display: flex;
@@ -49,20 +50,61 @@ const ActionButton = styled.button`
   }
 `
 
+const EmptyMessage = styled.div`
+  padding: 3rem;
+  text-align: center;
+  background: ${COLORS.gray[50]};
+  border-radius: 1rem;
+  color: ${COLORS.gray[600]};
+
+  a {
+    color: ${COLORS.blue[600]};
+    font-weight: 600;
+  }
+`
+
 export default function ShareholdersPage() {
   const router = useRouter()
+  const listId =
+    typeof router.query.listId === "string" ? router.query.listId : null
 
   return (
     <AdminLayout>
       <Container>
         <Header>
           <Title>주주명부 관리</Title>
-          {/* <ActionButton onClick={() => setIsUploadModalOpen(true)}> */}
-          <ActionButton onClick={() => router.push("/admin/excel-import")}>
-            엑셀 업로드
-          </ActionButton>
+          {listId && (
+            <>
+              <ActionButton
+                onClick={() =>
+                  router.push({
+                    pathname: "/admin/change-history",
+                    query: { listId },
+                  })
+                }>
+                변경 이력
+              </ActionButton>
+              <ActionButton
+                onClick={() =>
+                  router.push({
+                    pathname: "/admin/excel-import",
+                    query: { listId },
+                  })
+                }>
+                엑셀 업로드
+              </ActionButton>
+            </>
+          )}
         </Header>
-        <ShareholderList />
+        {listId ? (
+          <ShareholderList listId={listId} />
+        ) : (
+          <EmptyMessage>
+            주주명부를 선택해 주세요.{" "}
+            <Link href="/admin/lists">주주명부 목록</Link>에서 &quot;주주
+            보기&quot;로 이동할 수 있습니다.
+          </EmptyMessage>
+        )}
       </Container>
     </AdminLayout>
   )

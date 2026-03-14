@@ -1,16 +1,25 @@
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { usePostSignIn } from "@/api/auth"
 import styled from "@emotion/styled"
 import Button from "@/component/button"
 import DotSpinner from "@/component/dot-spinner"
 import Font from "@/component/font"
 import Image from "next/image"
-import { SignInAnimation } from "@/components/animations/SignInAnimation"
+import Link from "next/link"
+
+const SignInAnimation = dynamic(
+  () =>
+    import("@/components/animations/SignInAnimation").then(
+      (m) => m.SignInAnimation,
+    ),
+  { ssr: false },
+)
 
 const SignIn = () => {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const { mutate: signInMutate, isLoading: signInIsLoading } = usePostSignIn()
+  const { mutate: signInMutate, isPending: signInIsLoading } = usePostSignIn()
 
   return (
     <Container>
@@ -69,6 +78,7 @@ const SignIn = () => {
             </InputGroup>
 
             <LoginButton type="submit">로그인</LoginButton>
+            <SignUpLink href="/sign-up">회원가입</SignUpLink>
           </LoginForm>
         </LoginContainer>
 
@@ -248,7 +258,7 @@ const Footer = styled.footer`
   padding: 2rem 0;
 `
 
-const CompanyInfo = styled.div`
+const _CompanyInfo = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -257,4 +267,20 @@ const CompanyInfo = styled.div`
 
 const Copyright = styled.div`
   margin-top: 1rem;
+`
+
+export function getServerSideProps() {
+  return { props: {} }
+}
+
+const SignUpLink = styled(Link)`
+  display: block;
+  text-align: center;
+  margin-top: 1rem;
+  color: #1a73e8;
+  font-size: 0.95rem;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
 `

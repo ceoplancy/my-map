@@ -5,6 +5,11 @@ import { useGetUserData } from "@/api/auth"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { toast } from "react-toastify"
+import { useMemo, useState } from "react"
+import { useCurrentWorkspace } from "@/store/workspaceState"
+import { useShareholderLists, useShareholders } from "@/api/workspace"
+import * as XLSX from "xlsx"
+import type { Tables } from "@/types/db"
 
 const WelcomeSection = styled.div`
   background: linear-gradient(135deg, white, #f8fafc);
@@ -266,9 +271,137 @@ const UserAvatarText = styled.span`
   font-weight: 500; // font-medium
 `
 
+const ListDashboardSection = styled.div`
+  margin-bottom: 2rem;
+`
+
+const ListSelectRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+`
+
+const ListSelectLabel = styled.label`
+  font-weight: 600;
+  color: ${COLORS.gray[700]};
+`
+
+const ListSelect = styled.select`
+  padding: 0.5rem 1rem;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 0.5rem;
+  min-width: 200px;
+`
+
+const StatusCountGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+`
+
+const StatusCountCard = styled.div<{ color: string }>`
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: ${(p) => p.color};
+  color: white;
+  text-align: center;
+`
+
+const FilterRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+`
+
+const FilterGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`
+
+const FilterInput = styled.input`
+  padding: 0.5rem 0.75rem;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 0.5rem;
+  min-width: 120px;
+`
+
+const ExportButton = styled.button`
+  padding: 0.75rem 1.25rem;
+  background: ${COLORS.green[500]};
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: ${COLORS.green[600]};
+  }
+`
+
+const STATUS_OPTIONS = ["미방문", "보류", "완료", "실패"] as const
+
 export default function AdminDashboard() {
   const { data: user } = useGetUserData()
   const { data: users } = useGetUsers()
+  const [workspace] = useCurrentWorkspace()
+  const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
+  const [selectedListId, setSelectedListId] = useState<string>("")
+  const [filterStatus, setFilterStatus] = useState<string[]>([])
+  const [filterCompany, setFilterCompany] = useState("")
+  const [filterMaker, setFilterMaker] = useState("")
+
+  const effectiveListId = (selectedListId || lists[0]?.id) ?? null
+  const { data: shareholders = [] } = useShareholders({
+    listId: effectiveListId,
+    status: filterStatus.length > 0 ? filterStatus : undefined,
+    company: filterCompany.trim() ? [filterCompany.trim()] : undefined,
+    maker: filterMaker.trim() || undefined,
+  })
+
+  const { byStatus, totalStocks } = useMemo(() => {
+    const byStatus: Record<string, number> = {
+      미방문: 0,
+      보류: 0,
+      완료: 0,
+      실패: 0,
+    }
+    let totalStocks = 0
+    for (const s of shareholders as Tables<"shareholders">[]) {
+      const status = s.status ?? "미방문"
+      if (status in byStatus) byStatus[status]++
+      totalStocks += s.stocks ?? 0
+    }
+
+    return { byStatus, totalStocks }
+  }, [shareholders])
+
+  const handleExportExcel = () => {
+    if (shareholders.length === 0) {
+      toast.info("내보낼 데이터가 없습니다.")
+
+      return
+    }
+    const rows = (shareholders as Tables<"shareholders">[]).map((s) => ({
+      이름: s.name ?? "",
+      상태: s.status ?? "",
+      주식수: s.stocks ?? 0,
+      주소: s.address ?? "",
+      회사: s.company ?? "",
+      담당: s.maker ?? "",
+      메모: s.memo ?? "",
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "주주목록")
+    XLSX.writeFile(wb, "주주목록.xlsx")
+    toast.success("엑셀 파일이 다운로드되었습니다.")
+  }
 
   // 최근 가입한 사용자 5명만 표시
   if (!users) return null
@@ -290,6 +423,95 @@ export default function AdminDashboard() {
           관리하실 수 있습니다.
         </WelcomeText>
       </WelcomeSection>
+
+      {lists.length > 0 && (
+        <ListDashboardSection>
+          <ContentCard>
+            <CardHeader>
+              <CardTitle>주주명부 현황</CardTitle>
+            </CardHeader>
+            <ListSelectRow>
+              <ListSelectLabel>명부 선택</ListSelectLabel>
+              <ListSelect
+                value={effectiveListId ?? ""}
+                onChange={(e) => setSelectedListId(e.target.value)}>
+                {lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name}
+                  </option>
+                ))}
+              </ListSelect>
+            </ListSelectRow>
+            <StatusCountGrid>
+              <StatusCountCard color={COLORS.gray[500]}>
+                <div>미방문</div>
+                <div>{byStatus["미방문"] ?? 0}</div>
+              </StatusCountCard>
+              <StatusCountCard color={COLORS.yellow[500]}>
+                <div>보류</div>
+                <div>{byStatus["보류"] ?? 0}</div>
+              </StatusCountCard>
+              <StatusCountCard color={COLORS.green[500]}>
+                <div>완료</div>
+                <div>{byStatus["완료"] ?? 0}</div>
+              </StatusCountCard>
+              <StatusCountCard color={COLORS.red[500]}>
+                <div>실패</div>
+                <div>{byStatus["실패"] ?? 0}</div>
+              </StatusCountCard>
+              <StatusCountCard color={COLORS.blue[500]}>
+                <div>주식 수</div>
+                <div>{totalStocks.toLocaleString()}</div>
+              </StatusCountCard>
+            </StatusCountGrid>
+            <FilterRow>
+              <FilterGroup>
+                <ListSelectLabel>상태</ListSelectLabel>
+                <div
+                  style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {STATUS_OPTIONS.map((st) => (
+                    <label key={st}>
+                      <input
+                        type="checkbox"
+                        checked={filterStatus.includes(st)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFilterStatus((prev) => [...prev, st])
+                          } else {
+                            setFilterStatus((prev) =>
+                              prev.filter((x) => x !== st),
+                            )
+                          }
+                        }}
+                      />
+                      {st}
+                    </label>
+                  ))}
+                </div>
+              </FilterGroup>
+              <FilterGroup>
+                <ListSelectLabel>소속(회사)</ListSelectLabel>
+                <FilterInput
+                  value={filterCompany}
+                  onChange={(e) => setFilterCompany(e.target.value)}
+                  placeholder="회사명"
+                />
+              </FilterGroup>
+              <FilterGroup>
+                <ListSelectLabel>담당</ListSelectLabel>
+                <FilterInput
+                  value={filterMaker}
+                  onChange={(e) => setFilterMaker(e.target.value)}
+                  placeholder="담당자"
+                />
+              </FilterGroup>
+              <ExportButton onClick={handleExportExcel}>
+                엑셀 내보내기 ({shareholders.length}건)
+              </ExportButton>
+            </FilterRow>
+          </ContentCard>
+        </ListDashboardSection>
+      )}
 
       <StatsGrid>
         {/* 통계 카드 */}

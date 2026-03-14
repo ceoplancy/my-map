@@ -78,6 +78,7 @@ const SearchAddressBounds: React.FC<SearchAddressBoundsProps> = ({
     if (debouncedSearch !== "") {
       onChangeSearchAddress()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onChangeSearchAddress는 상위에서 안정적 참조
   }, [debouncedSearch])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

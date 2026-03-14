@@ -3,8 +3,10 @@ import { useEffect } from "react"
 import Sidebar from "@/components/admin/Sidebar"
 import Header from "@/components/admin/Header"
 import styled from "@emotion/styled"
-import { useGetUserData } from "@/api/auth"
+import { useGetUserData, useMyWorkspaces } from "@/api/auth"
 import { toast } from "react-toastify"
+import { useSetRecoilState } from "recoil"
+import { currentWorkspaceState } from "@/store/workspaceState"
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -66,26 +68,40 @@ const LoadingText = styled.p`
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter()
+  const setCurrentWorkspace = useSetRecoilState(currentWorkspaceState)
   const { data: user, isLoading } = useGetUserData()
+  const { data: workspaces = [], isLoading: workspacesLoading } =
+    useMyWorkspaces()
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !workspacesLoading) {
       if (!user?.user) {
         router.push("/sign-in")
 
         return
       }
 
-      const isAdmin = user.user.user_metadata.role.includes("admin")
-
-      if (!isAdmin) {
+      const legacyAdmin = user.user.user_metadata?.role?.includes("admin")
+      const hasWorkspace = Array.isArray(workspaces) && workspaces.length > 0
+      if (!legacyAdmin && !hasWorkspace) {
         toast.error("관리자 권한이 없습니다.")
         router.push("/")
 
         return
       }
+
+      if (hasWorkspace && workspaces.length > 0) {
+        setCurrentWorkspace((prev) => prev ?? workspaces[0] ?? null)
+      }
     }
-  }, [router, user, isLoading])
+  }, [
+    router,
+    user,
+    isLoading,
+    workspaces,
+    workspacesLoading,
+    setCurrentWorkspace,
+  ])
 
   if (isLoading) {
     return (

@@ -59,7 +59,7 @@ export const getMarkerImage = (
 interface CustomMapMarkerProps {
   marker: Excel
   markers?: Excel[]
-  onMarkerSelect?: (marker: Excel | null) => void
+  onMarkerSelect?: (_marker: Excel | null) => void
   initialInfoWindowOpen?: boolean
   forceKeepOpen?: boolean
 }
@@ -90,7 +90,7 @@ const CustomMapMarker = ({
     null,
   )
 
-  const { mutate: makerDataMutate, isLoading: makerDataMutateIsLoading } =
+  const { mutate: makerDataMutate, isPending: makerDataMutateIsLoading } =
     usePatchExcel()
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -208,7 +208,7 @@ const CustomMapMarker = ({
                 </ActionButton>
                 <ActionButton
                   variant="primary"
-                  onClick={(e) => {
+                  onClick={(_e) => {
                     setMakerDataUpdateIsModalOpen(true)
                   }}>
                   <Edit fontSize="small" />
@@ -216,7 +216,7 @@ const CustomMapMarker = ({
                 </ActionButton>
                 <ActionButton
                   variant="close"
-                  onClick={(e) => {
+                  onClick={(_e) => {
                     setIsOpen(false)
                     onMarkerSelect?.(null)
                   }}>

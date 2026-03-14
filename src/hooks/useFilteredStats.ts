@@ -1,4 +1,4 @@
-import { useQuery } from "react-query"
+import { useQuery } from "@tanstack/react-query"
 
 import supabase from "@/lib/supabase/supabaseClient"
 import { FilterParams } from "@/types"

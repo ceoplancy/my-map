@@ -1,6 +1,6 @@
 # Rust API Conventions (참조용)
 
-> **현재 my-map에는 Rust API 없음.** 향후 `apps/api/` 도입 시 적용.  
+> **현재 entre-map에는 Rust API 없음.** 향후 `apps/api/` 도입 시 적용.  
 > `apps/api/src/**/*.rs` 파일 작업 시 적용
 
 ---

@@ -1,5 +1,6 @@
-import { useGetUserData } from "@/api/auth"
+import { useGetUserData, useMyWorkspaces } from "@/api/auth"
 import supabase from "@/lib/supabase/supabaseClient"
+import { useCurrentWorkspace } from "@/store/workspaceState"
 import { COLORS } from "@/styles/global-style"
 import { useRouter } from "next/router"
 import { useState, useRef, useEffect } from "react"
@@ -31,7 +32,7 @@ const RightSection = styled.div`
   gap: 1rem;
 `
 
-const IconButton = styled.button`
+const _IconButton = styled.button`
   padding: 0.5rem;
   border-radius: 9999px;
   &:hover {
@@ -50,7 +51,7 @@ const ProfileButton = styled.button`
   }
 `
 
-const ProfileAvatar = styled.div`
+const _ProfileAvatar = styled.div`
   width: 2rem;
   height: 2rem;
   border-radius: 9999px;
@@ -60,7 +61,7 @@ const ProfileAvatar = styled.div`
   justify-content: center;
 `
 
-const ProfileEmail = styled.span`
+const _ProfileEmail = styled.span`
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;
@@ -102,7 +103,7 @@ const BreadcrumbText = styled.div`
   color: #6b7280;
 `
 
-const BreadcrumbLink = styled.span`
+const _BreadcrumbLink = styled.span`
   cursor: pointer;
   &:hover {
     color: #374151;
@@ -114,7 +115,7 @@ const FlexContainer = styled.div`
   align-items: center;
 `
 
-const NotificationIcon = styled.svg`
+const _NotificationIcon = styled.svg`
   width: 1.5rem;
   height: 1.5rem;
   color: ${COLORS.gray[600]};
@@ -182,8 +183,20 @@ const BreadcrumbCurrent = styled.span`
   color: ${COLORS.gray[900]};
 `
 
+const WorkspaceSelect = styled.select`
+  padding: 0.5rem 0.75rem;
+  border: 1px solid ${COLORS.gray[300]};
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  color: ${COLORS.gray[700]};
+  min-width: 160px;
+`
+
 export default function Header() {
   const { data: user } = useGetUserData()
+  const { data: workspaces = [] } = useMyWorkspaces()
+  const [currentWorkspace, setCurrentWorkspace] = useCurrentWorkspace()
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -221,12 +234,30 @@ export default function Header() {
           <PageTitle>
             {/* 현재 페이지 경로에 따른 타이틀 표시 */}
             {router.pathname === "/admin" && "대시보드"}
+            {router.pathname === "/admin/signup-requests" && "가입 승인"}
             {router.pathname === "/admin/users" && "사용자 관리"}
             {router.pathname.startsWith("/admin/users/") && "사용자 상세"}
+            {router.pathname === "/admin/lists" && "주주명부 목록"}
+            {router.pathname === "/admin/shareholders" && "주주명부 관리"}
+            {router.pathname === "/admin/excel-import" && "엑셀 업로드"}
           </PageTitle>
         </FlexContainer>
 
         <RightSection>
+          {workspaces.length > 1 && (
+            <WorkspaceSelect
+              value={currentWorkspace?.id ?? ""}
+              onChange={(e) => {
+                const ws = workspaces.find((w) => w.id === e.target.value)
+                if (ws) setCurrentWorkspace(ws)
+              }}>
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </WorkspaceSelect>
+          )}
           {/* 알림 아이콘 */}
           {/* <IconButton>
             <NotificationIcon

@@ -62,6 +62,261 @@ export type Database = {
         }
         Relationships: []
       }
+      workspaces: {
+        Row: {
+          id: string
+          name: string
+          account_type: Database["public"]["Enums"]["account_type"]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          account_type: Database["public"]["Enums"]["account_type"]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          account_type?: Database["public"]["Enums"]["account_type"]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_members: {
+        Row: {
+          id: string
+          workspace_id: string | null
+          user_id: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          allowed_list_ids: string[]
+          is_team_leader: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id?: string | null
+          user_id: string
+          role: Database["public"]["Enums"]["workspace_role"]
+          allowed_list_ids?: string[]
+          is_team_leader?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string | null
+          user_id?: string
+          role?: Database["public"]["Enums"]["workspace_role"]
+          allowed_list_ids?: string[]
+          is_team_leader?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      shareholder_lists: {
+        Row: {
+          id: string
+          workspace_id: string
+          name: string
+          active_from: string | null
+          active_to: string | null
+          is_visible: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          name: string
+          active_from?: string | null
+          active_to?: string | null
+          is_visible?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          name?: string
+          active_from?: string | null
+          active_to?: string | null
+          is_visible?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shareholders: {
+        Row: {
+          id: string
+          list_id: string
+          name: string | null
+          address: string | null
+          lat: number | null
+          lng: number | null
+          latlngaddress: string | null
+          company: string | null
+          status: string | null
+          stocks: number
+          memo: string | null
+          maker: string | null
+          image: string | null
+          history: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          name?: string | null
+          address?: string | null
+          lat?: number | null
+          lng?: number | null
+          latlngaddress?: string | null
+          company?: string | null
+          status?: string | null
+          stocks?: number
+          memo?: string | null
+          maker?: string | null
+          image?: string | null
+          history?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          name?: string | null
+          address?: string | null
+          lat?: number | null
+          lng?: number | null
+          latlngaddress?: string | null
+          company?: string | null
+          status?: string | null
+          stocks?: number
+          memo?: string | null
+          maker?: string | null
+          image?: string | null
+          history?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shareholder_change_history: {
+        Row: {
+          id: string
+          shareholder_id: string
+          changed_by: string
+          changed_at: string
+          field: string
+          old_value: string | null
+          new_value: string | null
+        }
+        Insert: {
+          id?: string
+          shareholder_id: string
+          changed_by: string
+          changed_at?: string
+          field: string
+          old_value?: string | null
+          new_value?: string | null
+        }
+        Update: {
+          id?: string
+          shareholder_id?: string
+          changed_by?: string
+          changed_at?: string
+          field?: string
+          old_value?: string | null
+          new_value?: string | null
+        }
+        Relationships: []
+      }
+      signup_requests: {
+        Row: {
+          id: string
+          email: string
+          account_type: Database["public"]["Enums"]["account_type"]
+          workspace_name: string
+          user_id: string | null
+          status: Database["public"]["Enums"]["signup_request_status"]
+          processed_by: string | null
+          processed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          account_type: Database["public"]["Enums"]["account_type"]
+          workspace_name: string
+          user_id?: string | null
+          status?: Database["public"]["Enums"]["signup_request_status"]
+          processed_by?: string | null
+          processed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          account_type?: Database["public"]["Enums"]["account_type"]
+          workspace_name?: string
+          user_id?: string | null
+          status?: Database["public"]["Enums"]["signup_request_status"]
+          processed_by?: string | null
+          processed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      field_agent_activity_photos: {
+        Row: {
+          id: string
+          workspace_id: string
+          user_id: string
+          file_path: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          user_id: string
+          file_path: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          user_id?: string
+          file_path?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      resource_requests: {
+        Row: {
+          id: string
+          workspace_id: string | null
+          requested_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id?: string | null
+          requested_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string | null
+          requested_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -81,7 +336,9 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      account_type: "listed_company" | "proxy_company"
+      workspace_role: "service_admin" | "top_admin" | "admin" | "field_agent"
+      signup_request_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -208,6 +465,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      account_type: ["listed_company", "proxy_company"] as const,
+      workspace_role: [
+        "service_admin",
+        "top_admin",
+        "admin",
+        "field_agent",
+      ] as const,
+      signup_request_status: ["pending", "approved", "rejected"] as const,
+    },
   },
 } as const

@@ -12,7 +12,15 @@ import {
 } from "@mui/icons-material"
 
 import { useGetExcel } from "@/api/supabase"
-import { useGetUserData, usePostSignOut } from "@/api/auth"
+import {
+  useGetUserData,
+  usePostSignOut,
+  useMyWorkspaces,
+  useMySignupStatus,
+  useSession,
+} from "@/api/auth"
+import { useCurrentWorkspace } from "@/store/workspaceState"
+import { useVisibleListIds, useShareholders } from "@/api/workspace"
 import Modal from "@/component/modal"
 import GlobalSpinner from "@/component/global-spinner"
 import styled from "@emotion/styled"
@@ -23,7 +31,6 @@ import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
-import * as Sentry from "@sentry/nextjs"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
@@ -39,7 +46,21 @@ const Home = () => {
   const router = useRouter()
   const mapRef = useRef<kakao.maps.Map>(null)
   const { data: user, isLoading } = useGetUserData()
-  const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
+  const { data: workspaces = [], isLoading: workspacesLoading } =
+    useMyWorkspaces()
+  const { data: signupStatus, isLoading: signupStatusLoading } =
+    useMySignupStatus()
+  const hasWorkspace = Array.isArray(workspaces) && workspaces.length > 0
+  const legacyAdmin = String(user?.user?.user_metadata?.role).includes("admin")
+  const isAdmin = legacyAdmin || hasWorkspace
+  const pendingApproval =
+    user?.user &&
+    !workspacesLoading &&
+    !signupStatusLoading &&
+    !hasWorkspace &&
+    !legacyAdmin &&
+    signupStatus &&
+    signupStatus.status === "pending"
   const { resetFilters } = useFilterStore()
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
@@ -73,6 +94,25 @@ const Home = () => {
     ne: { lat: 0, lng: 0 },
   })
 
+  const [workspace] = useCurrentWorkspace()
+  const session = useSession().data
+  const userId = session?.user?.id
+  const visibleListIds = useVisibleListIds(workspace?.id ?? null, userId)
+  const {
+    data: shareholderData = [],
+    refetch: shareholderRefetch,
+    isLoading: shareholdersLoading,
+  } = useShareholders({
+    listIds: hasWorkspace && visibleListIds.length > 0 ? visibleListIds : null,
+    status: statusFilter?.length ? statusFilter : undefined,
+    company: companyFilter?.length ? companyFilter : undefined,
+    stocks: stocks?.length ? stocks : undefined,
+    city: cityFilter || undefined,
+    lat: currCenter.lat,
+    lng: currCenter.lng,
+    mapLevel,
+  })
+
   const {
     data: excelData,
     refetch: excelDataRefetch,
@@ -87,6 +127,15 @@ const Home = () => {
     city: cityFilter,
     userMetadata: user?.user.user_metadata,
   })
+
+  const mapMarkers =
+    hasWorkspace && visibleListIds.length > 0
+      ? shareholderData
+      : (excelData ?? [])
+  const mapMarkersRefetch =
+    hasWorkspace && visibleListIds.length > 0
+      ? shareholderRefetch
+      : excelDataRefetch
 
   const debouncedMapUpdate = useMemo(
     () =>
@@ -137,7 +186,7 @@ const Home = () => {
   )
 
   const handleApplyFilters = () => {
-    excelDataRefetch()
+    mapMarkersRefetch()
     setIsFilterModalOpen(false)
   }
 
@@ -153,9 +202,9 @@ const Home = () => {
 
   useEffect(() => {
     if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
-      excelDataRefetch()
+      mapMarkersRefetch()
     }
-  }, [mapBounds, mapLevel, excelDataRefetch])
+  }, [mapBounds, mapLevel, mapMarkersRefetch])
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
@@ -190,9 +239,27 @@ const Home = () => {
     }
   }, [isLoading, router, user])
 
+  if (pendingApproval) {
+    return (
+      <PendingContainer>
+        <PendingCard>
+          <PendingTitle>가입 승인 대기 중</PendingTitle>
+          <PendingText>
+            가입 신청이 접수되었습니다. 운영사 승인 후 서비스를 이용할 수
+            있습니다.
+          </PendingText>
+          <LogoutButton onClick={() => logout()}>로그아웃</LogoutButton>
+        </PendingCard>
+      </PendingContainer>
+    )
+  }
+
   return (
     <>
-      {(excelIsLoading || isLoading) && (
+      {((hasWorkspace && visibleListIds.length > 0
+        ? shareholdersLoading
+        : excelIsLoading) ||
+        isLoading) && (
         <SpinnerFrame>
           <GlobalSpinner
             width={18}
@@ -219,7 +286,11 @@ const Home = () => {
           onDragEnd={handleDragEnd}>
           <MapTypeControl position={"TOPRIGHT"} />
           <ZoomControl position={"RIGHT"} />
-          {excelData && user && <MultipleMapMarker markers={excelData} />}
+          {mapMarkers.length > 0 && user && (
+            <MultipleMapMarker
+              markers={mapMarkers as import("@/types/excel").Excel[]}
+            />
+          )}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
@@ -246,6 +317,42 @@ const Home = () => {
               필터 설정
             </MenuItem>
             <StatsCard />
+            {hasWorkspace && (
+              <MenuItem
+                onClick={async () => {
+                  const {
+                    data: { session: s },
+                  } = await supabase.auth.getSession()
+                  if (!s?.access_token) {
+                    toast.error("로그인이 필요합니다.")
+
+                    return
+                  }
+                  try {
+                    const res = await fetch("/api/resource-requests", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${s.access_token}`,
+                      },
+                      body: JSON.stringify({
+                        workspace_id: workspace?.id ?? null,
+                      }),
+                    })
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => ({}))
+                      toast.error(err.error || "요청에 실패했습니다.")
+
+                      return
+                    }
+                    toast.success("용역 충원 요청이 접수되었습니다.")
+                  } catch {
+                    toast.error("요청 중 오류가 발생했습니다.")
+                  }
+                }}>
+                용역 요청
+              </MenuItem>
+            )}
             <div style={{ flex: 1 }} />
             {isAdmin && (
               <MenuItem
@@ -393,5 +500,52 @@ const MapContainer = styled.div`
 
   @media screen and (max-width: 768px) {
     height: calc(var(--vh, 1vh) * 100);
+  }
+`
+
+const PendingContainer = styled.div`
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  padding: 1rem;
+`
+
+const PendingCard = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  text-align: center;
+`
+
+const PendingTitle = styled.h1`
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #1f2937;
+`
+
+const PendingText = styled.p`
+  font-size: 0.9375rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+`
+
+const LogoutButton = styled.button`
+  padding: 0.75rem 1.5rem;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover {
+    background: #1557b0;
   }
 `

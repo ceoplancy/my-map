@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from "react"
 import GlobalStyle from "@/styles/global-style"
 import Head from "next/head"
-import { Hydrate, QueryClient, QueryClientProvider } from "react-query"
-import { ReactQueryDevtools } from "react-query/devtools"
+import {
+  type DehydratedState,
+  HydrationBoundary,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { RecoilRoot } from "recoil"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 
@@ -26,23 +31,24 @@ declare global {
   }
 }
 
-// 타입 정의 개선
 type AppProps = {
   Component: React.ComponentType
-  pageProps: Record<string, unknown>
+  pageProps: Record<string, unknown> & {
+    dehydratedState?: DehydratedState
+  }
 }
 
-// QueryClient 설정 분리
 const queryClientOptions = {
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 300000, // 5분
+      staleTime: 300_000,
     },
   },
 }
 const App = ({ Component, pageProps }: AppProps) => {
+  const { dehydratedState, ...restPageProps } = pageProps
   const [queryClient] = useState(() => new QueryClient(queryClientOptions))
   const [mapLoaded, setMapLoaded] = useState(false)
 
@@ -128,9 +134,9 @@ const App = ({ Component, pageProps }: AppProps) => {
 
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <Hydrate state={pageProps.dehydratedState}>
+          <HydrationBoundary state={dehydratedState}>
             <RecoilRoot>
-              {mapLoaded && <Component {...pageProps} />}
+              {mapLoaded && <Component {...restPageProps} />}
               <ToastContainer
                 position="top-center"
                 limit={3}
@@ -138,9 +144,9 @@ const App = ({ Component, pageProps }: AppProps) => {
               />
               <div id="portal" />
             </RecoilRoot>
-          </Hydrate>
+          </HydrationBoundary>
           {process.env.NODE_ENV === "development" && (
-            <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+            <ReactQueryDevtools initialIsOpen={false} />
           )}
         </QueryClientProvider>
       </ErrorBoundary>

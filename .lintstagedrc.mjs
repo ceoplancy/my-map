@@ -10,7 +10,7 @@ const buildEslintCommand = (filenames) =>
 
 const buildCommand = () => `next build`
 const typegenCommand = () =>
-  `supabase gen types typescript --project-id dovcidsnxtvxwlbquvin --schema public > ./src/types/db.ts`
+  `supabase gen types typescript --project-id xavgmoavznyppbsfqiis --schema public > ./src/types/db.ts`
 
 const config = {
   "*.{js,jsx,ts,tsx}": [typegenCommand, buildEslintCommand, buildCommand],

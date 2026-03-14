@@ -1,20 +1,45 @@
 import { ChangeEventHandler, FormEvent, useState } from "react"
 import * as XLSX from "xlsx"
+import { useRouter } from "next/router"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
 import { ExcelImportView } from "@/components/excel-import/ExcelImportView"
 import { useExcelImport } from "@/hooks/useExcelImport"
 import { useKakaoMaps } from "@/hooks/useKakaoMaps"
 import { Excel } from "@/types/excel"
+import type { TablesInsert } from "@/types/db"
 
 import AdminLayout from "@/layouts/AdminLayout"
+import Link from "next/link"
 import styled from "@emotion/styled"
-import { COLORS } from "@/styles/global-style"
 import * as Sentry from "@sentry/nextjs"
+
+type ShareholderInsert = TablesInsert<"shareholders">
 
 interface GeocodingResult {
   success: boolean
   data?: Excel
+}
+
+function excelToShareholderInsert(
+  row: Excel,
+  listId: string,
+): ShareholderInsert {
+  return {
+    list_id: listId,
+    name: row.name ?? null,
+    address: row.address ?? null,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
+    latlngaddress: row.latlngaddress ?? null,
+    company: row.company ?? null,
+    status: row.status ?? null,
+    stocks: row.stocks ?? 0,
+    memo: row.memo ?? null,
+    maker: row.maker ?? null,
+    image: row.image ?? null,
+    history: row.history ?? null,
+  }
 }
 
 const Container = styled.div`
@@ -48,9 +73,26 @@ const Title = styled.h1`
   -webkit-text-fill-color: transparent;
 `
 
+const EmptyMessage = styled.div`
+  padding: 3rem;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 1rem;
+  color: #64748b;
+
+  a {
+    color: #2563eb;
+    font-weight: 600;
+  }
+`
+
 export const BATCH_SIZE = 50
 
 const ExcelImport = () => {
+  const router = useRouter()
+  const listId =
+    typeof router.query.listId === "string" ? router.query.listId : null
+
   const {
     failData,
     setFailData,
@@ -68,7 +110,7 @@ const ExcelImport = () => {
 
   const { waitForKakaoMaps } = useKakaoMaps()
 
-  const [processingItem, setProcessingItem] = useState<number | null>(null)
+  const [_processingItem, setProcessingItem] = useState<number | null>(null)
 
   const handleFile: ChangeEventHandler<HTMLInputElement> = (e) => {
     const fileTypes = [
@@ -184,6 +226,13 @@ const ExcelImport = () => {
   ): Promise<void> => {
     e.preventDefault()
     if (!excelFile) return
+    if (!listId) {
+      toast.error(
+        "주주명부를 선택한 뒤 업로드해 주세요. 주주명부 목록에서 엑셀 업로드를 실행하세요.",
+      )
+
+      return
+    }
 
     setLoading(true)
     setFailData([])
@@ -223,22 +272,25 @@ const ExcelImport = () => {
       }
 
       if (allResults.length > 0) {
+        const toInsert = allResults.map((row) =>
+          excelToShareholderInsert(row, listId),
+        )
         const { error } = await supabase
-          .from("excel")
-          .upsert(allResults)
+          .from("shareholders")
+          .insert(toInsert)
           .select()
 
         if (error) {
           Sentry.captureException(error)
           Sentry.captureMessage(
-            "주소 데이터 업로드(excel upsert)에 실패했습니다.",
+            "주소 데이터 업로드(shareholders insert)에 실패했습니다.",
           )
           toast.error(`데이터 업로드 중 오류가 발생했습니다. ${error.message}`)
           throw error
         }
 
         toast.success(
-          `${data.length}개의 데이터가 성공적으로 업로드되었습니다.`,
+          `${allResults.length}개의 데이터가 성공적으로 업로드되었습니다.`,
         )
       }
 
@@ -258,6 +310,11 @@ const ExcelImport = () => {
 
   // 실패 데이터 수정 및 재변환 함수
   const handleEditFailedData = async (editedData: Excel): Promise<void> => {
+    if (!listId) {
+      toast.error("주주명부가 선택되지 않았습니다.")
+
+      return
+    }
     setLoading(true)
     try {
       await waitForKakaoMaps()
@@ -266,10 +323,13 @@ const ExcelImport = () => {
       const result = await handleGeocoding(geocoder, editedData)
 
       if (result.success && result.data) {
-        // 성공한 경우 DB에 저장
-        await supabase.from("excel").insert([result.data]).select()
+        const row = excelToShareholderInsert(result.data, listId)
+        const { error } = await supabase
+          .from("shareholders")
+          .insert([row])
+          .select()
+        if (error) throw error
 
-        // 실패 데이터 목록에서 제거
         setFailData(
           failData.filter(
             (item) => item.latlngaddress !== editedData.latlngaddress,
@@ -279,7 +339,6 @@ const ExcelImport = () => {
 
         toast.success("데이터가 성공적으로 변환되어 업로드되었습니다.")
       } else {
-        // 여전히 실패한 경우 실패 데이터 업데이트
         setFailData(
           failData.map((item) =>
             item.latlngaddress === editedData.latlngaddress ? editedData : item,
@@ -302,6 +361,11 @@ const ExcelImport = () => {
   // 모든 실패 데이터 재시도 함수
   const handleRetryAllFailedData = async (): Promise<void> => {
     if (failData.length === 0) return
+    if (!listId) {
+      toast.error("주주명부가 선택되지 않았습니다.")
+
+      return
+    }
 
     setLoading(true)
     try {
@@ -311,8 +375,7 @@ const ExcelImport = () => {
       const totalItems = failData.length
       setProgress({ current: 0, total: totalItems })
 
-      let successCount = 0
-      let newFailData = [...failData]
+      const successIndices = new Set<number>()
 
       for (let i = 0; i < totalItems; i++) {
         setProgress({ current: i + 1, total: totalItems })
@@ -321,27 +384,24 @@ const ExcelImport = () => {
         const result = await handleGeocoding(geocoder, failData[i])
 
         if (result.success && result.data) {
-          // 성공한 경우 DB에 저장
-          await supabase.from("excel").insert([result.data]).select()
+          const row = excelToShareholderInsert(result.data, listId)
+          const { error } = await supabase
+            .from("shareholders")
+            .insert([row])
+            .select()
+          if (!error) successIndices.add(i)
 
-          // 성공 항목 표시
-          newFailData = newFailData.filter(
-            (_, index) => index !== i - successCount,
-          )
-          successCount++
-
-          // 다음 요청 전 잠시 대기
           await new Promise((r) => setTimeout(r, 1000))
         }
       }
 
-      // 실패 데이터 업데이트
+      const newFailData = failData.filter((_, idx) => !successIndices.has(idx))
       setFailData(newFailData)
       setFailCount(newFailData.length)
 
-      if (successCount > 0) {
+      if (successIndices.size > 0) {
         toast.success(
-          `${successCount}개의 데이터가 성공적으로 변환되어 업로드되었습니다.`,
+          `${successIndices.size}개의 데이터가 성공적으로 변환되어 업로드되었습니다.`,
         )
       }
 
@@ -397,6 +457,23 @@ const ExcelImport = () => {
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
+  }
+
+  if (!listId) {
+    return (
+      <AdminLayout>
+        <Container>
+          <Header>
+            <Title>엑셀 업로드</Title>
+          </Header>
+          <EmptyMessage>
+            주주명부를 선택한 뒤 엑셀 업로드를 진행해 주세요.{" "}
+            <Link href="/admin/lists">주주명부 목록</Link>에서 해당 명부의
+            &quot;엑셀 업로드&quot;를 눌러 주세요.
+          </EmptyMessage>
+        </Container>
+      </AdminLayout>
+    )
   }
 
   return (

@@ -5,7 +5,7 @@ import Portal from "./portal"
 
 interface ModalProps {
   open: boolean
-  setOpen: (open: boolean) => void
+  setOpen: (_open: boolean) => void
   isOverflow?: boolean
   position?:
     | "center"
@@ -21,7 +21,7 @@ interface ModalProps {
 }
 
 const Modal = ({
-  open,
+  open: isOpen,
   setOpen,
   isOverflow = true,
   position = "center",
@@ -37,22 +37,22 @@ const Modal = ({
   })
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "unset"
+    document.body.style.overflow = isOpen ? "hidden" : "unset"
 
     return () => {
       document.body.style.overflow = "unset"
     }
-  }, [open])
+  }, [isOpen])
 
   return (
     <Portal>
       <Frame
-        className={open ? "slideUp" : "slideDown"}
+        className={isOpen ? "slideUp" : "slideDown"}
         role="dialog"
         aria-modal="true">
         <DialogFrame
           ref={modalRef}
-          className={open ? "slideUp" : "slideDown"}
+          className={isOpen ? "slideUp" : "slideDown"}
           isOverflow={isOverflow}
           position={position}>
           {children}

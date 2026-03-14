@@ -280,7 +280,7 @@ const HistoryButton = styled.button`
   }
 `
 
-const ModalWrapper = styled.div`
+const _ModalWrapper = styled.div`
   @media screen and (max-width: 768px) {
     width: 100%;
     margin: 0;
@@ -440,8 +440,8 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
   )
 }
 
-// 스타일 컴포넌트 추가
-const PreviewContainer = styled.div`
+// 스타일 컴포넌트 추가 (예비)
+const _PreviewContainer = styled.div`
   padding: 8px 12px;
   background: ${COLORS.gray[50]};
   border-radius: 8px;
@@ -452,7 +452,7 @@ const PreviewContainer = styled.div`
   }
 `
 
-const PreviewHeader = styled.div`
+const _PreviewHeader = styled.div`
   display: flex;
   gap: 4px;
 `

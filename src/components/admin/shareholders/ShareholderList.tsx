@@ -1,8 +1,7 @@
-import { useGetExcel, useDeleteExcel, useGetUsers } from "@/api/supabase"
+import { useGetUsers } from "@/api/supabase"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
-import { Excel } from "@/types/excel"
 import EditShareholderModal from "./EditShareholderModal"
 import {
   ArrowUpward,
@@ -16,6 +15,11 @@ import {
 import { toast } from "react-toastify"
 import { HistoryItem } from "@/component/excel-data-table"
 import * as Sentry from "@sentry/nextjs"
+import type { Tables } from "@/types/db"
+import { useShareholders, useDeleteShareholder } from "@/api/workspace"
+import { useSession } from "@/api/auth"
+
+type Shareholder = Tables<"shareholders">
 
 const Container = styled.div`
   background: white;
@@ -325,7 +329,7 @@ const FilterSelect = styled.select`
   }
 `
 
-type SortField = keyof Excel | "history_modifier" | "history_modified_at"
+type SortField = keyof Shareholder | "history_modifier" | "history_modified_at"
 
 type SortConfig = {
   field: SortField | null
@@ -340,9 +344,11 @@ type Filters = {
   modifier: string
 }
 
-export default function ShareholderList() {
+type Props = { listId: string }
+
+export default function ShareholderList({ listId }: Props) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedItem, setSelectedItem] = useState<Excel | null>(null)
+  const [selectedItem, setSelectedItem] = useState<Shareholder | null>(null)
   const [sort, setSort] = useState<SortConfig>({
     field: null,
     direction: "asc",
@@ -354,6 +360,16 @@ export default function ShareholderList() {
     stocksMax: "",
     modifier: "",
   })
+
+  const { data: session } = useSession()
+  const userId = session?.user?.id ?? ""
+  const {
+    data: shareholdersData = [],
+    isLoading,
+    refetch,
+  } = useShareholders({ listId })
+  const { data: usersData } = useGetUsers(1, 100)
+  const deleteShareholderMutation = useDeleteShareholder()
 
   // 최근 수정자 표시를 위한 함수
   const getLatestModifier = (history: HistoryItem[] | undefined) => {
@@ -368,10 +384,6 @@ export default function ShareholderList() {
 
     return history[history.length - 1].modified_at
   }
-
-  const { data: excelData, isLoading, refetch } = useGetExcel(14)
-  const { data: usersData } = useGetUsers(1, 100)
-  const deleteExcelMutation = useDeleteExcel()
 
   const handleModalClose = () => {
     setSelectedItem(null)
@@ -391,10 +403,10 @@ export default function ShareholderList() {
     setCurrentPage(1)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm("정말 삭제하시겠습니까?")) {
       try {
-        await deleteExcelMutation.mutateAsync(id)
+        await deleteShareholderMutation.mutateAsync(id)
         toast.success("성공적으로 삭제되었습니다.")
       } catch (error) {
         Sentry.captureException(error)
@@ -407,10 +419,9 @@ export default function ShareholderList() {
   }
 
   if (isLoading) return <div>로딩 중...</div>
-  if (!excelData) return null
 
   // 필터링 로직
-  const filteredData = excelData.filter((item: Excel) => {
+  const filteredData = shareholdersData.filter((item: Shareholder) => {
     const searchTerm = filters.search.toLowerCase()
     const matchesSearch =
       searchTerm === "" ||
@@ -453,8 +464,12 @@ export default function ShareholderList() {
     if (!sort.field) return 0
 
     if (sort.field === "history_modifier") {
-      const aModifier = getLatestModifier(a.history as HistoryItem[])
-      const bModifier = getLatestModifier(b.history as HistoryItem[])
+      const aModifier = getLatestModifier(
+        a.history as HistoryItem[] | undefined,
+      )
+      const bModifier = getLatestModifier(
+        b.history as HistoryItem[] | undefined,
+      )
 
       if (aModifier === "-" && bModifier !== "-") return 1
       if (bModifier === "-" && aModifier !== "-") return -1
@@ -467,8 +482,12 @@ export default function ShareholderList() {
     }
 
     if (sort.field === "history_modified_at") {
-      const aDate = getLatestModifiedDate(a.history as HistoryItem[])
-      const bDate = getLatestModifiedDate(b.history as HistoryItem[])
+      const aDate = getLatestModifiedDate(
+        a.history as HistoryItem[] | undefined,
+      )
+      const bDate = getLatestModifiedDate(
+        b.history as HistoryItem[] | undefined,
+      )
 
       if (aDate === "-" && bDate !== "-") return 1
       if (bDate === "-" && aDate !== "-") return -1
@@ -479,8 +498,9 @@ export default function ShareholderList() {
       return sort.direction === "asc" ? comparison : -comparison
     }
 
-    const aValue = a[sort.field]
-    const bValue = b[sort.field]
+    const sortKey = sort.field
+    const aValue = a[sortKey]
+    const bValue = b[sortKey]
 
     if (aValue === null || aValue === undefined) return 1
     if (bValue === null || bValue === undefined) return -1
@@ -651,14 +671,20 @@ export default function ShareholderList() {
             </tr>
           </thead>
           <tbody>
-            {currentData.map((item: Excel) => (
+            {currentData.map((item: Shareholder) => (
               <Tr key={item.id}>
                 <Td>{item.name}</Td>
                 <Td>{item.status}</Td>
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
-                <Td>{getLatestModifier(item.history as HistoryItem[])}</Td>
-                <Td>{getLatestModifiedDate(item.history as HistoryItem[])}</Td>
+                <Td>
+                  {getLatestModifier(item.history as HistoryItem[] | undefined)}
+                </Td>
+                <Td>
+                  {getLatestModifiedDate(
+                    item.history as HistoryItem[] | undefined,
+                  )}
+                </Td>
                 <Td>
                   <ActionButton
                     className="edit"
@@ -727,8 +753,12 @@ export default function ShareholderList() {
         </PaginationButtons>
       </PaginationContainer>
 
-      {selectedItem && (
-        <EditShareholderModal data={selectedItem} onClose={handleModalClose} />
+      {selectedItem && userId && (
+        <EditShareholderModal
+          data={selectedItem}
+          userId={userId}
+          onClose={handleModalClose}
+        />
       )}
     </Container>
   )

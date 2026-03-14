@@ -59,7 +59,7 @@ const AddButton = styled.button`
   }
 `
 
-const UserRole = styled.span<{ isAdmin: boolean }>`
+const _UserRole = styled.span<{ isAdmin: boolean }>`
   padding: 0.5rem 1rem;
   border-radius: 0.75rem;
   font-size: 0.875rem;
