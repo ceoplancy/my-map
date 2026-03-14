@@ -1,6 +1,7 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
+import { useCurrentWorkspace } from "@/store/workspaceState"
 import styled from "@emotion/styled"
 import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
@@ -79,7 +80,8 @@ const EmptyMessage = styled.div`
   color: ${COLORS.gray[600]};
 `
 
-export default function ChangeHistoryPage() {
+/** 변경 이력 본문 (listId 쿼리 사용) */
+export function ChangeHistoryPageContent() {
   const router = useRouter()
   const listId =
     typeof router.query.listId === "string" ? router.query.listId : null
@@ -123,19 +125,76 @@ export default function ChangeHistoryPage() {
 
   if (!listId) {
     return (
-      <AdminLayout>
-        <Container>
-          <Header>
-            <Title>변경 이력</Title>
-          </Header>
-          <EmptyMessage>
-            주주명부 목록에서 &quot;주주 보기&quot; 후 변경 이력을 조회하거나,
-            URL에 listId를 지정해 주세요.
-          </EmptyMessage>
-        </Container>
-      </AdminLayout>
+      <Container>
+        <Header>
+          <Title>변경 이력</Title>
+        </Header>
+        <EmptyMessage>
+          주주명부 목록에서 &quot;주주 보기&quot; 후 변경 이력을 조회하거나,
+          URL에 listId를 지정해 주세요.
+        </EmptyMessage>
+      </Container>
     )
   }
+
+  return (
+    <Container>
+      <Header>
+        <Title>변경 이력</Title>
+      </Header>
+      <TableWrapper>
+        {loading ? (
+          <div style={{ padding: "2rem" }}>로딩 중...</div>
+        ) : error ? (
+          <EmptyMessage>{error}</EmptyMessage>
+        ) : !data || data.history.length === 0 ? (
+          <EmptyMessage>변경 이력이 없습니다.</EmptyMessage>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>일시</Th>
+                <Th>주주</Th>
+                <Th>필드</Th>
+                <Th>변경 전</Th>
+                <Th>변경 후</Th>
+                <Th>변경자</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.history.map((row) => (
+                <tr key={row.id}>
+                  <Td>{row.changed_at}</Td>
+                  <Td>
+                    {data.nameById[row.shareholder_id] ?? row.shareholder_id}
+                  </Td>
+                  <Td>{FIELD_LABELS[row.field] ?? row.field}</Td>
+                  <Td>{row.old_value ?? "-"}</Td>
+                  <Td>{row.new_value ?? "-"}</Td>
+                  <Td>{row.changed_by}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </TableWrapper>
+    </Container>
+  )
+}
+
+export default function ChangeHistoryPage() {
+  const router = useRouter()
+  const [currentWorkspace] = useCurrentWorkspace()
+
+  useEffect(() => {
+    if (currentWorkspace && typeof window !== "undefined")
+      router.replace({
+        pathname: `/workspaces/${currentWorkspace.id}/admin/change-history`,
+        query: router.query.listId ? { listId: router.query.listId } : {},
+      })
+  }, [currentWorkspace, router])
+
+  if (currentWorkspace) return null
 
   return (
     <AdminLayout>
@@ -143,42 +202,7 @@ export default function ChangeHistoryPage() {
         <Header>
           <Title>변경 이력</Title>
         </Header>
-        <TableWrapper>
-          {loading ? (
-            <div style={{ padding: "2rem" }}>로딩 중...</div>
-          ) : error ? (
-            <EmptyMessage>{error}</EmptyMessage>
-          ) : !data || data.history.length === 0 ? (
-            <EmptyMessage>변경 이력이 없습니다.</EmptyMessage>
-          ) : (
-            <Table>
-              <thead>
-                <tr>
-                  <Th>일시</Th>
-                  <Th>주주</Th>
-                  <Th>필드</Th>
-                  <Th>변경 전</Th>
-                  <Th>변경 후</Th>
-                  <Th>변경자</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.history.map((row) => (
-                  <tr key={row.id}>
-                    <Td>{row.changed_at}</Td>
-                    <Td>
-                      {data.nameById[row.shareholder_id] ?? row.shareholder_id}
-                    </Td>
-                    <Td>{FIELD_LABELS[row.field] ?? row.field}</Td>
-                    <Td>{row.old_value ?? "-"}</Td>
-                    <Td>{row.new_value ?? "-"}</Td>
-                    <Td>{row.changed_by}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </TableWrapper>
+        <EmptyMessage>워크스페이스를 선택해 주세요.</EmptyMessage>
       </Container>
     </AdminLayout>
   )

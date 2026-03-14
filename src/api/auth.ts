@@ -1,3 +1,4 @@
+import type { MyWorkspaceItem } from "@/types/db"
 import supabase from "@/lib/supabase/supabaseClient"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
@@ -28,7 +29,7 @@ export const usePostSignIn = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["userData"] })
       toast.success("정상적으로 로그인 되었습니다.")
-      router.push("/")
+      router.push("/workspaces")
     },
     onError: () => {
       toast.error("이메일 또는 비밀번호가 다릅니다.")
@@ -121,13 +122,10 @@ export const useSession = () => {
   })
 }
 
-export type WorkspaceItem = {
-  id: string
-  name: string
-  account_type: string
-}
+/** @deprecated Use MyWorkspaceItem from @/types/db */
+export type WorkspaceItem = MyWorkspaceItem
 
-const fetchMyWorkspaces = async (): Promise<WorkspaceItem[]> => {
+const fetchMyWorkspaces = async (): Promise<MyWorkspaceItem[]> => {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return []
@@ -137,13 +135,37 @@ const fetchMyWorkspaces = async (): Promise<WorkspaceItem[]> => {
   if (!res.ok) return []
   const json = await res.json()
 
-  return Array.isArray(json) ? json : []
+  return Array.isArray(json) ? (json as MyWorkspaceItem[]) : []
 }
 
 export const useMyWorkspaces = () => {
   return useQuery({
     queryKey: ["myWorkspaces"],
     queryFn: fetchMyWorkspaces,
+    staleTime: 1000 * 60 * 2,
+  })
+}
+
+/** 통합 관리자(service_admin) 여부 — 통합 관리 메뉴/API 접근 권한 */
+const fetchAdminStatus = async (): Promise<{ isServiceAdmin: boolean }> => {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { isServiceAdmin: false }
+  const res = await fetch("/api/me/admin-status", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return { isServiceAdmin: false }
+  const json = await res.json()
+
+  return {
+    isServiceAdmin: Boolean(json?.isServiceAdmin),
+  }
+}
+
+export const useAdminStatus = () => {
+  return useQuery({
+    queryKey: ["adminStatus"],
+    queryFn: fetchAdminStatus,
     staleTime: 1000 * 60 * 2,
   })
 }

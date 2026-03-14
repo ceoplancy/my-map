@@ -22,6 +22,34 @@ async function isServiceAdmin(accessToken: string): Promise<boolean> {
   return (data?.length ?? 0) > 0
 }
 
+/** 해당 워크스페이스명에 대한 가입 승인/반려 권한 여부 */
+async function canManageSignupForWorkspaceName(
+  accessToken: string,
+  workspaceName: string,
+): Promise<boolean> {
+  const client = createSupabaseWithToken(accessToken)
+  const {
+    data: { user },
+  } = await client.auth.getUser()
+  if (!user) return false
+  const admin = createSupabaseAdmin()
+  const { data: workspaces } = await admin
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", user.id)
+    .in("role", ["top_admin", "admin", "service_admin"])
+  const ids = (workspaces ?? [])
+    .map((w) => w.workspace_id)
+    .filter(Boolean) as string[]
+  if (ids.length === 0) return false
+  const { data: names } = await admin
+    .from("workspaces")
+    .select("name")
+    .in("id", ids)
+
+  return (names ?? []).some((n) => n.name === workspaceName)
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -31,9 +59,7 @@ export default async function handler(
   }
   const auth = req.headers.authorization
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
-  if (!token || !(await isServiceAdmin(token))) {
-    return res.status(401).json({ error: "Unauthorized" })
-  }
+  if (!token) return res.status(401).json({ error: "Unauthorized" })
   const id = req.query.id as string
   const body = req.body as { action: "approve" | "reject" }
   if (!id || !body?.action) {
@@ -56,6 +82,17 @@ export default async function handler(
   }
   if (request.status !== "pending") {
     return res.status(400).json({ error: "Request already processed" })
+  }
+
+  const isServiceAdminUser = await isServiceAdmin(token)
+  const canManageWorkspace = await canManageSignupForWorkspaceName(
+    token,
+    request.workspace_name,
+  )
+  if (!isServiceAdminUser && !canManageWorkspace) {
+    return res
+      .status(403)
+      .json({ error: "해당 가입 신청을 처리할 권한이 없습니다." })
   }
 
   if (body.action === "reject") {

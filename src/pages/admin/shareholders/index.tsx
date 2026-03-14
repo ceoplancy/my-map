@@ -4,6 +4,9 @@ import { COLORS } from "@/styles/global-style"
 import ShareholderList from "@/components/admin/shareholders/ShareholderList"
 import { useRouter } from "next/router"
 import Link from "next/link"
+import { useCurrentWorkspace } from "@/store/workspaceState"
+import { getWorkspaceAdminBase } from "@/lib/utils"
+import { useEffect } from "react"
 
 const Container = styled.div`
   display: flex;
@@ -63,48 +66,77 @@ const EmptyMessage = styled.div`
   }
 `
 
-export default function ShareholdersPage() {
+/** 워크스페이스 주주명부 관리 본문 (workspace 설정된 상태에서 사용) */
+export function ShareholdersPageContent() {
   const router = useRouter()
+  const [currentWorkspace] = useCurrentWorkspace()
   const listId =
     typeof router.query.listId === "string" ? router.query.listId : null
+  const base = currentWorkspace
+    ? getWorkspaceAdminBase(currentWorkspace.id)
+    : "/admin"
+
+  return (
+    <Container>
+      <Header>
+        <Title>주주명부 관리</Title>
+        {listId && (
+          <>
+            <ActionButton
+              onClick={() =>
+                router.push({
+                  pathname: `${base}/change-history`,
+                  query: { listId },
+                })
+              }>
+              변경 이력
+            </ActionButton>
+            <ActionButton
+              onClick={() =>
+                router.push({
+                  pathname: `${base}/excel-import`,
+                  query: { listId },
+                })
+              }>
+              엑셀 업로드
+            </ActionButton>
+          </>
+        )}
+      </Header>
+      {listId ? (
+        <ShareholderList listId={listId} />
+      ) : (
+        <EmptyMessage>
+          주주명부를 선택해 주세요.{" "}
+          <Link href={`${base}/lists`}>주주명부 목록</Link>에서 &quot;주주
+          보기&quot;로 이동할 수 있습니다.
+        </EmptyMessage>
+      )}
+    </Container>
+  )
+}
+
+export default function ShareholdersPage() {
+  const router = useRouter()
+  const [currentWorkspace] = useCurrentWorkspace()
+
+  useEffect(() => {
+    if (currentWorkspace && typeof window !== "undefined")
+      router.replace({
+        pathname: `/workspaces/${currentWorkspace.id}/admin/shareholders`,
+        query: router.query.listId ? { listId: router.query.listId } : {},
+      })
+  }, [currentWorkspace, router])
+
+  if (currentWorkspace) return null
 
   return (
     <AdminLayout>
       <Container>
         <Header>
           <Title>주주명부 관리</Title>
-          {listId && (
-            <>
-              <ActionButton
-                onClick={() =>
-                  router.push({
-                    pathname: "/admin/change-history",
-                    query: { listId },
-                  })
-                }>
-                변경 이력
-              </ActionButton>
-              <ActionButton
-                onClick={() =>
-                  router.push({
-                    pathname: "/admin/excel-import",
-                    query: { listId },
-                  })
-                }>
-                엑셀 업로드
-              </ActionButton>
-            </>
-          )}
         </Header>
-        {listId ? (
-          <ShareholderList listId={listId} />
-        ) : (
-          <EmptyMessage>
-            주주명부를 선택해 주세요.{" "}
-            <Link href="/admin/lists">주주명부 목록</Link>에서 &quot;주주
-            보기&quot;로 이동할 수 있습니다.
-          </EmptyMessage>
-        )}
+        <EmptyMessage>워크스페이스를 선택해 주세요.</EmptyMessage>
       </Container>
     </AdminLayout>
   )

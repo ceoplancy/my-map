@@ -69,7 +69,7 @@ const SignUp = () => {
           <LoginContainer>
             <LogoWrapper>
               <Image
-                src="/entre-logo-full.png"
+                src="/antre-logo-full.png"
                 alt="logo"
                 width={0}
                 height={0}
@@ -113,7 +113,7 @@ const SignUp = () => {
         <LoginContainer>
           <LogoWrapper>
             <Image
-              src="/entre-logo-full.png"
+              src="/antre-logo-full.png"
               alt="logo"
               width={0}
               height={0}

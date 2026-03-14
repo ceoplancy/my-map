@@ -8,7 +8,6 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-import { RecoilRoot } from "recoil"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 import Script from "next/script"
@@ -135,15 +134,9 @@ const App = ({ Component, pageProps }: AppProps) => {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <HydrationBoundary state={dehydratedState}>
-            <RecoilRoot>
-              {mapLoaded && <Component {...restPageProps} />}
-              <ToastContainer
-                position="top-center"
-                limit={3}
-                autoClose={3000}
-              />
-              <div id="portal" />
-            </RecoilRoot>
+            {mapLoaded && <Component {...restPageProps} />}
+            <ToastContainer position="top-center" limit={3} autoClose={3000} />
+            <div id="portal" />
           </HydrationBoundary>
           {process.env.NODE_ENV === "development" && (
             <ReactQueryDevtools initialIsOpen={false} />

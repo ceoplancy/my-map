@@ -28,11 +28,11 @@ const Modal = ({
   children,
 }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null)
-  const modalContentRef = useRef<HTMLDivElement>(null)
+  const modalContantref = useRef<HTMLDivElement>(null)
 
   useOnClickOutside({
     inRef: modalRef,
-    exceptRef: modalContentRef,
+    exceptRef: modalContantref,
     handler: () => setOpen(false),
   })
 

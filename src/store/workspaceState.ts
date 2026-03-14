@@ -1,23 +1,36 @@
-import { atom, useRecoilState } from "recoil"
-import { recoilPersist } from "recoil-persist"
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
+import type { MyWorkspaceItem } from "@/types/db"
 
-const { persistAtom } = recoilPersist({
-  key: "current-workspace",
-  storage: typeof window !== "undefined" ? localStorage : undefined,
-})
+/** Current workspace (shape from DB workspaces). */
+export type WorkspaceItem = MyWorkspaceItem
 
-export type WorkspaceItem = {
-  id: string
-  name: string
-  account_type: string
+interface WorkspaceState {
+  currentWorkspace: MyWorkspaceItem | null
+  setCurrentWorkspace: (
+    _v:
+      | MyWorkspaceItem
+      | null
+      | ((_prev: MyWorkspaceItem | null) => MyWorkspaceItem | null),
+  ) => void
 }
 
-export const currentWorkspaceState = atom<WorkspaceItem | null>({
-  key: "current-workspace-state",
-  default: null,
-  effects_UNSTABLE: [persistAtom],
-})
+export const useWorkspaceStore = create<WorkspaceState>()(
+  persist(
+    (set) => ({
+      currentWorkspace: null,
+      setCurrentWorkspace: (v) =>
+        set((s) => ({
+          currentWorkspace: typeof v === "function" ? v(s.currentWorkspace) : v,
+        })),
+    }),
+    { name: "current-workspace" },
+  ),
+)
 
 export const useCurrentWorkspace = () => {
-  return useRecoilState(currentWorkspaceState)
+  const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
+  const setCurrentWorkspace = useWorkspaceStore((s) => s.setCurrentWorkspace)
+
+  return [currentWorkspace, setCurrentWorkspace] as const
 }

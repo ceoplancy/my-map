@@ -53,9 +53,6 @@ Thumbs.db
 .env.sentry-build-plugin
 .sentry-log-shown
 
-# Supabase local
-supabase/
-
 # Misc
 *.pem
 *.zip

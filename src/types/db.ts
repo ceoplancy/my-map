@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -62,258 +62,306 @@ export type Database = {
         }
         Relationships: []
       }
-      workspaces: {
+      field_agent_activity_photos: {
         Row: {
-          id: string
-          name: string
-          account_type: Database["public"]["Enums"]["account_type"]
           created_at: string
+          file_path: string
+          id: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          id?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          id?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_agent_activity_photos_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_requests: {
+        Row: {
+          created_at: string
+          id: string
+          requested_by: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          requested_by: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          requested_by?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shareholder_change_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          field: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          shareholder_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          field: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          shareholder_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          field?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          shareholder_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shareholder_change_history_shareholder_id_fkey"
+            columns: ["shareholder_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shareholder_lists: {
+        Row: {
+          active_from: string | null
+          active_to: string | null
+          created_at: string
+          id: string
+          is_visible: boolean
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          active_from?: string | null
+          active_to?: string | null
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          active_from?: string | null
+          active_to?: string | null
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shareholder_lists_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shareholders: {
+        Row: {
+          address: string | null
+          company: string | null
+          created_at: string
+          history: Json | null
+          id: string
+          image: string | null
+          lat: number | null
+          latlngaddress: string | null
+          list_id: string
+          lng: number | null
+          maker: string | null
+          memo: string | null
+          name: string | null
+          status: string | null
+          stocks: number
           updated_at: string
         }
         Insert: {
-          id?: string
-          name: string
-          account_type: Database["public"]["Enums"]["account_type"]
+          address?: string | null
+          company?: string | null
           created_at?: string
+          history?: Json | null
+          id?: string
+          image?: string | null
+          lat?: number | null
+          latlngaddress?: string | null
+          list_id: string
+          lng?: number | null
+          maker?: string | null
+          memo?: string | null
+          name?: string | null
+          status?: string | null
+          stocks?: number
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          company?: string | null
+          created_at?: string
+          history?: Json | null
           id?: string
-          name?: string
+          image?: string | null
+          lat?: number | null
+          latlngaddress?: string | null
+          list_id?: string
+          lng?: number | null
+          maker?: string | null
+          memo?: string | null
+          name?: string | null
+          status?: string | null
+          stocks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shareholders_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shareholder_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signup_requests: {
+        Row: {
+          account_type: Database["public"]["Enums"]["account_type"]
+          created_at: string
+          email: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          status: Database["public"]["Enums"]["signup_request_status"]
+          user_id: string | null
+          workspace_name: string
+        }
+        Insert: {
+          account_type: Database["public"]["Enums"]["account_type"]
+          created_at?: string
+          email: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: Database["public"]["Enums"]["signup_request_status"]
+          user_id?: string | null
+          workspace_name: string
+        }
+        Update: {
           account_type?: Database["public"]["Enums"]["account_type"]
           created_at?: string
-          updated_at?: string
+          email?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: Database["public"]["Enums"]["signup_request_status"]
+          user_id?: string | null
+          workspace_name?: string
         }
         Relationships: []
       }
       workspace_members: {
         Row: {
-          id: string
-          workspace_id: string | null
-          user_id: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          allowed_list_ids: string[]
-          is_team_leader: boolean
+          allowed_list_ids: string[] | null
           created_at: string
+          id: string
+          is_team_leader: boolean | null
+          role: Database["public"]["Enums"]["workspace_role"]
+          user_id: string
+          workspace_id: string | null
         }
         Insert: {
-          id?: string
-          workspace_id?: string | null
-          user_id: string
-          role: Database["public"]["Enums"]["workspace_role"]
-          allowed_list_ids?: string[]
-          is_team_leader?: boolean
+          allowed_list_ids?: string[] | null
           created_at?: string
+          id?: string
+          is_team_leader?: boolean | null
+          role: Database["public"]["Enums"]["workspace_role"]
+          user_id: string
+          workspace_id?: string | null
         }
         Update: {
+          allowed_list_ids?: string[] | null
+          created_at?: string
           id?: string
-          workspace_id?: string | null
-          user_id?: string
+          is_team_leader?: boolean | null
           role?: Database["public"]["Enums"]["workspace_role"]
-          allowed_list_ids?: string[]
-          is_team_leader?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      shareholder_lists: {
-        Row: {
-          id: string
-          workspace_id: string
-          name: string
-          active_from: string | null
-          active_to: string | null
-          is_visible: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          workspace_id: string
-          name: string
-          active_from?: string | null
-          active_to?: string | null
-          is_visible?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          workspace_id?: string
-          name?: string
-          active_from?: string | null
-          active_to?: string | null
-          is_visible?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      shareholders: {
-        Row: {
-          id: string
-          list_id: string
-          name: string | null
-          address: string | null
-          lat: number | null
-          lng: number | null
-          latlngaddress: string | null
-          company: string | null
-          status: string | null
-          stocks: number
-          memo: string | null
-          maker: string | null
-          image: string | null
-          history: Json | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          list_id: string
-          name?: string | null
-          address?: string | null
-          lat?: number | null
-          lng?: number | null
-          latlngaddress?: string | null
-          company?: string | null
-          status?: string | null
-          stocks?: number
-          memo?: string | null
-          maker?: string | null
-          image?: string | null
-          history?: Json | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          list_id?: string
-          name?: string | null
-          address?: string | null
-          lat?: number | null
-          lng?: number | null
-          latlngaddress?: string | null
-          company?: string | null
-          status?: string | null
-          stocks?: number
-          memo?: string | null
-          maker?: string | null
-          image?: string | null
-          history?: Json | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      shareholder_change_history: {
-        Row: {
-          id: string
-          shareholder_id: string
-          changed_by: string
-          changed_at: string
-          field: string
-          old_value: string | null
-          new_value: string | null
-        }
-        Insert: {
-          id?: string
-          shareholder_id: string
-          changed_by: string
-          changed_at?: string
-          field: string
-          old_value?: string | null
-          new_value?: string | null
-        }
-        Update: {
-          id?: string
-          shareholder_id?: string
-          changed_by?: string
-          changed_at?: string
-          field?: string
-          old_value?: string | null
-          new_value?: string | null
-        }
-        Relationships: []
-      }
-      signup_requests: {
-        Row: {
-          id: string
-          email: string
-          account_type: Database["public"]["Enums"]["account_type"]
-          workspace_name: string
-          user_id: string | null
-          status: Database["public"]["Enums"]["signup_request_status"]
-          processed_by: string | null
-          processed_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          email: string
-          account_type: Database["public"]["Enums"]["account_type"]
-          workspace_name: string
-          user_id?: string | null
-          status?: Database["public"]["Enums"]["signup_request_status"]
-          processed_by?: string | null
-          processed_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          account_type?: Database["public"]["Enums"]["account_type"]
-          workspace_name?: string
-          user_id?: string | null
-          status?: Database["public"]["Enums"]["signup_request_status"]
-          processed_by?: string | null
-          processed_at?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      field_agent_activity_photos: {
-        Row: {
-          id: string
-          workspace_id: string
-          user_id: string
-          file_path: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          workspace_id: string
-          user_id: string
-          file_path: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          workspace_id?: string
           user_id?: string
-          file_path?: string
-          created_at?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workspace_members_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      resource_requests: {
+      workspaces: {
         Row: {
-          id: string
-          workspace_id: string | null
-          requested_by: string
+          account_type: Database["public"]["Enums"]["account_type"]
           created_at: string
+          id: string
+          name: string
+          updated_at: string
         }
         Insert: {
-          id?: string
-          workspace_id?: string | null
-          requested_by: string
+          account_type: Database["public"]["Enums"]["account_type"]
           created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
         }
         Update: {
-          id?: string
-          workspace_id?: string | null
-          requested_by?: string
+          account_type?: Database["public"]["Enums"]["account_type"]
           created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -322,23 +370,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_read_shareholder: { Args: { sh_id: string }; Returns: boolean }
+      can_write_workspace: { Args: { ws_id: string }; Returns: boolean }
       get_distinct_company: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           company: string
         }[]
       }
       get_distinct_status: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           status: string
         }[]
       }
+      is_service_admin: { Args: never; Returns: boolean }
+      is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
     }
     Enums: {
       account_type: "listed_company" | "proxy_company"
-      workspace_role: "service_admin" | "top_admin" | "admin" | "field_agent"
       signup_request_status: "pending" | "approved" | "rejected"
+      workspace_role: "service_admin" | "top_admin" | "admin" | "field_agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -466,14 +518,24 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      account_type: ["listed_company", "proxy_company"] as const,
-      workspace_role: [
-        "service_admin",
-        "top_admin",
-        "admin",
-        "field_agent",
-      ] as const,
-      signup_request_status: ["pending", "approved", "rejected"] as const,
+      account_type: ["listed_company", "proxy_company"],
+      signup_request_status: ["pending", "approved", "rejected"],
+      workspace_role: ["service_admin", "top_admin", "admin", "field_agent"],
     },
   },
 } as const
+
+// Convenience types (single source for workspace/role shapes)
+export type WorkspaceRow = Tables<"workspaces">
+export type WorkspaceMemberRow = Tables<"workspace_members">
+export type WorkspaceRole = Enums<"workspace_role">
+export type AccountType = Enums<"account_type">
+
+/** Workspace list item from /api/me/workspaces (id, name, account_type) */
+export type MyWorkspaceItem = Pick<WorkspaceRow, "id" | "name" | "account_type">
+
+/** Workspace list item from /api/admin/workspaces (includes created_at) */
+export type AdminWorkspaceItem = Pick<
+  WorkspaceRow,
+  "id" | "name" | "account_type" | "created_at"
+>

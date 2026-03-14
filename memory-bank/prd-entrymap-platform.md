@@ -1,6 +1,6 @@
 # 앤트리맵(EntryMap) SaaS 플랫폼화 PRD
 
-**프로젝트**: entre-map → B2B SaaS 플랫폼  
+**프로젝트**: antre-map → B2B SaaS 플랫폼  
 **버전**: 0.1 (요구사항 정의)  
 **브랜치**: dev (staging)
 

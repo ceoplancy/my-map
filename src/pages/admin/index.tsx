@@ -1,15 +1,19 @@
-import AdminLayout from "@/layouts/AdminLayout"
-import { useGetUsers } from "@/api/supabase"
 import Link from "next/link"
 import { useGetUserData } from "@/api/auth"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { toast } from "react-toastify"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/router"
 import { useCurrentWorkspace } from "@/store/workspaceState"
-import { useShareholderLists, useShareholders } from "@/api/workspace"
+import { getWorkspaceAdminBase } from "@/lib/utils"
+import {
+  useShareholderLists,
+  useShareholders,
+  useWorkspaceMembersWithUsers,
+} from "@/api/workspace"
 import * as XLSX from "xlsx"
-import type { Tables } from "@/types/db"
+import { type Tables, type WorkspaceRole } from "@/types/db"
 
 const WelcomeSection = styled.div`
   background: linear-gradient(135deg, white, #f8fafc);
@@ -346,10 +350,20 @@ const ExportButton = styled.button`
 
 const STATUS_OPTIONS = ["미방문", "보류", "완료", "실패"] as const
 
-export default function AdminDashboard() {
+const WORKSPACE_ROLE_LABELS: Record<WorkspaceRole, string> = {
+  service_admin: "서비스 관리자",
+  top_admin: "최고 관리자",
+  admin: "관리자",
+  field_agent: "용역",
+}
+
+/** 워크스페이스 대시보드 본문 (useCurrentWorkspace 기준). /admin 또는 /workspaces/[id]/admin 에서 사용 */
+export function WorkspaceDashboardBody() {
   const { data: user } = useGetUserData()
-  const { data: users } = useGetUsers()
   const [workspace] = useCurrentWorkspace()
+  const { data: workspaceMembersWithUsers = [] } = useWorkspaceMembersWithUsers(
+    workspace?.id ?? null,
+  )
   const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
   const [selectedListId, setSelectedListId] = useState<string>("")
   const [filterStatus, setFilterStatus] = useState<string[]>([])
@@ -403,13 +417,32 @@ export default function AdminDashboard() {
     toast.success("엑셀 파일이 다운로드되었습니다.")
   }
 
-  // 최근 가입한 사용자 5명만 표시
-  if (!users) return null
-  const recentUsers = users.users.slice(0, 5)
+  // /admin 은 워크스페이스 전용 대시보드. 통합(플랫폼) 현황은 /admin/integrated
+  const memberCount = workspaceMembersWithUsers.length
+  const now = new Date()
+  const thisMonth = now.getMonth()
+  const thisYear = now.getFullYear()
+  const newMembersThisMonth = workspaceMembersWithUsers.filter((m) => {
+    const d = new Date(m.created_at)
+
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear
+  }).length
+  const adminRoleCount = workspaceMembersWithUsers.filter((m) =>
+    ["service_admin", "top_admin", "admin"].includes(m.role),
+  ).length
+  const recentMembers = [...workspaceMembersWithUsers]
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )
+    .slice(0, 5)
+
+  if (!workspace) return null
+
+  const workspaceAdminBase = getWorkspaceAdminBase(workspace.id)
 
   return (
-    <AdminLayout>
-      {/* 환영 섹션 */}
+    <>
       <WelcomeSection>
         <WelcomeTitle>
           안녕하세요,{" "}
@@ -419,8 +452,7 @@ export default function AdminDashboard() {
           님 👋
         </WelcomeTitle>
         <WelcomeText>
-          관리자 대시보드에 오신 것을 환영합니다. 여기에서 서비스의 모든 측면을
-          관리하실 수 있습니다.
+          이 워크스페이스의 현황을 확인하고 주주명부·멤버를 관리할 수 있습니다.
         </WelcomeText>
       </WelcomeSection>
 
@@ -514,64 +546,68 @@ export default function AdminDashboard() {
       )}
 
       <StatsGrid>
-        {/* 통계 카드 */}
         <StatCard variant="blue">
-          <StatTitle>전체 사용자</StatTitle>
-          <StatValue>{users.users.length || 0}</StatValue>
+          <StatTitle>워크스페이스 멤버</StatTitle>
+          <StatValue>{memberCount}</StatValue>
         </StatCard>
 
         <StatCard variant="green">
-          <StatTitle>이번 달 신규 가입</StatTitle>
-          <StatValue>
-            {users.users.filter(
-              (user) =>
-                new Date(user.created_at).getMonth() === new Date().getMonth(),
-            ).length || 0}
-          </StatValue>
+          <StatTitle>이번 달 추가된 멤버</StatTitle>
+          <StatValue>{newMembersThisMonth}</StatValue>
         </StatCard>
 
         <StatCard variant="purple">
           <StatTitle>관리자 수</StatTitle>
-          <StatValue>
-            {users.users.filter((user) =>
-              String(user.user_metadata?.role).includes("admin"),
-            ).length || 0}
-          </StatValue>
+          <StatValue>{adminRoleCount}</StatValue>
         </StatCard>
       </StatsGrid>
 
       {/* 최근 활동 섹션 */}
       <ContentGrid>
-        {/* 최근 가입한 사용자 */}
         <ContentCard>
           <CardHeader>
-            <CardTitle>최근 가입한 사용자</CardTitle>
-            <ViewAllLink href="/admin/users">전체 보기 →</ViewAllLink>
+            <CardTitle>최근 추가된 멤버</CardTitle>
+            <ViewAllLink href={`${workspaceAdminBase}/users`}>
+              전체 보기 →
+            </ViewAllLink>
           </CardHeader>
           <UserList>
-            {recentUsers.map((user) => (
-              <UserItem key={user.id}>
-                <UserInfo>
-                  <UserAvatar>
-                    <UserAvatarText>
-                      {user.email?.[0].toUpperCase()}
-                    </UserAvatarText>
-                  </UserAvatar>
-                  <UserDetails>
-                    <UserEmail>{user.email}</UserEmail>
-                    <UserDate>
-                      가입일: {new Date(user.created_at).toLocaleDateString()}
-                    </UserDate>
-                  </UserDetails>
-                </UserInfo>
-                <UserRole
-                  isAdmin={String(user.user_metadata?.role).includes("admin")}>
-                  {String(user.user_metadata?.role).includes("admin")
-                    ? "관리자"
-                    : "사용자"}
-                </UserRole>
+            {recentMembers.length === 0 ? (
+              <UserItem>
+                <UserDetails>
+                  <UserEmail style={{ color: COLORS.gray[500] }}>
+                    멤버가 없습니다.
+                  </UserEmail>
+                </UserDetails>
               </UserItem>
-            ))}
+            ) : (
+              recentMembers.map((m) => {
+                const displayName =
+                  m.name?.trim() || m.email?.trim() || m.user_id
+                const initial = m.email?.[0] ?? m.user_id.slice(0, 2)
+
+                return (
+                  <UserItem key={m.id}>
+                    <UserInfo>
+                      <UserAvatar>
+                        <UserAvatarText>
+                          {String(initial).toUpperCase()}
+                        </UserAvatarText>
+                      </UserAvatar>
+                      <UserDetails>
+                        <UserEmail>{displayName}</UserEmail>
+                        <UserDate>
+                          추가일: {new Date(m.created_at).toLocaleDateString()}
+                        </UserDate>
+                      </UserDetails>
+                    </UserInfo>
+                    <UserRole isAdmin={m.role !== "field_agent"}>
+                      {WORKSPACE_ROLE_LABELS[m.role as WorkspaceRole]}
+                    </UserRole>
+                  </UserItem>
+                )
+              })
+            )}
           </UserList>
         </ContentCard>
 
@@ -581,7 +617,7 @@ export default function AdminDashboard() {
             <CardTitle>빠른 작업</CardTitle>
           </CardHeader>
           <QuickActions>
-            <ActionButton href="/admin/users">
+            <ActionButton href={`${workspaceAdminBase}/users`}>
               <ActionIcon
                 fill="none"
                 strokeLinecap="round"
@@ -594,7 +630,7 @@ export default function AdminDashboard() {
               <ActionText>사용자 관리</ActionText>
             </ActionButton>
 
-            <ActionButton href="/admin/shareholders">
+            <ActionButton href={`${workspaceAdminBase}/shareholders`}>
               <ActionIcon
                 fill="none"
                 strokeLinecap="round"
@@ -607,7 +643,7 @@ export default function AdminDashboard() {
               <ActionText>주주명부 관리</ActionText>
             </ActionButton>
 
-            <ActionButton href="/admin/excel-import">
+            <ActionButton href={`${workspaceAdminBase}/excel-import`}>
               <ActionIcon
                 fill="none"
                 strokeLinecap="round"
@@ -636,6 +672,17 @@ export default function AdminDashboard() {
           </QuickActions>
         </ContentCard>
       </ContentGrid>
-    </AdminLayout>
+    </>
   )
+}
+
+/** /admin 접근 시 통합 관리 대시보드로 리다이렉트 */
+export default function AdminDashboard() {
+  const router = useRouter()
+
+  useEffect(() => {
+    if (typeof window !== "undefined") router.replace("/admin/integrated")
+  }, [router])
+
+  return null
 }

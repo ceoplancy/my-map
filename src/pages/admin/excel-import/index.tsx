@@ -1,4 +1,4 @@
-import { ChangeEventHandler, FormEvent, useState } from "react"
+import { ChangeEventHandler, FormEvent, useState, useEffect } from "react"
 import * as XLSX from "xlsx"
 import { useRouter } from "next/router"
 import supabase from "@/lib/supabase/supabaseClient"
@@ -13,6 +13,8 @@ import AdminLayout from "@/layouts/AdminLayout"
 import Link from "next/link"
 import styled from "@emotion/styled"
 import * as Sentry from "@sentry/nextjs"
+import { useCurrentWorkspace } from "@/store/workspaceState"
+import { getWorkspaceAdminBase } from "@/lib/utils"
 
 type ShareholderInsert = TablesInsert<"shareholders">
 
@@ -88,10 +90,15 @@ const EmptyMessage = styled.div`
 
 export const BATCH_SIZE = 50
 
-const ExcelImport = () => {
+/** 워크스페이스 엑셀 업로드 본문 (workspace 설정된 상태에서 사용) */
+export function ExcelImportPageContent() {
   const router = useRouter()
+  const [currentWorkspace] = useCurrentWorkspace()
   const listId =
     typeof router.query.listId === "string" ? router.query.listId : null
+  const base = currentWorkspace
+    ? getWorkspaceAdminBase(currentWorkspace.id)
+    : "/admin"
 
   const {
     failData,
@@ -461,20 +468,57 @@ const ExcelImport = () => {
 
   if (!listId) {
     return (
-      <AdminLayout>
-        <Container>
-          <Header>
-            <Title>엑셀 업로드</Title>
-          </Header>
-          <EmptyMessage>
-            주주명부를 선택한 뒤 엑셀 업로드를 진행해 주세요.{" "}
-            <Link href="/admin/lists">주주명부 목록</Link>에서 해당 명부의
-            &quot;엑셀 업로드&quot;를 눌러 주세요.
-          </EmptyMessage>
-        </Container>
-      </AdminLayout>
+      <Container>
+        <Header>
+          <Title>엑셀 업로드</Title>
+        </Header>
+        <EmptyMessage>
+          주주명부를 선택한 뒤 엑셀 업로드를 진행해 주세요.{" "}
+          <Link href={`${base}/lists`}>주주명부 목록</Link>에서 해당 명부의
+          &quot;엑셀 업로드&quot;를 눌러 주세요.
+        </EmptyMessage>
+      </Container>
     )
   }
+
+  return (
+    <Container>
+      <Header>
+        <Title>엑셀 업로드</Title>
+      </Header>
+      <ExcelImportView
+        fileName={fileName}
+        failCount={failCount}
+        failData={failData}
+        loading={loading}
+        progress={progress}
+        onFileChange={handleFile}
+        onClearFileName={clearFileName}
+        onSubmit={handleFileSubmit}
+        onExport={handleExport}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onEditFailedData={handleEditFailedData}
+        onRetryAllFailedData={handleRetryAllFailedData}
+      />
+    </Container>
+  )
+}
+
+function ExcelImport() {
+  const router = useRouter()
+  const [currentWorkspace] = useCurrentWorkspace()
+
+  useEffect(() => {
+    if (currentWorkspace && typeof window !== "undefined")
+      router.replace({
+        pathname: `/workspaces/${currentWorkspace.id}/admin/excel-import`,
+        query: router.query.listId ? { listId: router.query.listId } : {},
+      })
+  }, [currentWorkspace, router])
+
+  if (currentWorkspace) return null
 
   return (
     <AdminLayout>
@@ -482,22 +526,7 @@ const ExcelImport = () => {
         <Header>
           <Title>엑셀 업로드</Title>
         </Header>
-        <ExcelImportView
-          fileName={fileName}
-          failCount={failCount}
-          failData={failData}
-          loading={loading}
-          progress={progress}
-          onFileChange={handleFile}
-          onClearFileName={clearFileName}
-          onSubmit={handleFileSubmit}
-          onExport={handleExport}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragEnter={handleDragEnter}
-          onEditFailedData={handleEditFailedData}
-          onRetryAllFailedData={handleRetryAllFailedData}
-        />
+        <EmptyMessage>워크스페이스를 선택해 주세요.</EmptyMessage>
       </Container>
     </AdminLayout>
   )

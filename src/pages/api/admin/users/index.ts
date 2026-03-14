@@ -4,15 +4,23 @@ import {
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
 
-async function isAppAdmin(accessToken: string): Promise<boolean> {
+/** 통합 관리자(service_admin)만 사용자 관리 API 사용 가능 */
+async function isServiceAdmin(accessToken: string): Promise<boolean> {
   const client = createSupabaseWithToken(accessToken)
   const {
     data: { user },
   } = await client.auth.getUser()
-  if (!user?.user_metadata?.role) return false
-  const role = user.user_metadata.role
+  if (!user) return false
+  const admin = createSupabaseAdmin()
+  const { data } = await admin
+    .from("workspace_members")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("role", "service_admin")
+    .is("workspace_id", null)
+    .limit(1)
 
-  return Array.isArray(role) ? role.includes("admin") : role === "admin"
+  return (data?.length ?? 0) > 0
 }
 
 export default async function handler(
@@ -21,7 +29,7 @@ export default async function handler(
 ) {
   const auth = req.headers.authorization
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null
-  if (!token || !(await isAppAdmin(token))) {
+  if (!token || !(await isServiceAdmin(token))) {
     return res.status(401).json({ error: "Unauthorized" })
   }
 

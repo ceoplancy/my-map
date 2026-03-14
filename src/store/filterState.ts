@@ -1,82 +1,61 @@
-import { atom, useRecoilState, useResetRecoilState } from "recoil"
-import { recoilPersist } from "recoil-persist"
+import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
-// recoilPersist 설정 추가
-const { persistAtom } = recoilPersist({
-  key: "filter", // 로컬 스토리지에 저장될 키 이름
-  storage: typeof window !== "undefined" ? localStorage : undefined,
-})
-
-export const statusFilterState = atom<string[]>({
-  key: "status-filter-state",
-  default: [],
-  effects_UNSTABLE: [persistAtom], // persist 효과 추가
-})
-
-export const companyFilterState = atom<string[]>({
-  key: "company-filter-state",
-  default: [],
-  effects_UNSTABLE: [persistAtom],
-})
-
-export const makerFilterState = atom<string[]>({
-  key: "maker-filter-state",
-  default: [],
-  effects_UNSTABLE: [persistAtom],
-})
-
-export const cityFilterState = atom<string>({
-  key: "city-filter-state",
-  default: "",
-  effects_UNSTABLE: [persistAtom],
-})
-
-// 스톡 필터 타입 수정
 export interface StockRange {
   start: number
   end: number
 }
 
-export const stocksFilterState = atom<StockRange[]>({
-  key: "stocks-filter-state",
-  default: [],
-  effects_UNSTABLE: [persistAtom],
-})
-
-// 편의를 위한 커스텀 훅
-
-export const useFilterStore = () => {
-  const [statusFilter, setStatusFilter] = useRecoilState(statusFilterState)
-  const [companyFilter, setCompanyFilter] = useRecoilState(companyFilterState)
-  const [makerFilter, setMakerFilter] = useRecoilState(makerFilterState)
-  const [cityFilter, setCityFilter] = useRecoilState(cityFilterState)
-  const [stocks, setStocks] = useRecoilState(stocksFilterState)
-
-  const resetStatusFilter = useResetRecoilState(statusFilterState)
-  const resetCompanyFilter = useResetRecoilState(companyFilterState)
-  const resetMakerFilter = useResetRecoilState(makerFilterState)
-  const resetCityFilter = useResetRecoilState(cityFilterState)
-  const resetStocksFilter = useResetRecoilState(stocksFilterState)
-
-  const resetFilters = () => {
-    resetStatusFilter()
-    resetCompanyFilter()
-    resetMakerFilter()
-    resetCityFilter()
-    resetStocksFilter()
-  }
-
-  return {
-    statusFilter,
-    companyFilter,
-    makerFilter,
-    cityFilter,
-    stocks,
-    setStatusFilter,
-    setCompanyFilter,
-    setMakerFilter,
-    setCityFilter,
-    setStocks,
-    resetFilters,
-  }
+interface FilterState {
+  statusFilter: string[]
+  companyFilter: string[]
+  makerFilter: string[]
+  cityFilter: string
+  stocks: StockRange[]
+  setStatusFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
+  setCompanyFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
+  setMakerFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
+  setCityFilter: (_v: string | ((_prev: string) => string)) => void
+  setStocks: (
+    _v: StockRange[] | ((_prev: StockRange[]) => StockRange[]),
+  ) => void
+  resetFilters: () => void
 }
+
+const initial = {
+  statusFilter: [] as string[],
+  companyFilter: [] as string[],
+  makerFilter: [] as string[],
+  cityFilter: "",
+  stocks: [] as StockRange[],
+}
+
+export const useFilterStore = create<FilterState>()(
+  persist(
+    (set) => ({
+      ...initial,
+      setStatusFilter: (v) =>
+        set((s) => ({
+          statusFilter: typeof v === "function" ? v(s.statusFilter) : v,
+        })),
+      setCompanyFilter: (v) =>
+        set((s) => ({
+          companyFilter: typeof v === "function" ? v(s.companyFilter) : v,
+        })),
+      setMakerFilter: (v) =>
+        set((s) => ({
+          makerFilter: typeof v === "function" ? v(s.makerFilter) : v,
+        })),
+      setCityFilter: (v) =>
+        set((s) => ({
+          cityFilter: typeof v === "function" ? v(s.cityFilter) : v,
+        })),
+      setStocks: (v) =>
+        set((s) => ({
+          stocks: typeof v === "function" ? v(s.stocks) : v,
+        })),
+      resetFilters: () => set(initial),
+    }),
+    { name: "filter" },
+  ),
+)

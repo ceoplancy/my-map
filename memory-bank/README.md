@@ -1,4 +1,4 @@
-# Memory Bank — entre-map (앤트리맵)
+# Memory Bank — antre-map (앤트리맵)
 
 > 단일 소스: 작업 컨텍스트, 도메인 지식, 아카이브
 

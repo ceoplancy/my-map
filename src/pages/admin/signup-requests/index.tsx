@@ -1,5 +1,5 @@
 import AdminLayout from "@/layouts/AdminLayout"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import styled from "@emotion/styled"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
@@ -105,13 +105,20 @@ const ErrorState = styled.p`
   text-align: center;
 `
 
-export default function SignupRequestsPage() {
+/** 가입 승인 본문. workspaceId 있으면 해당 워크스페이스 신청만, 없으면 통합(전체) 조회 */
+export function SignupRequestsContent({
+  workspaceId,
+  noLayout = false,
+}: {
+  workspaceId: string | null
+  noLayout?: boolean
+}) {
   const [requests, setRequests] = useState<SignupRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acting, setActing] = useState<string | null>(null)
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -121,11 +128,18 @@ export default function SignupRequestsPage() {
 
       return
     }
-    const res = await fetch("/api/admin/signup-requests", {
+    const url = workspaceId
+      ? `/api/admin/signup-requests?workspace_id=${encodeURIComponent(workspaceId)}`
+      : "/api/admin/signup-requests"
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
-    if (res.status === 401) {
-      setError("서비스 관리자만 조회할 수 있습니다.")
+    if (res.status === 401 || res.status === 403) {
+      setError(
+        workspaceId
+          ? "해당 워크스페이스의 가입 신청을 조회할 권한이 없습니다."
+          : "서비스 관리자만 전체 목록을 조회할 수 있습니다.",
+      )
       setLoading(false)
 
       return
@@ -140,11 +154,11 @@ export default function SignupRequestsPage() {
     setRequests(Array.isArray(data) ? data : [])
     setError(null)
     setLoading(false)
-  }
+  }, [workspaceId])
 
   useEffect(() => {
     fetchRequests()
-  }, [])
+  }, [fetchRequests])
 
   const handleAction = async (id: string, action: "approve" | "reject") => {
     const {
@@ -179,86 +193,87 @@ export default function SignupRequestsPage() {
         ? "의결권 대행사"
         : v
 
-  if (loading) {
-    return (
-      <AdminLayout>
-        <PageTitle>가입 승인</PageTitle>
-        <p>불러오는 중...</p>
-      </AdminLayout>
-    )
-  }
+  const body = (
+    <>
+      <PageTitle>가입 승인</PageTitle>
+      {loading && <p>불러오는 중...</p>}
+      {error && <ErrorState>{error}</ErrorState>}
+      {!loading && !error && (
+        <TableWrap>
+          <Table>
+            <thead>
+              <Tr>
+                <Th>이메일</Th>
+                <Th>유형</Th>
+                <Th>워크스페이스명</Th>
+                <Th>상태</Th>
+                <Th>신청일</Th>
+                <Th>처리</Th>
+              </Tr>
+            </thead>
+            <tbody>
+              {requests.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState>대기 중인 가입 신청이 없습니다.</EmptyState>
+                  </td>
+                </tr>
+              ) : (
+                requests.map((r) => (
+                  <Tr key={r.id}>
+                    <Td>{r.email}</Td>
+                    <Td>{accountTypeLabel(r.account_type)}</Td>
+                    <Td>{r.workspace_name}</Td>
+                    <Td>
+                      <Badge status={r.status}>
+                        {r.status === "pending"
+                          ? "대기"
+                          : r.status === "approved"
+                            ? "승인"
+                            : "반려"}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      {new Date(r.created_at).toLocaleDateString("ko-KR")}
+                    </Td>
+                    <Td>
+                      {r.status === "pending" && (
+                        <ButtonGroup>
+                          <SmallButton
+                            variant="primary"
+                            disabled={acting === r.id}
+                            onClick={() => handleAction(r.id, "approve")}>
+                            승인
+                          </SmallButton>
+                          <SmallButton
+                            variant="danger"
+                            disabled={acting === r.id}
+                            onClick={() => handleAction(r.id, "reject")}>
+                            반려
+                          </SmallButton>
+                        </ButtonGroup>
+                      )}
+                    </Td>
+                  </Tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </TableWrap>
+      )}
+    </>
+  )
 
-  if (error) {
-    return (
-      <AdminLayout>
-        <PageTitle>가입 승인</PageTitle>
-        <ErrorState>{error}</ErrorState>
-      </AdminLayout>
-    )
-  }
+  if (noLayout) return body
 
+  return <AdminLayout>{body}</AdminLayout>
+}
+
+/** 통합 관리용 가입 승인 (서비스 관리자 전체 목록) */
+export default function SignupRequestsPage() {
   return (
     <AdminLayout>
-      <PageTitle>가입 승인</PageTitle>
-      <TableWrap>
-        <Table>
-          <thead>
-            <Tr>
-              <Th>이메일</Th>
-              <Th>유형</Th>
-              <Th>워크스페이스명</Th>
-              <Th>상태</Th>
-              <Th>신청일</Th>
-              <Th>처리</Th>
-            </Tr>
-          </thead>
-          <tbody>
-            {requests.length === 0 ? (
-              <tr>
-                <td colSpan={6}>
-                  <EmptyState>대기 중인 가입 신청이 없습니다.</EmptyState>
-                </td>
-              </tr>
-            ) : (
-              requests.map((r) => (
-                <Tr key={r.id}>
-                  <Td>{r.email}</Td>
-                  <Td>{accountTypeLabel(r.account_type)}</Td>
-                  <Td>{r.workspace_name}</Td>
-                  <Td>
-                    <Badge status={r.status}>
-                      {r.status === "pending"
-                        ? "대기"
-                        : r.status === "approved"
-                          ? "승인"
-                          : "반려"}
-                    </Badge>
-                  </Td>
-                  <Td>{new Date(r.created_at).toLocaleDateString("ko-KR")}</Td>
-                  <Td>
-                    {r.status === "pending" && (
-                      <ButtonGroup>
-                        <SmallButton
-                          variant="primary"
-                          disabled={acting === r.id}
-                          onClick={() => handleAction(r.id, "approve")}>
-                          승인
-                        </SmallButton>
-                        <SmallButton
-                          variant="danger"
-                          disabled={acting === r.id}
-                          onClick={() => handleAction(r.id, "reject")}>
-                          반려
-                        </SmallButton>
-                      </ButtonGroup>
-                    )}
-                  </Td>
-                </Tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </TableWrap>
+      <SignupRequestsContent workspaceId={null} noLayout />
     </AdminLayout>
   )
 }

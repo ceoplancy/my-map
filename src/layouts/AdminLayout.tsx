@@ -5,8 +5,7 @@ import Header from "@/components/admin/Header"
 import styled from "@emotion/styled"
 import { useGetUserData, useMyWorkspaces } from "@/api/auth"
 import { toast } from "react-toastify"
-import { useSetRecoilState } from "recoil"
-import { currentWorkspaceState } from "@/store/workspaceState"
+import { useCurrentWorkspace } from "@/store/workspaceState"
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -68,7 +67,7 @@ const LoadingText = styled.p`
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter()
-  const setCurrentWorkspace = useSetRecoilState(currentWorkspaceState)
+  const [, setCurrentWorkspace] = useCurrentWorkspace()
   const { data: user, isLoading } = useGetUserData()
   const { data: workspaces = [], isLoading: workspacesLoading } =
     useMyWorkspaces()
@@ -85,7 +84,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       const hasWorkspace = Array.isArray(workspaces) && workspaces.length > 0
       if (!legacyAdmin && !hasWorkspace) {
         toast.error("관리자 권한이 없습니다.")
-        router.push("/")
+        router.push("/workspaces")
 
         return
       }

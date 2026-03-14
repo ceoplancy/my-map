@@ -2,6 +2,10 @@ import type { User } from "@supabase/supabase-js"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "react-toastify"
 
+import type { AuthRole } from "@/types/auth"
+import type { AccountType, AdminWorkspaceItem } from "@/types/db"
+
+export type { AdminWorkspaceItem }
 import supabase from "@/lib/supabase/supabaseClient"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
@@ -369,10 +373,70 @@ export const useDeleteUser = () => {
   })
 }
 
-// 사용자 권한 설정 (서버 API 경유)
+// =======================================
+// ============== 관리자 워크스페이스 ===============
+// =======================================
+
+const getAdminWorkspaces = async (): Promise<AdminWorkspaceItem[]> => {
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch("/api/admin/workspaces", { headers })
+  if (!res.ok) {
+    const msg = await res.text()
+    Sentry.captureMessage("관리자 워크스페이스 목록 조회에 실패했습니다.")
+    throw new Error(msg || res.statusText)
+  }
+  const json = await res.json()
+
+  return Array.isArray(json) ? json : []
+}
+
+export const useAdminWorkspaces = () => {
+  return useQuery({
+    queryKey: ["adminWorkspaces"],
+    queryFn: getAdminWorkspaces,
+    staleTime: 1000 * 60 * 2,
+  })
+}
+
+const createAdminWorkspace = async (payload: {
+  name: string
+  account_type: AccountType
+}): Promise<AdminWorkspaceItem> => {
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch("/api/admin/workspaces", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const msg = await res.text()
+    Sentry.captureMessage("워크스페이스 생성에 실패했습니다.")
+    throw new Error(msg || res.statusText)
+  }
+
+  return res.json() as Promise<AdminWorkspaceItem>
+}
+
+export const useCreateAdminWorkspace = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: createAdminWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkspaces"] })
+      queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
+      toast.success("워크스페이스가 생성되었습니다.")
+    },
+    onError: () => {
+      toast.error("워크스페이스 생성에 실패했습니다.")
+    },
+  })
+}
+
+// 사용자 권한 설정 (서버 API 경유, user_metadata.role)
 export const setUserRole = async (
   userId: string,
-  role: "admin" | "user",
+  role: AuthRole,
 ): Promise<{ success: boolean; error?: unknown }> => {
   try {
     const headers = await getAdminAuthHeaders()

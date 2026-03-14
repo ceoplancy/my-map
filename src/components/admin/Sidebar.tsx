@@ -8,9 +8,17 @@ import {
   CloudUpload,
   HowToReg,
   List as ListIcon,
+  Business,
 } from "@mui/icons-material"
 import { usePathname } from "next/navigation"
-import { normalizePathname } from "@/lib/utils"
+import { useAdminStatus } from "@/api/auth"
+import { ADMIN, getWorkspaceAdminBase } from "@/lib/admin-routes"
+import {
+  isIntegratedRoute,
+  isWorkspaceAdminDashboardRoute,
+  normalizePathname,
+} from "@/lib/utils"
+import { useCurrentWorkspace } from "@/store/workspaceState"
 
 const SidebarContainer = styled.div`
   width: 16rem;
@@ -18,6 +26,8 @@ const SidebarContainer = styled.div`
   box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.1);
   height: 100%;
   border-right: 1px solid #e5e7eb;
+  position: relative;
+  z-index: 1;
 `
 
 const LogoContainer = styled.div`
@@ -46,6 +56,9 @@ const NavLink = styled(Link)`
   color: ${COLORS.gray[700]};
   text-decoration: none;
   transition: background-color 0.2s;
+  cursor: pointer;
+  min-height: 2.75rem;
+  box-sizing: border-box;
 
   &:hover {
     background-color: ${COLORS.gray[100]};
@@ -70,35 +83,122 @@ const NavText = styled.span`
   font-weight: 500;
 `
 
-const menuItems = [
-  { title: "대시보드", path: "/admin", icon: <Dashboard /> },
-  { title: "가입 승인", path: "/admin/signup-requests", icon: <HowToReg /> },
-  { title: "사용자 관리", path: "/admin/users", icon: <People /> },
-  {
-    title: "주주명부 목록",
-    path: "/admin/lists",
-    icon: <ListIcon />,
-  },
-  {
-    title: "주주명부 관리",
-    path: "/admin/shareholders",
-    icon: <Description />,
-  },
-  {
-    title: "엑셀 업로드",
-    path: "/admin/excel-import",
-    icon: <CloudUpload />,
-  },
-  {
-    title: "워크스페이스 멤버",
-    path: "/admin/members",
-    icon: <People />,
-  },
+const SectionLabel = styled.div`
+  padding: 0.5rem 1.5rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: ${COLORS.gray[500]};
+`
+
+const Section = styled.div`
+  margin-bottom: 0.5rem;
+`
+
+/** 주주명부 하위 메뉴는 들여쓰기 */
+const NavLinkSub = styled(NavLink)`
+  padding-left: 2.25rem;
+  min-height: 2.25rem;
+`
+
+/** 통합 관리(서비스 최고 관리자 전용): 플랫폼 전체 */
+const INTEGRATED_MENU_ITEMS = [
+  { title: "대시보드", path: ADMIN.INTEGRATED, icon: <Dashboard /> },
+  { title: "사용자 관리", path: ADMIN.USERS, icon: <People /> },
+  { title: "워크스페이스 관리", path: ADMIN.WORKSPACES, icon: <Business /> },
 ]
+
+/** 워크스페이스: 가입 승인 (대시보드 다음) */
+const WORKSPACE_SIGNUP = {
+  title: "가입 승인",
+  path: "/signup-requests",
+  icon: <HowToReg />,
+}
+
+/** 워크스페이스: 주주명부 그룹 - 목록, 관리, 엑셀 업로드 */
+const WORKSPACE_SHAREHOLDER_ITEMS = [
+  { title: "목록", path: "/lists", icon: <ListIcon /> },
+  { title: "관리", path: "/shareholders", icon: <Description /> },
+  { title: "엑셀 업로드", path: "/excel-import", icon: <CloudUpload /> },
+]
+
+/** 워크스페이스: 사용자 관리 */
+const WORKSPACE_USERS = {
+  title: "사용자 관리",
+  path: "/users",
+  icon: <People />,
+}
+
+type NavItem = { title: string; path: string; icon: React.ReactNode }
+
+function NavItems({
+  items,
+  pathname,
+  pathPrefix = "",
+  useSubStyle = false,
+}: {
+  items: NavItem[]
+  pathname: string
+  pathPrefix?: string
+  useSubStyle?: boolean
+}) {
+  const LinkComponent = useSubStyle ? NavLinkSub : NavLink
+
+  return (
+    <>
+      {items.map((item) => {
+        const fullPath = pathPrefix ? pathPrefix + item.path : item.path
+
+        return (
+          <LinkComponent
+            key={fullPath}
+            href={fullPath}
+            className={
+              normalizePathname(pathname) === normalizePathname(fullPath)
+                ? "active"
+                : ""
+            }>
+            <NavIcon>{item.icon}</NavIcon>
+            <NavText>{item.title}</NavText>
+          </LinkComponent>
+        )
+      })}
+    </>
+  )
+}
+
+function SingleNavLink({
+  item,
+  pathname,
+  pathPrefix,
+}: {
+  item: NavItem
+  pathname: string
+  pathPrefix: string
+}) {
+  const fullPath = pathPrefix + item.path
+
+  return (
+    <NavLink
+      href={fullPath}
+      className={
+        normalizePathname(pathname) === normalizePathname(fullPath)
+          ? "active"
+          : ""
+      }>
+      <NavIcon>{item.icon}</NavIcon>
+      <NavText>{item.title}</NavText>
+    </NavLink>
+  )
+}
 
 export default function Sidebar() {
   const pathname = usePathname()
-  pathname.isWellFormed()
+  const [currentWorkspace] = useCurrentWorkspace()
+  const { data: adminStatus } = useAdminStatus()
+  const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
+  const integrated = isIntegratedRoute(pathname)
 
   return (
     <SidebarContainer>
@@ -108,19 +208,56 @@ export default function Sidebar() {
         </LogoSection>
       </LogoContainer>
       <Navigation>
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            href={item.path}
-            className={
-              normalizePathname(pathname) === normalizePathname(item.path)
-                ? "active"
-                : ""
-            }>
-            <NavIcon>{item.icon}</NavIcon>
-            <NavText>{item.title}</NavText>
-          </NavLink>
-        ))}
+        {integrated ? (
+          isServiceAdmin && (
+            <Section>
+              <SectionLabel>통합 관리</SectionLabel>
+              <NavItems items={INTEGRATED_MENU_ITEMS} pathname={pathname} />
+            </Section>
+          )
+        ) : (
+          <>
+            <Section>
+              {currentWorkspace && (
+                <NavLink
+                  href={`/workspaces/${currentWorkspace.id}/admin`}
+                  className={
+                    isWorkspaceAdminDashboardRoute(pathname) ? "active" : ""
+                  }>
+                  <NavIcon>
+                    <Dashboard />
+                  </NavIcon>
+                  <NavText>대시보드</NavText>
+                </NavLink>
+              )}
+              {currentWorkspace && (
+                <SingleNavLink
+                  item={WORKSPACE_SIGNUP}
+                  pathname={pathname}
+                  pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                />
+              )}
+              {currentWorkspace && (
+                <>
+                  <SectionLabel>주주명부</SectionLabel>
+                  <NavItems
+                    items={WORKSPACE_SHAREHOLDER_ITEMS}
+                    pathname={pathname}
+                    pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                    useSubStyle
+                  />
+                </>
+              )}
+              {currentWorkspace && (
+                <SingleNavLink
+                  item={WORKSPACE_USERS}
+                  pathname={pathname}
+                  pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                />
+              )}
+            </Section>
+          </>
+        )}
       </Navigation>
     </SidebarContainer>
   )

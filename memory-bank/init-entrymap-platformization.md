@@ -10,7 +10,7 @@
 
 | 항목 | 내용 |
 |------|------|
-| **요청** | (1) AI 구조 리팩터링 — entre-map 프로젝트에 맞게 전반 정리 (2) 앤트리맵 SaaS 플랫폼화 구현 준비 |
+| **요청** | (1) AI 구조 리팩터링 — antre-map 프로젝트에 맞게 전반 정리 (2) 앤트리맵 SaaS 플랫폼화 구현 준비 |
 | **복잡도** | **L4** (아키텍처·시스템 전반, 10+ 파일, 다수 설계 결정) |
 | **워크플로우** | INIT → PLAN → CREATIVE → BUILD → REFLECT → ARCHIVE |
 | **다음 단계** | PLAN (우선순위·페이즈·스코프 확정) |
@@ -21,7 +21,7 @@
 
 ### 2.1 프로젝트
 
-- **이름**: entre-map (앤트리맵)
+- **이름**: antre-map (앤트리맵)
 - **구조**: 단일 Next.js (Pages Router) + Supabase
 - **역할**: 1개 회사 대상 주주·주식 관리 (엑셀 주주명부, 지도 마커, 용역 현장·상태·메모·사진)
 - **경로**: `src/pages/`, `src/api/`, `src/components/`, `src/component/`, `src/types/db.ts`, `src/store/` 등

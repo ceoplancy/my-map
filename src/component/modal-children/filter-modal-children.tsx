@@ -7,7 +7,7 @@ import { COLORS } from "@/styles/global-style"
 import { Clear as ClearIcon } from "@mui/icons-material"
 import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
-import { STORAGE_KEY } from "@/pages"
+import { STORAGE_KEY } from "@/constants/map-storage"
 
 interface FilterModalChildrenProps {
   handleClose: () => void

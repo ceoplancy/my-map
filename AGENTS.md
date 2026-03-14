@@ -1,4 +1,4 @@
-# AGENTS.md — entre-map (앤트리맵) 에이전트 가이드
+# AGENTS.md — antre-map (앤트리맵) 에이전트 가이드
 
 > **이 파일이 모든 작업의 시작점입니다.**
 

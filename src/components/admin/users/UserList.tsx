@@ -1,5 +1,6 @@
 import { useDeleteUser, useGetUsers } from "@/api/supabase"
 import styled from "@emotion/styled"
+import { AUTH_ROLE_LABELS, type AuthRole } from "@/types/auth"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import UserDetailModal from "./UserDetailModal"
@@ -230,7 +231,7 @@ const ITEMS_PER_PAGE = 10
 
 type Filters = {
   search: string
-  role: string
+  role: "" | AuthRole
 }
 
 export default function UserList() {
@@ -256,8 +257,9 @@ export default function UserList() {
         ?.toLowerCase()
         .includes(filters.search.toLowerCase())
 
+    const metaRole = user.user_metadata?.role as AuthRole | undefined
     const matchesRole =
-      filters.role === "" || String(user.user_metadata.role) === filters.role
+      filters.role === "" || (metaRole != null && metaRole === filters.role)
 
     return matchesSearch && matchesRole
   })
@@ -282,12 +284,15 @@ export default function UserList() {
             <FilterSelect
               value={filters.role}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, role: e.target.value }))
+                setFilters((prev) => ({
+                  ...prev,
+                  role: e.target.value as "" | AuthRole,
+                }))
               }>
               <option value="">모든 권한</option>
-              <option value="user">일반 사용자</option>
-              <option value="admin">관리자</option>
-              <option value="root_admin">최고 관리자</option>
+              <option value="user">{AUTH_ROLE_LABELS.user}</option>
+              <option value="admin">{AUTH_ROLE_LABELS.admin}</option>
+              <option value="root_admin">{AUTH_ROLE_LABELS.root_admin}</option>
             </FilterSelect>
             <SearchInputWrapper>
               <Search />
@@ -322,15 +327,15 @@ export default function UserList() {
                 <Td>{new Date(user.created_at).toLocaleDateString()}</Td>
                 <Td>
                   <UserRole
-                    isAdmin={String(user.user_metadata.role).includes("admin")}>
-                    {String(user.user_metadata.role) === "admin"
-                      ? "관리자"
-                      : String(user.user_metadata.role) === "root_admin"
-                        ? "최고 관리자"
-                        : "일반 사용자"}
+                    isAdmin={String(user.user_metadata?.role).includes(
+                      "admin",
+                    )}>
+                    {AUTH_ROLE_LABELS[
+                      (user.user_metadata?.role as AuthRole) || "user"
+                    ] ?? "일반 사용자"}
                   </UserRole>
                 </Td>
-                {String(user.user_metadata.role) !== "root_admin" && (
+                {String(user.user_metadata?.role) !== "root_admin" && (
                   <Td>
                     <ActionButton
                       className="edit"

@@ -64,6 +64,43 @@ export const useWorkspaceMembers = (workspaceId: string | null) => {
   })
 }
 
+export type WorkspaceMemberWithUser = {
+  id: string
+  user_id: string
+  workspace_id: string | null
+  role: string
+  created_at: string
+  email: string | null
+  name: string | null
+}
+
+const getWorkspaceMembersWithUsers = async (
+  workspaceId: string,
+): Promise<WorkspaceMemberWithUser[]> => {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return []
+  const res = await fetch(
+    `/api/me/workspace-members?workspaceId=${encodeURIComponent(workspaceId)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!res.ok) return []
+  const json = await res.json()
+
+  return Array.isArray(json) ? json : []
+}
+
+export const useWorkspaceMembersWithUsers = (workspaceId: string | null) => {
+  return useQuery({
+    queryKey: ["workspaceMembersWithUsers", workspaceId],
+    queryFn: () =>
+      workspaceId
+        ? getWorkspaceMembersWithUsers(workspaceId)
+        : Promise.resolve([]),
+    enabled: !!workspaceId,
+  })
+}
+
 export const useShareholderLists = (workspaceId: string | null) => {
   return useQuery({
     queryKey: ["shareholderLists", workspaceId],
@@ -92,9 +129,9 @@ export function useVisibleListIds(
       return true
     })
     if (myMember?.role === "field_agent" && myMember.allowed_list_ids?.length) {
-      return visible
-        .filter((l) => myMember.allowed_list_ids.includes(l.id))
-        .map((l) => l.id)
+      const listIds = myMember.allowed_list_ids ?? []
+
+      return visible.filter((l) => listIds.includes(l.id)).map((l) => l.id)
     }
 
     return visible.map((l) => l.id)

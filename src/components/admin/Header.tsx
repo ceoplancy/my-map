@@ -2,6 +2,13 @@ import { useGetUserData, useMyWorkspaces } from "@/api/auth"
 import supabase from "@/lib/supabase/supabaseClient"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import { COLORS } from "@/styles/global-style"
+import { ADMIN, WORKSPACE_ADMIN_SEGMENT_LABELS } from "@/lib/admin-routes"
+import {
+  getWorkspaceIdFromPath,
+  isIntegratedRoute,
+  isWorkspaceAdminDashboardRoute,
+  isWorkspaceAdminRoute,
+} from "@/lib/utils"
 import { useRouter } from "next/router"
 import { useState, useRef, useEffect } from "react"
 import styled from "@emotion/styled"
@@ -193,6 +200,21 @@ const WorkspaceSelect = styled.select`
   min-width: 160px;
 `
 
+const WorkspaceChangeButton = styled.button`
+  font-size: 0.8125rem;
+  color: ${COLORS.blue[600]};
+  text-decoration: none;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`
+
 export default function Header() {
   const { data: user } = useGetUserData()
   const { data: workspaces = [] } = useMyWorkspaces()
@@ -232,19 +254,25 @@ export default function Header() {
       <HeaderContent>
         <FlexContainer>
           <PageTitle>
-            {/* 현재 페이지 경로에 따른 타이틀 표시 */}
-            {router.pathname === "/admin" && "대시보드"}
-            {router.pathname === "/admin/signup-requests" && "가입 승인"}
-            {router.pathname === "/admin/users" && "사용자 관리"}
-            {router.pathname.startsWith("/admin/users/") && "사용자 상세"}
-            {router.pathname === "/admin/lists" && "주주명부 목록"}
-            {router.pathname === "/admin/shareholders" && "주주명부 관리"}
-            {router.pathname === "/admin/excel-import" && "엑셀 업로드"}
+            {router.pathname === ADMIN.INTEGRATED && "통합 대시보드"}
+            {router.pathname === ADMIN.SIGNUP_REQUESTS && "가입 승인"}
+            {router.pathname === ADMIN.USERS && "사용자 관리"}
+            {router.pathname.startsWith(`${ADMIN.USERS}/`) && "사용자 상세"}
+            {router.pathname === ADMIN.WORKSPACES && "워크스페이스 관리"}
+            {(router.pathname === ADMIN.ROOT ||
+              isWorkspaceAdminDashboardRoute(router.pathname)) &&
+              "대시보드"}
+            {isWorkspaceAdminRoute(router.pathname) &&
+              (() => {
+                const seg = router.pathname.split("/").pop() ?? ""
+
+                return WORKSPACE_ADMIN_SEGMENT_LABELS[seg] ?? seg
+              })()}
           </PageTitle>
         </FlexContainer>
 
         <RightSection>
-          {workspaces.length > 1 && (
+          {!isIntegratedRoute(router.pathname) && workspaces.length > 1 && (
             <WorkspaceSelect
               value={currentWorkspace?.id ?? ""}
               onChange={(e) => {
@@ -257,6 +285,13 @@ export default function Header() {
                 </option>
               ))}
             </WorkspaceSelect>
+          )}
+          {!isIntegratedRoute(router.pathname) && workspaces.length > 0 && (
+            <WorkspaceChangeButton
+              type="button"
+              onClick={() => router.push("/workspaces")}>
+              워크스페이스 변경
+            </WorkspaceChangeButton>
           )}
           {/* 알림 아이콘 */}
           {/* <IconButton>
@@ -312,39 +347,70 @@ export default function Header() {
       {/* 현재 경로 표시 (Breadcrumb) */}
       <BreadcrumbContainer>
         <BreadcrumbText>
-          <BreadcrumbItem onClick={() => router.push("/admin")}>
-            관리자
+          <BreadcrumbItem
+            onClick={() => {
+              if (isIntegratedRoute(router.pathname))
+                router.push(ADMIN.INTEGRATED)
+              else if (currentWorkspace)
+                router.push(`/workspaces/${currentWorkspace.id}/admin`)
+              else {
+                const wid = getWorkspaceIdFromPath(router.pathname)
+                if (wid) router.push(`/workspaces/${wid}/admin`)
+                else router.push(ADMIN.INTEGRATED)
+              }
+            }}>
+            {isIntegratedRoute(router.pathname) ? "통합 관리" : "관리자"}
           </BreadcrumbItem>
-          {router.pathname
-            .split("/")
-            .slice(2)
-            .map((path, index, array) => (
-              <span key={path}>
-                <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                {index === array.length - 1 ? (
+          {isWorkspaceAdminDashboardRoute(router.pathname) ? (
+            <>
+              <BreadcrumbSeparator>/</BreadcrumbSeparator>
+              <BreadcrumbCurrent>대시보드</BreadcrumbCurrent>
+            </>
+          ) : isWorkspaceAdminRoute(router.pathname) ? (
+            (() => {
+              const seg = router.pathname.split("/").pop() ?? ""
+
+              return (
+                <>
+                  <BreadcrumbSeparator>/</BreadcrumbSeparator>
                   <BreadcrumbCurrent>
-                    {path === "shareholders"
-                      ? "주주명부"
-                      : path === "users"
-                        ? "사용자 관리"
-                        : path}
+                    {WORKSPACE_ADMIN_SEGMENT_LABELS[seg] ?? seg}
                   </BreadcrumbCurrent>
-                ) : (
-                  <BreadcrumbItem
-                    onClick={() =>
-                      router.push(
-                        `/admin/${array.slice(0, index + 1).join("/")}`,
-                      )
-                    }>
-                    {path === "shareholders"
-                      ? "주주명부"
-                      : path === "users"
-                        ? "사용자 관리"
-                        : path}
-                  </BreadcrumbItem>
-                )}
-              </span>
-            ))}
+                </>
+              )
+            })()
+          ) : (
+            router.pathname
+              .split("/")
+              .slice(2)
+              .map((path, index, array) => (
+                <span key={`${path}-${index}`}>
+                  <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                  {index === array.length - 1 ? (
+                    <BreadcrumbCurrent>
+                      {path === "shareholders"
+                        ? "주주명부"
+                        : path === "users"
+                          ? "사용자 관리"
+                          : path}
+                    </BreadcrumbCurrent>
+                  ) : (
+                    <BreadcrumbItem
+                      onClick={() =>
+                        router.push(
+                          `/admin/${array.slice(0, index + 1).join("/")}`,
+                        )
+                      }>
+                      {path === "shareholders"
+                        ? "주주명부"
+                        : path === "users"
+                          ? "사용자 관리"
+                          : path}
+                    </BreadcrumbItem>
+                  )}
+                </span>
+              ))
+          )}
         </BreadcrumbText>
       </BreadcrumbContainer>
     </HeaderContainer>

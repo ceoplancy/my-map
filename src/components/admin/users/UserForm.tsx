@@ -1,6 +1,7 @@
 import { useCreateUser, useUpdateUser, useGetFilterMenu } from "@/api/supabase"
 import { useState } from "react"
 import styled from "@emotion/styled"
+import { AUTH_ROLE_LABELS, AUTH_ROLES, type AuthRole } from "@/types/auth"
 
 const Modal = styled.div`
   position: fixed;
@@ -132,11 +133,18 @@ interface UserFormProps {
 
 export default function UserForm({ user, onClose }: UserFormProps) {
   const { data: filterMenu } = useGetFilterMenu()
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    email: string
+    password: string
+    name: string
+    role: AuthRole
+    allowedStatus: string[]
+    allowedCompany: string[]
+  }>({
     email: user?.email || "",
     password: "",
     name: user?.user_metadata?.name || "",
-    role: user?.user_metadata?.role || "user",
+    role: (user?.user_metadata?.role as AuthRole) || "user",
     allowedStatus: user?.user_metadata?.allowedStatus || [],
     allowedCompany: user?.user_metadata?.allowedCompany || [],
   })
@@ -235,10 +243,16 @@ export default function UserForm({ user, onClose }: UserFormProps) {
             <Select
               value={formData.role}
               onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
+                setFormData({
+                  ...formData,
+                  role: e.target.value as AuthRole,
+                })
               }>
-              <option value="user">일반 사용자</option>
-              <option value="admin">관리자</option>
+              {AUTH_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {AUTH_ROLE_LABELS[r]}
+                </option>
+              ))}
             </Select>
           </FormGroup>
           <FormGroup>

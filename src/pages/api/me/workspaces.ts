@@ -22,6 +22,26 @@ export default async function handler(
   } = await client.auth.getUser()
   if (!user) return res.status(401).json({ error: "Unauthorized" })
   const admin = createSupabaseAdmin()
+
+  // 통합 관리자(service_admin): workspace_id가 NULL인 멤버십이 있으면 전체 워크스페이스 목록 반환
+  const { data: serviceAdminRow } = await admin
+    .from("workspace_members")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("role", "service_admin")
+    .is("workspace_id", null)
+    .maybeSingle()
+
+  if (serviceAdminRow) {
+    const { data: allWorkspaces } = await admin
+      .from("workspaces")
+      .select("id, name, account_type")
+      .order("created_at", { ascending: false })
+
+    return res.status(200).json(allWorkspaces ?? [])
+  }
+
+  // 개별 워크스페이스 관리자: 자신이 멤버인 워크스페이스만
   const { data: members } = await admin
     .from("workspace_members")
     .select("workspace_id")

@@ -1,8 +1,10 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import UserList from "@/components/admin/users/UserList"
 import UserForm from "@/components/admin/users/UserForm"
+import { useAdminStatus } from "@/api/auth"
 import { useState } from "react"
 import styled from "@emotion/styled"
+import Link from "next/link"
 import { COLORS } from "@/styles/global-style"
 
 const Container = styled.div`
@@ -76,8 +78,33 @@ const _UserRole = styled.span<{ isAdmin: boolean }>`
   }
 `
 
+const ForbiddenMessage = styled.div`
+  padding: 3rem;
+  text-align: center;
+  color: ${COLORS.gray[600]};
+  a {
+    color: ${COLORS.blue[600]};
+    font-weight: 600;
+  }
+`
+
 export default function UsersPage() {
+  const { data: adminStatus, isLoading: adminStatusLoading } = useAdminStatus()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+
+  const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
+  if (!adminStatusLoading && !isServiceAdmin) {
+    return (
+      <AdminLayout>
+        <Container>
+          <ForbiddenMessage>
+            사용자 관리는 통합 관리자만 이용할 수 있습니다.{" "}
+            <Link href="/admin/integrated">대시보드로 이동</Link>
+          </ForbiddenMessage>
+        </Container>
+      </AdminLayout>
+    )
+  }
 
   return (
     <AdminLayout>

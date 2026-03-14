@@ -1,6 +1,6 @@
 # Rust-First Architecture (참조용)
 
-> **현재 entre-map은 Next.js 단일 앱.** 아래 규칙은 향후 Rust API 도입 시 적용.  
+> **현재 antre-map은 Next.js 단일 앱.** 아래 규칙은 향후 Rust API 도입 시 적용.  
 > **모든 비즈니스 로직과 컴퓨팅 리소스는 Rust API 서버에서 처리한다.**
 > **Next.js(TypeScript)는 UI/UX 인터랙션 전용이다.**
 

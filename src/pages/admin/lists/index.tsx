@@ -5,9 +5,11 @@ import {
   useUpdateShareholderList,
 } from "@/api/workspace"
 import { useCurrentWorkspace } from "@/store/workspaceState"
+import { getWorkspaceAdminBase } from "@/lib/utils"
 import styled from "@emotion/styled"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/router"
 
 const PageTitle = styled.h1`
   font-size: 1.5rem;
@@ -130,7 +132,8 @@ const EmptyState = styled.p`
   text-align: center;
 `
 
-export default function AdminListsPage() {
+/** 워크스페이스 주주명부 목록 본문 (workspace 설정된 상태에서 사용) */
+export function ListsPageContent() {
   const [currentWorkspace] = useCurrentWorkspace()
   const [name, setName] = useState("")
   const [activeFrom, setActiveFrom] = useState("")
@@ -142,6 +145,9 @@ export default function AdminListsPage() {
   )
   const createList = useCreateShareholderList()
   const updateList = useUpdateShareholderList()
+  const base = currentWorkspace
+    ? getWorkspaceAdminBase(currentWorkspace.id)
+    : "/admin"
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,17 +181,10 @@ export default function AdminListsPage() {
     })
   }
 
-  if (!currentWorkspace) {
-    return (
-      <AdminLayout>
-        <PageTitle>주주명부 목록</PageTitle>
-        <EmptyState>워크스페이스를 선택해 주세요.</EmptyState>
-      </AdminLayout>
-    )
-  }
+  if (!currentWorkspace) return null
 
   return (
-    <AdminLayout>
+    <>
       <PageTitle>주주명부 목록</PageTitle>
 
       <FormSection>
@@ -276,11 +275,11 @@ export default function AdminListsPage() {
                     </ToggleLabel>
                   </Td>
                   <Td>
-                    <LinkButton href={`/admin/shareholders?listId=${list.id}`}>
+                    <LinkButton href={`${base}/shareholders?listId=${list.id}`}>
                       주주 보기
                     </LinkButton>
                     {" · "}
-                    <LinkButton href={`/admin/excel-import?listId=${list.id}`}>
+                    <LinkButton href={`${base}/excel-import?listId=${list.id}`}>
                       엑셀 업로드
                     </LinkButton>
                   </Td>
@@ -290,6 +289,25 @@ export default function AdminListsPage() {
           </tbody>
         </Table>
       </TableWrap>
+    </>
+  )
+}
+
+export default function AdminListsPage() {
+  const router = useRouter()
+  const [currentWorkspace] = useCurrentWorkspace()
+
+  useEffect(() => {
+    if (currentWorkspace && typeof window !== "undefined")
+      router.replace(`/workspaces/${currentWorkspace.id}/admin/lists`)
+  }, [currentWorkspace, router])
+
+  if (currentWorkspace) return null
+
+  return (
+    <AdminLayout>
+      <PageTitle>주주명부 목록</PageTitle>
+      <EmptyState>워크스페이스를 선택해 주세요.</EmptyState>
     </AdminLayout>
   )
 }
