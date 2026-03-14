@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/react"
+import * as Sentry from "@sentry/nextjs"
 
 export const useSentryError = () => {
   const logError = (error: Error, context?: Record<string, any>) => {
