@@ -3,6 +3,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import Head from "next/head"
 import styled from "@emotion/styled"
+import { FullPageLoader } from "@/components/FullPageLoader"
 import { useAdminStatus, useGetUserData, useMyWorkspaces } from "@/api/auth"
 import {
   useCreateAdminWorkspace,
@@ -253,8 +254,9 @@ const SecondaryButton = styled.button`
 export default function WorkspacesPage() {
   const router = useRouter()
   const { data: user, isLoading: userLoading } = useGetUserData()
+  const hasUser = Boolean(user?.user)
   const { data: workspaces = [], isLoading: workspacesLoading } =
-    useMyWorkspaces()
+    useMyWorkspaces({ enabled: !userLoading && hasUser })
   const [, setCurrentWorkspace] = useCurrentWorkspace()
   const createWorkspace = useCreateAdminWorkspace()
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -314,6 +316,17 @@ export default function WorkspacesPage() {
     )
   }
 
+  if (workspacesLoading) {
+    return (
+      <>
+        <Head>
+          <title>워크스페이스 선택 | ANT:RE</title>
+        </Head>
+        <FullPageLoader message="워크스페이스 목록을 불러오는 중..." />
+      </>
+    )
+  }
+
   return (
     <>
       <Head>
@@ -334,11 +347,7 @@ export default function WorkspacesPage() {
             만들 수 있습니다.
           </Subtitle>
 
-          {workspacesLoading ? (
-            <EmptyState>
-              <EmptyText>불러오는 중...</EmptyText>
-            </EmptyState>
-          ) : workspaces.length === 0 ? (
+          {workspaces.length === 0 ? (
             <EmptyState>
               <EmptyTitle>워크스페이스가 없습니다</EmptyTitle>
               <EmptyText>

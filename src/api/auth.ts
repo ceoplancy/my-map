@@ -28,6 +28,8 @@ export const usePostSignIn = () => {
     mutationFn: (data: { email: string; password: string }) => postSignIn(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["userData"] })
+      queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
+      queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
       toast.success("정상적으로 로그인 되었습니다.")
       router.push("/workspaces")
     },
@@ -138,11 +140,14 @@ const fetchMyWorkspaces = async (): Promise<MyWorkspaceItem[]> => {
   return Array.isArray(json) ? (json as MyWorkspaceItem[]) : []
 }
 
-export const useMyWorkspaces = () => {
+export type UseMyWorkspacesOptions = { enabled?: boolean }
+
+export const useMyWorkspaces = (options?: UseMyWorkspacesOptions) => {
   return useQuery({
     queryKey: ["myWorkspaces"],
     queryFn: fetchMyWorkspaces,
     staleTime: 1000 * 60 * 2,
+    enabled: options?.enabled ?? true,
   })
 }
 

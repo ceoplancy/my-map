@@ -1,4 +1,5 @@
 import AdminLayout from "@/layouts/AdminLayout"
+import { FullPageLoader } from "@/components/FullPageLoader"
 import { useGetUsers, useAdminWorkspaces } from "@/api/supabase"
 import Link from "next/link"
 import { useRouter } from "next/router"
@@ -211,17 +212,29 @@ const ActionText = styled.span`
 export default function IntegratedDashboardPage() {
   const router = useRouter()
   const { data: user } = useGetUserData()
-  const { data: adminStatus } = useAdminStatus()
+  const { data: adminStatus, isLoading: adminStatusLoading } = useAdminStatus()
   const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
   const { data: users } = useGetUsers(1, 100)
   const { data: workspaces = [] } = useAdminWorkspaces()
+
+  if (adminStatusLoading) {
+    return (
+      <AdminLayout>
+        <FullPageLoader message="통합 관리 대시보드를 불러오는 중..." />
+      </AdminLayout>
+    )
+  }
 
   if (!isServiceAdmin) {
     if (typeof window !== "undefined") {
       router.replace("/admin")
     }
 
-    return null
+    return (
+      <AdminLayout>
+        <FullPageLoader message="이동 중..." />
+      </AdminLayout>
+    )
   }
 
   const userList = users?.users ?? []

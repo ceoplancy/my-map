@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { useGetUserData } from "@/api/auth"
+import { FullPageLoader } from "@/components/FullPageLoader"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { toast } from "react-toastify"
@@ -684,5 +685,5 @@ export default function AdminDashboard() {
     if (typeof window !== "undefined") router.replace("/admin/integrated")
   }, [router])
 
-  return null
+  return <FullPageLoader message="이동 중..." />
 }
