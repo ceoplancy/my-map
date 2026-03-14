@@ -8,4 +8,5 @@ alwaysApply: true
 
 - **`git commit --no-verify`, `git commit -n` 절대 사용 금지.**
 - pre-commit(lint-staged, TypeScript 검사)과 commit-msg(Conventional Commits) 훅을 건너뛰지 않는다.
+- **pre-push**: `pnpm run validate`(lint + build) 실행. Vercel 빌드와 동일한 검증을 푸시 전 로컬에서 수행한다. 푸시 전 실패를 방지하려면 반드시 통과할 것.
 - 커밋이 오래 걸리는 이유가 빌드/린트/타입 검사라면, 훅을 통과한 뒤에만 커밋한다. 해결 방법: 에러 수정, 또는 훅/스크립트 최적화. **훅 스킵은 선택지가 아님.**
