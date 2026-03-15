@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
+import { useFilterMenuForLists } from "@/api/workspace"
 import { useFilterStore } from "@/store/filterState"
 
 import styled from "@emotion/styled"
@@ -12,6 +13,9 @@ import { STORAGE_KEY } from "@/constants/map-storage"
 interface FilterModalChildrenProps {
   handleClose: () => void
   handleApplyFilters: () => void
+
+  /** 워크스페이스 지도: 해당 명부 기준 회사/상태 옵션 사용 */
+  listIds?: string[] | null
 }
 
 const MAJOR_CITIES = [
@@ -52,6 +56,7 @@ const STOCK_RANGES = [
 const FilterModalChildren = ({
   handleClose,
   handleApplyFilters,
+  listIds,
 }: FilterModalChildrenProps) => {
   const {
     statusFilter,
@@ -65,10 +70,25 @@ const FilterModalChildren = ({
     resetFilters,
   } = useFilterStore()
   const { data: user } = useGetUserData()
-  const { data: filterMenu } = useGetFilterMenu()
+  const useListScopedMenu = listIds != null
+  const { data: filterMenu } = useGetFilterMenu({
+    enabled: !useListScopedMenu,
+  })
+  const { data: filterMenuForLists } = useFilterMenuForLists(
+    useListScopedMenu ? listIds : null,
+  )
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
 
-  // 사용자의 허용된 필터 옵션들
+  const statusMenu =
+    (useListScopedMenu
+      ? filterMenuForLists?.statusMenu
+      : filterMenu?.statusMenu) ?? []
+  const companyMenu =
+    (useListScopedMenu
+      ? filterMenuForLists?.companyMenu
+      : filterMenu?.companyMenu) ?? []
+
+  // 사용자의 허용된 필터 옵션들 (워크스페이스가 아닐 때)
   const allowedStatus = useMemo(
     () => user?.user?.user_metadata?.allowedStatus || [],
     [user?.user?.user_metadata?.allowedStatus],
@@ -79,31 +99,28 @@ const FilterModalChildren = ({
     [user?.user?.user_metadata?.allowedCompany],
   )
 
-  // 관리자는 모든 필터를, 일반 사용자는 허용된 필터만 표시
-  const availableStatus = isAdmin
-    ? filterMenu?.statusMenu || []
-    : filterMenu?.statusMenu?.filter((status) =>
-        allowedStatus.includes(status),
-      ) || []
+  // 관리자 또는 워크스페이스 명부 기준이면 전체, 아니면 허용된 것만
+  const availableStatus =
+    isAdmin || useListScopedMenu
+      ? statusMenu
+      : statusMenu.filter((status) => allowedStatus.includes(status))
 
-  const availableCompany = isAdmin
-    ? filterMenu?.companyMenu || []
-    : filterMenu?.companyMenu?.filter((company) =>
-        allowedCompany.includes(company),
-      ) || []
+  const availableCompany =
+    isAdmin || useListScopedMenu
+      ? companyMenu
+      : companyMenu.filter((company) => allowedCompany.includes(company))
 
-  // 선택된 필터가 허용 범위를 벗어나면 자동으로 제거
   useEffect(() => {
-    if (!isAdmin) {
-      setStatusFilter((prev) =>
-        prev.filter((status) => allowedStatus.includes(status)),
-      )
-      setCompanyFilter((prev) =>
-        prev.filter((company) => allowedCompany.includes(company)),
-      )
-    }
+    if (isAdmin || useListScopedMenu) return
+    setStatusFilter((prev) =>
+      prev.filter((status) => allowedStatus.includes(status)),
+    )
+    setCompanyFilter((prev) =>
+      prev.filter((company) => allowedCompany.includes(company)),
+    )
   }, [
     isAdmin,
+    useListScopedMenu,
     allowedStatus,
     allowedCompany,
     setStatusFilter,

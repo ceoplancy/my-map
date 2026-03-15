@@ -107,6 +107,9 @@ export type AddWorkspaceMemberInput = {
   workspaceId: string
   email: string
   role: "service_admin" | "top_admin" | "admin" | "field_agent"
+  name?: string
+  password?: string
+  allowed_list_ids?: string[] | null
 }
 
 export const useAddWorkspaceMember = () => {
@@ -117,17 +120,23 @@ export const useAddWorkspaceMember = () => {
       const { data } = await supabase.auth.getSession()
       const token = data.session?.access_token
       if (!token) throw new Error("Unauthorized")
+      const body: Record<string, unknown> = {
+        workspaceId: input.workspaceId,
+        email: input.email.trim(),
+        role: input.role,
+      }
+      if (input.name !== undefined) body.name = input.name
+      if (input.password !== undefined) body.password = input.password
+      if (input.allowed_list_ids !== undefined)
+        body.allowed_list_ids = input.allowed_list_ids
+
       const res = await fetch("/api/me/workspace-members", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          workspaceId: input.workspaceId,
-          email: input.email.trim(),
-          role: input.role,
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Request failed" }))
@@ -330,6 +339,49 @@ export const useShareholderStats = (params: ShareholdersParams) => {
   })
 }
 
+export type FilterMenuForLists = {
+  statusMenu: string[]
+  companyMenu: string[]
+}
+
+const getFilterMenuForLists = async (
+  listIds: string[],
+): Promise<FilterMenuForLists> => {
+  if (listIds.length === 0) {
+    return { statusMenu: [], companyMenu: [] }
+  }
+
+  const query = supabase
+    .from("shareholders")
+    .select("status, company")
+    .in("list_id", listIds)
+  const { data, error } = await query
+  if (error) {
+    reportError(error)
+
+    return { statusMenu: [], companyMenu: [] }
+  }
+  const rows = data ?? []
+  const statusMenu = [
+    ...new Set(rows.map((r) => r.status).filter(Boolean)),
+  ] as string[]
+  const companyMenu = [
+    ...new Set(rows.map((r) => r.company).filter(Boolean)),
+  ] as string[]
+
+  return { statusMenu, companyMenu }
+}
+
+export const useFilterMenuForLists = (listIds: string[] | null) => {
+  const hasLists = Array.isArray(listIds) && listIds.length > 0
+
+  return useQuery({
+    queryKey: ["filterMenuForLists", listIds],
+    queryFn: () => getFilterMenuForLists(listIds ?? []),
+    enabled: hasLists,
+  })
+}
+
 export const useShareholders = (params: ShareholdersParams) => {
   const enabled = !!(params.listId || (params.listIds?.length ?? 0) > 0)
 
@@ -418,14 +470,20 @@ const recordChangeHistory = async (
   field: string,
   oldValue: string | null,
   newValue: string | null,
-) => {
-  await supabase.from("shareholder_change_history").insert({
+): Promise<void> => {
+  const { error } = await supabase.from("shareholder_change_history").insert({
     shareholder_id: shareholderId,
     changed_by: userId,
     field,
     old_value: oldValue,
     new_value: newValue,
   })
+  if (error) {
+    reportError(error, {
+      toastMessage:
+        "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다.",
+    })
+  }
 }
 
 export const usePatchShareholder = () => {

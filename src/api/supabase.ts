@@ -173,10 +173,13 @@ const getFilterMenu = async () => {
   }
 }
 
-export const useGetFilterMenu = () => {
+export const useGetFilterMenu = (options?: { enabled?: boolean }) => {
+  const enabled = options?.enabled ?? true
+
   return useQuery({
     queryKey: ["filterMenu"],
     queryFn: getFilterMenu,
+    enabled,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

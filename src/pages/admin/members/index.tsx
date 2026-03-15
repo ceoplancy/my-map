@@ -11,6 +11,7 @@ import type { WorkspaceRole } from "@/types/db"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/router"
+import Modal from "@/components/ui/modal"
 
 const Container = styled.div`
   display: flex;
@@ -117,19 +118,7 @@ const HeaderRow = styled.div`
   margin-bottom: 1rem;
 `
 
-const ModalOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`
-
-const ModalBox = styled.div`
-  background: white;
-  border-radius: 12px;
+const ModalContent = styled.div`
   padding: 1.5rem;
   min-width: 320px;
   max-width: 90vw;
@@ -195,21 +184,43 @@ export function MembersPageContent() {
   const addMember = useAddWorkspaceMember()
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addEmail, setAddEmail] = useState("")
+  const [addName, setAddName] = useState("")
+  const [addPassword, setAddPassword] = useState("")
   const [addRole, setAddRole] = useState<WorkspaceRole>("field_agent")
+  const [addAllowedListIds, setAddAllowedListIds] = useState<string[]>([])
 
   const listNamesById = Object.fromEntries(lists.map((l) => [l.id, l.name]))
 
   const handleAddMember = () => {
     if (!workspace?.id || !addEmail.trim()) return
     addMember.mutate(
-      { workspaceId: workspace.id, email: addEmail.trim(), role: addRole },
+      {
+        workspaceId: workspace.id,
+        email: addEmail.trim(),
+        role: addRole,
+        name: addName.trim() || undefined,
+        password: addPassword.trim() || undefined,
+        allowed_list_ids:
+          addAllowedListIds.length > 0 ? addAllowedListIds : null,
+      },
       {
         onSuccess: () => {
           setAddModalOpen(false)
           setAddEmail("")
+          setAddName("")
+          setAddPassword("")
           setAddRole("field_agent")
+          setAddAllowedListIds([])
         },
       },
+    )
+  }
+
+  const toggleAllowedList = (listId: string) => {
+    setAddAllowedListIds((prev) =>
+      prev.includes(listId)
+        ? prev.filter((id) => id !== listId)
+        : [...prev, listId],
     )
   }
 
@@ -225,44 +236,89 @@ export function MembersPageContent() {
           </AddButton>
         </HeaderRow>
       </Header>
-      {addModalOpen && (
-        <ModalOverlay onClick={() => setAddModalOpen(false)}>
-          <ModalBox onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>멤버 추가</ModalTitle>
-            <FieldLabel>이메일</FieldLabel>
-            <FieldInput
-              type="email"
-              value={addEmail}
-              onChange={(e) => setAddEmail(e.target.value)}
-              placeholder="가입된 사용자 이메일"
-            />
-            <FieldLabel>역할</FieldLabel>
-            <FieldSelect
-              value={addRole}
-              onChange={(e) => setAddRole(e.target.value as WorkspaceRole)}>
-              {(Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]).map(
-                (r) => (
-                  <option key={r} value={r}>
-                    {WORKSPACE_ROLE_LABELS[r]}
-                  </option>
-                ),
-              )}
-            </FieldSelect>
-            <ModalActions>
-              <ModalButton type="button" onClick={() => setAddModalOpen(false)}>
-                취소
-              </ModalButton>
-              <ModalButton
-                primary
-                type="button"
-                onClick={handleAddMember}
-                disabled={addMember.isPending || !addEmail.trim()}>
-                {addMember.isPending ? "추가 중…" : "추가"}
-              </ModalButton>
-            </ModalActions>
-          </ModalBox>
-        </ModalOverlay>
-      )}
+      <Modal open={addModalOpen} setOpen={setAddModalOpen}>
+        <ModalContent>
+          <ModalTitle>멤버 추가</ModalTitle>
+          <FieldLabel>이메일 (필수)</FieldLabel>
+          <FieldInput
+            type="email"
+            value={addEmail}
+            onChange={(e) => setAddEmail(e.target.value)}
+            placeholder="example@email.com"
+          />
+          <FieldLabel>이름 (선택)</FieldLabel>
+          <FieldInput
+            type="text"
+            value={addName}
+            onChange={(e) => setAddName(e.target.value)}
+            placeholder="표시 이름"
+          />
+          <FieldLabel>
+            비밀번호 (선택, 미가입 사용자일 때 6자 이상 입력 시 새 계정 생성)
+          </FieldLabel>
+          <FieldInput
+            type="password"
+            value={addPassword}
+            onChange={(e) => setAddPassword(e.target.value)}
+            placeholder="6자 이상"
+            autoComplete="new-password"
+          />
+          <FieldLabel>역할</FieldLabel>
+          <FieldSelect
+            value={addRole}
+            onChange={(e) => setAddRole(e.target.value as WorkspaceRole)}>
+            {(Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]).map(
+              (r) => (
+                <option key={r} value={r}>
+                  {WORKSPACE_ROLE_LABELS[r]}
+                </option>
+              ),
+            )}
+          </FieldSelect>
+          {lists.length > 0 && (
+            <>
+              <FieldLabel>
+                담당 명부 (용역만 해당, 선택한 명부만 지도에서 조회 가능)
+              </FieldLabel>
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  maxHeight: "120px",
+                  overflowY: "auto",
+                }}>
+                {lists.map((list) => (
+                  <label
+                    key={list.id}
+                    style={{
+                      display: "block",
+                      fontSize: "0.875rem",
+                      marginBottom: "0.25rem",
+                    }}>
+                    <input
+                      type="checkbox"
+                      checked={addAllowedListIds.includes(list.id)}
+                      onChange={() => toggleAllowedList(list.id)}
+                    />{" "}
+                    {list.name}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+          <ModalActions>
+            <ModalButton type="button" onClick={() => setAddModalOpen(false)}>
+              취소
+            </ModalButton>
+            <ModalButton
+              primary
+              type="button"
+              onClick={handleAddMember}
+              disabled={addMember.isPending || !addEmail.trim()}>
+              {addMember.isPending ? "추가 중…" : "추가"}
+            </ModalButton>
+          </ModalActions>
+        </ModalContent>
+      </Modal>
       <TableWrapper>
         {isLoading ? (
           <div style={{ padding: "2rem" }}>로딩 중...</div>

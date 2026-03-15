@@ -10,7 +10,12 @@ interface FilteredStats {
   completedStocks: number
 }
 
-export const useFilteredStats = (params?: FilterParams) => {
+export const useFilteredStats = (
+  params?: FilterParams,
+  options?: { enabled?: boolean },
+) => {
+  const enabled = options?.enabled ?? true
+
   return useQuery<FilteredStats>({
     queryKey: [
       "filteredStats",
@@ -20,6 +25,7 @@ export const useFilteredStats = (params?: FilterParams) => {
       params?.stocks,
       params?.userMetadata,
     ],
+    enabled,
     queryFn: async () => {
       // 전체 데이터 쿼리
       let query = supabase.from("excel").select("*", { count: "exact" })

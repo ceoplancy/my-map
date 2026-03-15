@@ -69,9 +69,21 @@ export default withApiHandler(async (req, res) => {
         .status(403)
         .json({ error: "워크스페이스 관리자만 멤버를 추가할 수 있습니다." })
     }
-    const body = req.body as { email?: string; role?: string }
+    const body = req.body as {
+      email?: string
+      role?: string
+      name?: string
+      password?: string
+      allowed_list_ids?: string[] | null
+    }
     const email = typeof body?.email === "string" ? body.email.trim() : ""
     const role = body?.role
+    const name = typeof body?.name === "string" ? body.name.trim() : ""
+    const password = typeof body?.password === "string" ? body.password : ""
+    const allowedListIds = Array.isArray(body?.allowed_list_ids)
+      ? body.allowed_list_ids
+      : null
+
     if (!email) {
       return res.status(400).json({ error: "email required" })
     }
@@ -84,6 +96,7 @@ export default withApiHandler(async (req, res) => {
           "role must be one of: service_admin, top_admin, admin, field_agent",
       })
     }
+
     let page = 0
     const perPage = 1000
     let foundUserId: string | null = null
@@ -103,22 +116,58 @@ export default withApiHandler(async (req, res) => {
       if (users.length < perPage) break
       page++
     }
+
     if (!foundUserId) {
-      return res
-        .status(404)
-        .json({ error: "해당 이메일로 가입된 사용자를 찾을 수 없습니다." })
+      if (!password || password.length < 6) {
+        return res.status(400).json({
+          error:
+            "해당 이메일로 가입된 사용자가 없습니다. 새로 만들려면 비밀번호(6자 이상)를 입력하세요.",
+        })
+      }
+      const { data: newUser, error: createErr } =
+        await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: name ? { name } : undefined,
+        })
+      if (createErr) {
+        return res.status(400).json({
+          error: createErr.message || "사용자 생성에 실패했습니다.",
+        })
+      }
+      foundUserId = newUser?.user?.id ?? null
+      if (!foundUserId) {
+        return res
+          .status(500)
+          .json({ error: "사용자 생성 후 ID를 확인할 수 없습니다." })
+      }
     }
+
     const existing = (members ?? []).find((m) => m.user_id === foundUserId)
     if (existing) {
       return res
         .status(400)
         .json({ error: "이미 해당 워크스페이스 멤버입니다." })
     }
-    const { error: insertErr } = await admin.from("workspace_members").insert({
+
+    const insertPayload: {
+      workspace_id: string
+      user_id: string
+      role: (typeof WORKSPACE_ROLES)[number]
+      allowed_list_ids?: string[] | null
+    } = {
       workspace_id: workspaceId,
       user_id: foundUserId,
       role: role as (typeof WORKSPACE_ROLES)[number],
-    })
+    }
+    if (allowedListIds !== undefined) {
+      insertPayload.allowed_list_ids = allowedListIds
+    }
+
+    const { error: insertErr } = await admin
+      .from("workspace_members")
+      .insert(insertPayload)
     if (insertErr) {
       return res.status(500).json({ error: insertErr.message })
     }

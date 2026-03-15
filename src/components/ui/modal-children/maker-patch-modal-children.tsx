@@ -27,17 +27,20 @@ interface MakerPatchModalChildrenProps {
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 }
 
-const findDifferences = (original: any, modified: any) => {
-  const differences: Record<string, { original: any; modified: any }> = {}
-
-  Object.keys(modified).forEach((key) => {
+function findDifferences<T extends Record<string, unknown>>(
+  original: T,
+  modified: T,
+): Record<string, { original: unknown; modified: unknown }> {
+  const differences: Record<string, { original: unknown; modified: unknown }> =
+    {}
+  for (const key of Object.keys(modified)) {
     if (original[key] !== modified[key]) {
       differences[key] = {
         original: original[key],
         modified: modified[key],
       }
     }
-  })
+  }
 
   return differences
 }
@@ -68,12 +71,13 @@ const MakerPatchModalChildren = ({
     onSubmit: (values) => {
       if (!makerData) return
 
+      const status = values.status || "미방문"
       const original = {
         status: makerData.status,
         memo: makerData.memo,
       }
       const modified = {
-        status: values.status,
+        status,
         memo: values.memo,
       }
       const modifier = user?.user.user_metadata.name
@@ -86,7 +90,7 @@ const MakerPatchModalChildren = ({
       const patchData = makerData.history
         ? ({
             ...values,
-            status: values.status,
+            status,
             memo: values.memo,
             history: [
               ...(makerData.history as string[]),
@@ -95,7 +99,7 @@ const MakerPatchModalChildren = ({
           } as Excel)
         : ({
             ...values,
-            status: values.status,
+            status,
             memo: values.memo,
             history: [{ modifier, modified_at, changes }],
           } as Excel)
@@ -154,21 +158,20 @@ const MakerPatchModalChildren = ({
           <Section>
             <SectionTitle>상태 변경</SectionTitle>
             <SelectWrapper>
-              {formik.values.status ? (
-                <StyledSelect
-                  name="status"
-                  value={formik.values.status}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}>
-                  <option value="">선택하세요</option>
-                  <option value="미방문">미방문</option>
-                  <option value="완료">완료</option>
-                  <option value="보류">보류</option>
-                  <option value="실패">실패</option>
-                </StyledSelect>
-              ) : (
-                <ErrorMessage>
-                  상태 정보가 존재하지 않습니다. 관리자에게 문의하세요.
+              <StyledSelect
+                name="status"
+                value={formik.values.status || ""}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}>
+                <option value="">선택하세요</option>
+                <option value="미방문">미방문</option>
+                <option value="완료">완료</option>
+                <option value="보류">보류</option>
+                <option value="실패">실패</option>
+              </StyledSelect>
+              {formik.values.status === "" && formik.submitCount > 0 && (
+                <ErrorMessage style={{ marginTop: "0.25rem" }}>
+                  상태를 선택해 주세요.
                 </ErrorMessage>
               )}
             </SelectWrapper>

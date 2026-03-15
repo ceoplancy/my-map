@@ -14,6 +14,7 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
   const { data: user } = useGetUserData()
   const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
 
+  const isListScoped = listIds != null
   const { data: shareholderStats, isLoading: shareholderLoading } =
     useShareholderStats({
       listIds: listIds ?? null,
@@ -23,27 +24,26 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
       stocks: stocks?.length ? stocks : undefined,
     })
 
-  const { data: excelStats, isLoading: excelLoading } = useFilteredStats({
-    status: statusFilter,
-    company: companyFilter,
-    city: cityFilter,
-    stocks: stocks,
-    userMetadata: user?.user?.user_metadata,
-  })
+  const { data: excelStats, isLoading: excelLoading } = useFilteredStats(
+    {
+      status: statusFilter,
+      company: companyFilter,
+      city: cityFilter,
+      stocks: stocks,
+      userMetadata: user?.user?.user_metadata,
+    },
+    { enabled: !isListScoped },
+  )
 
-  const stats =
-    listIds !== undefined && listIds !== null
-      ? (shareholderStats ?? {
-          totalShareholders: 0,
-          totalStocks: 0,
-          completedShareholders: 0,
-          completedStocks: 0,
-        })
-      : excelStats
-  const isLoading =
-    listIds !== undefined && listIds !== null
-      ? shareholderLoading
-      : excelLoading
+  const stats = isListScoped
+    ? (shareholderStats ?? {
+        totalShareholders: 0,
+        totalStocks: 0,
+        completedShareholders: 0,
+        completedStocks: 0,
+      })
+    : excelStats
+  const isLoading = isListScoped ? shareholderLoading : excelLoading
 
   return (
     <Container>

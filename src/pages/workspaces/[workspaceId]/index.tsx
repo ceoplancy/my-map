@@ -415,6 +415,7 @@ const WorkspaceMapPage = () => {
             <FilterModalChildren
               handleClose={() => setIsFilterModalOpen(false)}
               handleApplyFilters={handleApplyFilters}
+              listIds={visibleListIds.length > 0 ? visibleListIds : null}
             />
           </Modal>
         </Map>
