@@ -4,8 +4,6 @@ import styled from "@emotion/styled"
 import {
   Dashboard,
   People,
-  Description,
-  CloudUpload,
   List as ListIcon,
   Business,
 } from "@mui/icons-material"
@@ -108,12 +106,12 @@ const INTEGRATED_MENU_ITEMS = [
   { title: "워크스페이스 관리", path: ADMIN.WORKSPACES, icon: <Business /> },
 ]
 
-/** 워크스페이스: 주주명부 그룹 - 목록, 관리, 엑셀 업로드 */
-const WORKSPACE_SHAREHOLDER_ITEMS = [
-  { title: "목록", path: "/lists", icon: <ListIcon /> },
-  { title: "관리", path: "/shareholders", icon: <Description /> },
-  { title: "엑셀 업로드", path: "/excel-import", icon: <CloudUpload /> },
-]
+/** 워크스페이스: 주주명부 (목록·관리·엑셀 통합) */
+const WORKSPACE_SHAREHOLDER_ITEM = {
+  title: "주주명부",
+  path: "/lists",
+  icon: <ListIcon />,
+}
 
 /** 워크스페이스: 사용자 관리 */
 const WORKSPACE_USERS = {
@@ -225,11 +223,10 @@ export default function Sidebar() {
               {currentWorkspace && (
                 <>
                   <SectionLabel>주주명부</SectionLabel>
-                  <NavItems
-                    items={WORKSPACE_SHAREHOLDER_ITEMS}
+                  <SingleNavLink
+                    item={WORKSPACE_SHAREHOLDER_ITEM}
                     pathname={pathname}
                     pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
-                    useSubStyle
                   />
                 </>
               )}

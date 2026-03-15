@@ -1,10 +1,9 @@
-import { useLayoutEffect } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/router"
 import AdminLayout from "@/layouts/AdminLayout"
-import { useGetUserData, useMyWorkspaces } from "@/api/auth"
-import { useCurrentWorkspace } from "@/store/workspaceState"
-import { ShareholdersPageContent } from "@/pages/admin/shareholders"
 import GlobalSpinner from "@/components/ui/global-spinner"
+import { getWorkspaceAdminBase } from "@/lib/utils"
+import { useWorkspaceAdminRoute } from "@/hooks/useWorkspaceAdminRoute"
 import styled from "@emotion/styled"
 
 const SpinnerFrame = styled.div`
@@ -14,25 +13,23 @@ const SpinnerFrame = styled.div`
   min-height: 40vh;
 `
 
+/** 주주명부 목록·관리 통합 페이지(lists)로 리다이렉트 */
 export default function WorkspaceAdminShareholdersPage() {
   const router = useRouter()
-  const { workspaceId } = router.query as { workspaceId: string }
-  const { data: user } = useGetUserData()
-  const { data: workspaces = [], isLoading: workspacesLoading } =
-    useMyWorkspaces()
-  const [, setCurrentWorkspace] = useCurrentWorkspace()
+  const { listId } = router.query as {
+    workspaceId: string
+    listId?: string
+  }
+  const { resolvedWorkspace, isReady } = useWorkspaceAdminRoute()
 
-  const resolvedWorkspace =
-    workspaceId && Array.isArray(workspaces)
-      ? (workspaces.find((w) => w.id === workspaceId) ?? null)
-      : null
+  useEffect(() => {
+    if (!isReady || !resolvedWorkspace) return
+    const base = getWorkspaceAdminBase(resolvedWorkspace.id)
+    const query = typeof listId === "string" ? { listId } : {}
+    router.replace({ pathname: `${base}/lists`, query })
+  }, [isReady, resolvedWorkspace, listId, router])
 
-  useLayoutEffect(() => {
-    if (!resolvedWorkspace) return
-    setCurrentWorkspace(resolvedWorkspace)
-  }, [resolvedWorkspace, setCurrentWorkspace])
-
-  if (!router.isReady || !workspaceId || workspacesLoading) {
+  if (!isReady) {
     return (
       <AdminLayout>
         <SpinnerFrame>
@@ -48,11 +45,11 @@ export default function WorkspaceAdminShareholdersPage() {
     return null
   }
 
-  if (!user?.user) return null
-
   return (
     <AdminLayout>
-      <ShareholdersPageContent />
+      <SpinnerFrame>
+        <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+      </SpinnerFrame>
     </AdminLayout>
   )
 }

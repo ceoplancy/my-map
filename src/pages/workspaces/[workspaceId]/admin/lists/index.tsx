@@ -1,10 +1,9 @@
-import { useLayoutEffect } from "react"
 import { useRouter } from "next/router"
 import AdminLayout from "@/layouts/AdminLayout"
-import { useGetUserData, useMyWorkspaces } from "@/api/auth"
-import { useCurrentWorkspace } from "@/store/workspaceState"
+import { useGetUserData } from "@/api/auth"
 import { ListsPageContent } from "@/pages/admin/lists"
 import GlobalSpinner from "@/components/ui/global-spinner"
+import { useWorkspaceAdminRoute } from "@/hooks/useWorkspaceAdminRoute"
 import styled from "@emotion/styled"
 
 const SpinnerFrame = styled.div`
@@ -16,23 +15,10 @@ const SpinnerFrame = styled.div`
 
 export default function WorkspaceAdminListsPage() {
   const router = useRouter()
-  const { workspaceId } = router.query as { workspaceId: string }
+  const { resolvedWorkspace, isReady } = useWorkspaceAdminRoute()
   const { data: user } = useGetUserData()
-  const { data: workspaces = [], isLoading: workspacesLoading } =
-    useMyWorkspaces()
-  const [, setCurrentWorkspace] = useCurrentWorkspace()
 
-  const resolvedWorkspace =
-    workspaceId && Array.isArray(workspaces)
-      ? (workspaces.find((w) => w.id === workspaceId) ?? null)
-      : null
-
-  useLayoutEffect(() => {
-    if (!resolvedWorkspace) return
-    setCurrentWorkspace(resolvedWorkspace)
-  }, [resolvedWorkspace, setCurrentWorkspace])
-
-  if (!router.isReady || !workspaceId || workspacesLoading) {
+  if (!isReady) {
     return (
       <AdminLayout>
         <SpinnerFrame>

@@ -1,7 +1,7 @@
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
+import type { MapMarkerData } from "@/types/map"
 import { Dispatch, SetStateAction, useEffect } from "react"
-import type { UseMutateFunction } from "@tanstack/react-query"
 import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
@@ -12,9 +12,18 @@ import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
 
+export type MakerDataMutateOptions = {
+  onSuccess?: () => void
+  onError?: () => void
+  onSettled?: () => void
+}
+
 interface MakerPatchModalChildrenProps {
-  makerData: Excel | null
-  makerDataMutate: UseMutateFunction<void, unknown, Excel, unknown>
+  makerData: MapMarkerData | null
+  makerDataMutate: (
+    _patchData: Excel | MapMarkerData,
+    _options?: MakerDataMutateOptions,
+  ) => void
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 }
 

@@ -327,7 +327,7 @@ const WorkspaceMapPage = () => {
               <FilterAlt />
               필터 설정
             </MenuItem>
-            <StatsCard />
+            <StatsCard listIds={visibleListIds} />
             {hasWorkspace && visibleListIds.length === 0 && (
               <EmptyWorkspaceHint>
                 이 워크스페이스에 노출된 주주명부가 없습니다. 관리자 화면에서

@@ -14,11 +14,15 @@ export type WorkspaceMemberWithUser = {
   is_team_leader: boolean | null
 }
 
-/** GET: workspace members with email/name from Auth. Requester must be a member of the workspace. */
+const WORKSPACE_ROLES = [
+  "service_admin",
+  "top_admin",
+  "admin",
+  "field_agent",
+] as const
+
+/** GET: workspace members. POST: add member by email (workspace admin only). */
 export default withApiHandler(async (req, res) => {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" })
-  }
   const token = getBearerToken(req)
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" })
@@ -27,8 +31,11 @@ export default withApiHandler(async (req, res) => {
   if (!auth) return res.status(401).json({ error: "Unauthorized" })
   const { user } = auth
 
-  const workspaceId = req.query.workspaceId
-  if (typeof workspaceId !== "string" || !workspaceId) {
+  const workspaceId =
+    typeof req.query.workspaceId === "string"
+      ? req.query.workspaceId
+      : (req.body as { workspaceId?: string })?.workspaceId
+  if (!workspaceId) {
     return res.status(400).json({ error: "workspaceId required" })
   }
 
@@ -47,10 +54,80 @@ export default withApiHandler(async (req, res) => {
   }
 
   const requesterMember = (members ?? []).find((m) => m.user_id === user.id)
-  const isAdmin = await isServiceAdmin(token)
+  const isServiceAdminUser = await isServiceAdmin(token)
+  const isWorkspaceAdmin =
+    requesterMember &&
+    ["service_admin", "top_admin", "admin"].includes(requesterMember.role)
 
-  if (!requesterMember && !isAdmin) {
+  if (!requesterMember && !isServiceAdminUser) {
     return res.status(403).json({ error: "Not a member of this workspace" })
+  }
+
+  if (req.method === "POST") {
+    if (!isWorkspaceAdmin && !isServiceAdminUser) {
+      return res
+        .status(403)
+        .json({ error: "워크스페이스 관리자만 멤버를 추가할 수 있습니다." })
+    }
+    const body = req.body as { email?: string; role?: string }
+    const email = typeof body?.email === "string" ? body.email.trim() : ""
+    const role = body?.role
+    if (!email) {
+      return res.status(400).json({ error: "email required" })
+    }
+    if (
+      !role ||
+      !WORKSPACE_ROLES.includes(role as (typeof WORKSPACE_ROLES)[number])
+    ) {
+      return res.status(400).json({
+        error:
+          "role must be one of: service_admin, top_admin, admin, field_agent",
+      })
+    }
+    let page = 0
+    const perPage = 1000
+    let foundUserId: string | null = null
+    while (true) {
+      const { data: listData } = await admin.auth.admin.listUsers({
+        page,
+        perPage,
+      })
+      const users = listData?.users ?? []
+      const match = users.find(
+        (u) => (u.email ?? "").toLowerCase() === email.toLowerCase(),
+      )
+      if (match) {
+        foundUserId = match.id
+        break
+      }
+      if (users.length < perPage) break
+      page++
+    }
+    if (!foundUserId) {
+      return res
+        .status(404)
+        .json({ error: "해당 이메일로 가입된 사용자를 찾을 수 없습니다." })
+    }
+    const existing = (members ?? []).find((m) => m.user_id === foundUserId)
+    if (existing) {
+      return res
+        .status(400)
+        .json({ error: "이미 해당 워크스페이스 멤버입니다." })
+    }
+    const { error: insertErr } = await admin.from("workspace_members").insert({
+      workspace_id: workspaceId,
+      user_id: foundUserId,
+      role: role as (typeof WORKSPACE_ROLES)[number],
+    })
+    if (insertErr) {
+      return res.status(500).json({ error: insertErr.message })
+    }
+
+    return res.status(201).json({ success: true })
+  }
+
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" })
   }
 
   const withUsers: WorkspaceMemberWithUser[] = []

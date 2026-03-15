@@ -1,10 +1,10 @@
-import { useLayoutEffect } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/router"
 import AdminLayout from "@/layouts/AdminLayout"
-import { useGetUserData, useMyWorkspaces } from "@/api/auth"
-import { useCurrentWorkspace } from "@/store/workspaceState"
 import { ExcelImportPageContent } from "@/pages/admin/excel-import"
 import GlobalSpinner from "@/components/ui/global-spinner"
+import { getWorkspaceAdminBase } from "@/lib/utils"
+import { useWorkspaceAdminRoute } from "@/hooks/useWorkspaceAdminRoute"
 import styled from "@emotion/styled"
 
 const SpinnerFrame = styled.div`
@@ -14,25 +14,20 @@ const SpinnerFrame = styled.div`
   min-height: 40vh;
 `
 
+/** listId 없이 접근 시 주주명부 목록으로 리다이렉트. listId 있으면 엑셀 업로드 본문 표시 */
 export default function WorkspaceAdminExcelImportPage() {
   const router = useRouter()
-  const { workspaceId } = router.query as { workspaceId: string }
-  const { data: user } = useGetUserData()
-  const { data: workspaces = [], isLoading: workspacesLoading } =
-    useMyWorkspaces()
-  const [, setCurrentWorkspace] = useCurrentWorkspace()
+  const { listId } = router.query as { listId?: string }
+  const { resolvedWorkspace, isReady } = useWorkspaceAdminRoute()
+  const hasListId = typeof listId === "string" && listId.length > 0
 
-  const resolvedWorkspace =
-    workspaceId && Array.isArray(workspaces)
-      ? (workspaces.find((w) => w.id === workspaceId) ?? null)
-      : null
+  useEffect(() => {
+    if (!isReady || !resolvedWorkspace || hasListId) return
+    const base = getWorkspaceAdminBase(resolvedWorkspace.id)
+    router.replace(`${base}/lists`)
+  }, [isReady, resolvedWorkspace, hasListId, router])
 
-  useLayoutEffect(() => {
-    if (!resolvedWorkspace) return
-    setCurrentWorkspace(resolvedWorkspace)
-  }, [resolvedWorkspace, setCurrentWorkspace])
-
-  if (!router.isReady || !workspaceId || workspacesLoading) {
+  if (!isReady) {
     return (
       <AdminLayout>
         <SpinnerFrame>
@@ -48,7 +43,15 @@ export default function WorkspaceAdminExcelImportPage() {
     return null
   }
 
-  if (!user?.user) return null
+  if (!hasListId) {
+    return (
+      <AdminLayout>
+        <SpinnerFrame>
+          <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+        </SpinnerFrame>
+      </AdminLayout>
+    )
+  }
 
   return (
     <AdminLayout>

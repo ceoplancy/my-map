@@ -1,5 +1,5 @@
 import styled from "@emotion/styled"
-import { Excel } from "@/types/excel"
+import type { MapMarkerData } from "@/types/map"
 import { toast } from "react-toastify"
 import { ContentCopy, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
@@ -19,7 +19,7 @@ export type HistoryItem = {
   changes: HistoryChange
 }
 
-const ExcelDataTable = ({ data }: { data: Excel }) => {
+const ExcelDataTable = ({ data }: { data: MapMarkerData }) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -36,7 +36,7 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
         <tbody>
           <TableRow>
             <TableHeader>주주번호</TableHeader>
-            <TableCell>{data.id}</TableCell>
+            <TableCell>{String(data.id)}</TableCell>
           </TableRow>
           <TableRow>
             <TableHeader>이름</TableHeader>

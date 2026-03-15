@@ -1,20 +1,49 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useFilteredStats } from "@/hooks/useFilteredStats"
+import { useShareholderStats } from "@/api/workspace"
 import { useGetUserData } from "@/api/auth"
 import { useFilterStore } from "@/store/filterState"
 
-const StatsCard = () => {
+export type StatsCardProps = {
+  /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계. 있으면 shareholders 테이블 사용 */
+  listIds?: string[] | null
+}
+
+const StatsCard = ({ listIds }: StatsCardProps) => {
   const { data: user } = useGetUserData()
   const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
 
-  const { data: stats, isLoading } = useFilteredStats({
+  const { data: shareholderStats, isLoading: shareholderLoading } =
+    useShareholderStats({
+      listIds: listIds ?? null,
+      status: statusFilter?.length ? statusFilter : undefined,
+      company: companyFilter?.length ? companyFilter : undefined,
+      city: cityFilter || undefined,
+      stocks: stocks?.length ? stocks : undefined,
+    })
+
+  const { data: excelStats, isLoading: excelLoading } = useFilteredStats({
     status: statusFilter,
     company: companyFilter,
     city: cityFilter,
     stocks: stocks,
-    userMetadata: user?.user.user_metadata,
+    userMetadata: user?.user?.user_metadata,
   })
+
+  const stats =
+    listIds !== undefined && listIds !== null
+      ? (shareholderStats ?? {
+          totalShareholders: 0,
+          totalStocks: 0,
+          completedShareholders: 0,
+          completedStocks: 0,
+        })
+      : excelStats
+  const isLoading =
+    listIds !== undefined && listIds !== null
+      ? shareholderLoading
+      : excelLoading
 
   return (
     <Container>
@@ -25,13 +54,15 @@ const StatsCard = () => {
       <StatItem>
         <StatLabel>총 주주 수</StatLabel>
         <StatValue>
-          {isLoading ? "-" : `${stats?.totalShareholders.toLocaleString()}명`}
+          {isLoading
+            ? "-"
+            : `${(stats?.totalShareholders ?? 0).toLocaleString()}명`}
         </StatValue>
       </StatItem>
       <StatItem>
         <StatLabel>총 주식 수</StatLabel>
         <StatValue>
-          {isLoading ? "-" : `${stats?.totalStocks.toLocaleString()}주`}
+          {isLoading ? "-" : `${(stats?.totalStocks ?? 0).toLocaleString()}주`}
         </StatValue>
       </StatItem>
       <StatItem>
@@ -39,13 +70,15 @@ const StatsCard = () => {
         <StatValue>
           {isLoading
             ? "-"
-            : `${stats?.completedShareholders.toLocaleString()}명`}
+            : `${(stats?.completedShareholders ?? 0).toLocaleString()}명`}
         </StatValue>
       </StatItem>
       <StatItem>
         <StatLabel>완료 주식 수</StatLabel>
         <StatValue>
-          {isLoading ? "-" : `${stats?.completedStocks.toLocaleString()}주`}
+          {isLoading
+            ? "-"
+            : `${(stats?.completedStocks ?? 0).toLocaleString()}주`}
         </StatValue>
       </StatItem>
     </Container>

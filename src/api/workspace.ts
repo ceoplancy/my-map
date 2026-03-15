@@ -103,6 +103,49 @@ export const useWorkspaceMembersWithUsers = (workspaceId: string | null) => {
   })
 }
 
+export type AddWorkspaceMemberInput = {
+  workspaceId: string
+  email: string
+  role: "service_admin" | "top_admin" | "admin" | "field_agent"
+}
+
+export const useAddWorkspaceMember = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: AddWorkspaceMemberInput) => {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error("Unauthorized")
+      const res = await fetch("/api/me/workspace-members", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          workspaceId: input.workspaceId,
+          email: input.email.trim(),
+          role: input.role,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Request failed" }))
+        throw new Error(err.error ?? res.statusText)
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembersWithUsers", variables.workspaceId],
+      })
+      toast.success("멤버가 추가되었습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "멤버 추가에 실패했습니다.")
+    },
+  })
+}
+
 export const useShareholderLists = (workspaceId: string | null) => {
   return useQuery({
     queryKey: ["shareholderLists", workspaceId],
@@ -201,6 +244,90 @@ const getShareholders = async (params: ShareholdersParams) => {
   }
 
   return data ?? []
+}
+
+export type ShareholderStats = {
+  totalShareholders: number
+  totalStocks: number
+  completedShareholders: number
+  completedStocks: number
+}
+
+const getShareholderStats = async (
+  params: ShareholdersParams,
+): Promise<ShareholderStats> => {
+  const listIds = params.listIds?.length
+    ? params.listIds
+    : params.listId
+      ? [params.listId]
+      : []
+  if (listIds.length === 0) {
+    return {
+      totalShareholders: 0,
+      totalStocks: 0,
+      completedShareholders: 0,
+      completedStocks: 0,
+    }
+  }
+
+  let query = supabase.from("shareholders").select("status, stocks")
+  if (listIds.length === 1) {
+    query = query.eq("list_id", listIds[0])
+  } else {
+    query = query.in("list_id", listIds)
+  }
+  if (params.status?.length) {
+    query = query.in("status", params.status)
+  }
+  if (params.company?.length) {
+    query = query.in("company", params.company)
+  }
+  if (params.city) {
+    query = query.like("address", `%${params.city}%`)
+  }
+  if (params.stocks?.length) {
+    const conditions = params.stocks
+      .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
+      .join(",")
+    query = query.or(conditions)
+  }
+  const { data, error } = await query
+  if (error) {
+    reportError(error)
+    throw new Error(error.message)
+  }
+  const rows = data ?? []
+  const totalStocks = rows.reduce((sum, r) => sum + (Number(r.stocks) || 0), 0)
+  const completedRows = rows.filter((r) => r.status === "완료")
+  const completedStocks = completedRows.reduce(
+    (sum, r) => sum + (Number(r.stocks) || 0),
+    0,
+  )
+
+  return {
+    totalShareholders: rows.length,
+    totalStocks,
+    completedShareholders: completedRows.length,
+    completedStocks,
+  }
+}
+
+export const useShareholderStats = (params: ShareholdersParams) => {
+  const enabled = !!(params.listId || (params.listIds?.length ?? 0) > 0)
+
+  return useQuery({
+    queryKey: [
+      "shareholderStats",
+      params.listId,
+      params.listIds,
+      params.status,
+      params.company,
+      params.city,
+      params.stocks,
+    ],
+    queryFn: () => getShareholderStats(params),
+    enabled,
+  })
 }
 
 export const useShareholders = (params: ShareholdersParams) => {

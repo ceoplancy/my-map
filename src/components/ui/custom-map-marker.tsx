@@ -1,8 +1,11 @@
 import { useGetFilterMenu, usePatchExcel } from "@/api/supabase"
-import { useEffect, useState } from "react"
+import { usePatchShareholder } from "@/api/workspace"
+import { useSession } from "@/api/auth"
+import { useCallback, useEffect, useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
+import { type MapMarkerData, isShareholderMarker } from "@/types/map"
 import Modal from "./modal"
 import MakerPatchModalChildren from "./modal-children/maker-patch-modal-children"
 import ExcelDataTable from "./excel-data-table"
@@ -11,6 +14,9 @@ import Portal from "./portal"
 import { toast } from "react-toastify"
 import { ContentCopy, Edit, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
+
+export type { MapMarkerData } from "@/types/map"
+const isShareholder = isShareholderMarker
 
 // status에 따른 마커 색상
 export const STATUS_MARKERS = {
@@ -57,9 +63,9 @@ export const getMarkerImage = (
 }
 
 interface CustomMapMarkerProps {
-  marker: Excel
-  markers?: Excel[]
-  onMarkerSelect?: (_marker: Excel | null) => void
+  marker: MapMarkerData
+  markers?: MapMarkerData[]
+  onMarkerSelect?: (_marker: MapMarkerData | null) => void
   initialInfoWindowOpen?: boolean
   forceKeepOpen?: boolean
 }
@@ -86,12 +92,55 @@ const CustomMapMarker = ({
   const [makerDataUpdateIsModalOpen, setMakerDataUpdateIsModalOpen] =
     useState(false)
   const [isMarkerSelectModalOpen, setIsMarkerSelectModalOpen] = useState(false)
-  const [selectedGroupMarker, setSelectedGroupMarker] = useState<Excel | null>(
-    null,
-  )
+  const [selectedGroupMarker, setSelectedGroupMarker] =
+    useState<MapMarkerData | null>(null)
 
-  const { mutate: makerDataMutate, isPending: makerDataMutateIsLoading } =
-    usePatchExcel()
+  const { mutate: patchExcel, isPending: excelMutateLoading } = usePatchExcel()
+  const { mutate: patchShareholder, isPending: shareholderMutateLoading } =
+    usePatchShareholder()
+  const session = useSession().data
+  const userId = session?.user?.id ?? ""
+
+  const isShareholderMarker = isShareholder(marker)
+  const makerDataMutateIsLoading = isShareholderMarker
+    ? shareholderMutateLoading
+    : excelMutateLoading
+
+  const makerDataMutate = useCallback(
+    (
+      patchData: MapMarkerData | Excel,
+      options?: {
+        onSuccess?: () => void
+        onError?: () => void
+        onSettled?: () => void
+      },
+    ) => {
+      if (isShareholderMarker) {
+        patchShareholder(
+          {
+            patch: {
+              id: String((patchData as { id: string | number }).id),
+              status: patchData.status ?? undefined,
+              memo: patchData.memo ?? undefined,
+            },
+            userId,
+          },
+          {
+            onSuccess: () => {
+              toast.success("주주 정보가 수정되었습니다.")
+              options?.onSuccess?.()
+            },
+            onSettled: () => {
+              options?.onSettled?.()
+            },
+          },
+        )
+      } else {
+        patchExcel(patchData as Excel, options)
+      }
+    },
+    [isShareholderMarker, patchShareholder, patchExcel, userId],
+  )
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -107,7 +156,7 @@ const CustomMapMarker = ({
     }
   }
 
-  const handleMarkerSelect = (selectedMarker: Excel) => {
+  const handleMarkerSelect = (selectedMarker: MapMarkerData) => {
     setSelectedGroupMarker(selectedMarker)
     onMarkerSelect?.(selectedMarker)
     setIsMarkerSelectModalOpen(false)

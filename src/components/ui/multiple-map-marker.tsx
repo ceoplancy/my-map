@@ -1,20 +1,21 @@
-import { Excel } from "@/types/excel"
-import CustomMapMarker from "./custom-map-marker"
+import CustomMapMarker, { type MapMarkerData } from "./custom-map-marker"
 
 import { useMemo, useState } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
 
 interface MultipleMapMarkerProps {
-  markers: Excel[]
+  markers: MapMarkerData[]
 }
 
 interface MarkerGroup {
   position: { lat: number; lng: number }
-  markers: Excel[]
+  markers: MapMarkerData[]
 }
 
 const MultipleMapMarker = ({ markers }: MultipleMapMarkerProps) => {
-  const [selectedMarker, setSelectedMarker] = useState<Excel | null>(null)
+  const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(
+    null,
+  )
   const { data: filterMenu } = useGetFilterMenu()
 
   const markerGroups = useMemo(() => {

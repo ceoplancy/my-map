@@ -162,6 +162,12 @@ const config = [
           "@typescript-eslint/no-var-requires": "off",
         },
       },
+      {
+        files: ["src/components/StatsCard.tsx"],
+        rules: {
+          "lines-around-comment": "off",
+        },
+      },
     ],
   }),
   {
