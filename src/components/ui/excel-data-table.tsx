@@ -19,8 +19,24 @@ export type HistoryItem = {
   changes: HistoryChange
 }
 
-const ExcelDataTable = ({ data }: { data: MapMarkerData }) => {
+interface ExcelDataTableProps {
+  data: MapMarkerData
+
+  /** 지도 쪽: API로 불러온 변경 이력. 없으면 data.history 사용 */
+
+  history?: HistoryItem[]
+}
+
+const ExcelDataTable = ({
+  data,
+  history: historyProp,
+}: ExcelDataTableProps) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  const history =
+    historyProp ??
+    (Array.isArray((data as unknown as { history?: unknown }).history)
+      ? (data as unknown as { history: HistoryItem[] }).history
+      : [])
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation()
@@ -72,11 +88,11 @@ const ExcelDataTable = ({ data }: { data: MapMarkerData }) => {
           <TableRow>
             <TableHeader>변경이력</TableHeader>
             <TableCell>
-              {Array.isArray(data.history) && data.history.length > 0 && (
+              {history.length > 0 && (
                 <HistoryButton
                   type="button"
                   onClick={() => setIsHistoryModalOpen(true)}>
-                  변경 이력 보기 ({data.history.length}건)
+                  변경 이력 보기 ({history.length}건)
                 </HistoryButton>
               )}
 
@@ -84,7 +100,7 @@ const ExcelDataTable = ({ data }: { data: MapMarkerData }) => {
                 <HistoryModal
                   open={isHistoryModalOpen}
                   onClose={() => setIsHistoryModalOpen(false)}
-                  history={data.history as HistoryItem[]}
+                  history={history}
                 />
               )}
             </TableCell>

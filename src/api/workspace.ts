@@ -580,25 +580,37 @@ export const useDeleteShareholderList = () => {
   })
 }
 
-const recordChangeHistory = async (
+/** Record change history via API (지도 쪽 RLS 대신 서버 경유로 기록) */
+const recordChangeHistoryViaApi = async (
   shareholderId: string,
-  userId: string,
-  field: string,
-  oldValue: string | null,
-  newValue: string | null,
+  accessToken: string,
+  entries: Array<{
+    field: string
+    old_value: string | null
+    new_value: string | null
+  }>,
 ): Promise<void> => {
-  const { error } = await supabase.from("shareholder_change_history").insert({
-    shareholder_id: shareholderId,
-    changed_by: userId,
-    field,
-    old_value: oldValue,
-    new_value: newValue,
-  })
-  if (error) {
-    reportError(error, {
-      toastMessage:
-        "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다.",
-    })
+  if (entries.length === 0) return
+  const res = await fetch(
+    `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ entries }),
+    },
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    reportError(
+      new Error((err as { error?: string }).error ?? "Change history failed"),
+      {
+        toastMessage:
+          "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다.",
+      },
+    )
   }
 }
 
@@ -609,11 +621,17 @@ export const usePatchShareholder = () => {
     mutationFn: async (input: {
       patch: Partial<Shareholder> & { id: string }
       userId: string
+      accessToken?: string | null
     }) => {
-      const { patch, userId } = input
+      const { patch, userId: _userId, accessToken } = input
       const { id, ...rest } = patch
       type ShareholderKey = keyof Omit<Shareholder, "id">
       const fields = Object.keys(rest) as ShareholderKey[]
+      const entries: Array<{
+        field: string
+        old_value: string | null
+        new_value: string | null
+      }> = []
       for (const field of fields) {
         const newVal = rest[field]
         const oldRow = await supabase
@@ -626,8 +644,11 @@ export const usePatchShareholder = () => {
         const oldVal = toHistoryValue(val)
         const newStr = toHistoryValue(newVal)
         if (oldVal !== newStr) {
-          await recordChangeHistory(id, userId, field, oldVal, newStr)
+          entries.push({ field, old_value: oldVal, new_value: newStr })
         }
+      }
+      if (entries.length > 0 && accessToken) {
+        await recordChangeHistoryViaApi(id, accessToken, entries)
       }
       const { data, error } = await supabase
         .from("shareholders")
@@ -639,9 +660,15 @@ export const usePatchShareholder = () => {
 
       return data
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["shareholders"] })
       queryClient.invalidateQueries({ queryKey: ["excel"] })
+      queryClient.invalidateQueries({
+        queryKey: ["shareholderChangeHistoryForMap", variables.patch.id],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["shareholderChangeHistory", variables.patch.id],
+      })
     },
     onError: () => {
       toast.error("저장에 실패했습니다.")
@@ -695,6 +722,109 @@ export const useShareholderChangeHistory = (shareholderId: string | null) => {
     queryFn: () =>
       shareholderId
         ? getShareholderChangeHistory(shareholderId)
+        : Promise.resolve([]),
+    enabled: !!shareholderId,
+  })
+}
+
+/** API 응답 row */
+type ChangeHistoryRow = {
+  changed_at: string
+  changed_by: string
+  field: string
+  old_value: string | null
+  new_value: string | null
+}
+
+/** 지도용: API로 변경 이력 조회 후 HistoryItem[] 형태로 변환 */
+export type ShareholderChangeHistoryForMapItem = {
+  modified_at: string
+  modifier: string
+  changes: {
+    memo?: { original: string; modified: string }
+    status?: { original: string; modified: string }
+  }
+}
+
+async function fetchShareholderChangeHistoryForMap(
+  shareholderId: string,
+): Promise<ShareholderChangeHistoryForMapItem[]> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return []
+  const res = await fetch(
+    `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!res.ok) return []
+  const json = (await res.json()) as {
+    history?: ChangeHistoryRow[]
+    changedByUser?: Record<
+      string,
+      { name: string | null; email: string | null }
+    >
+  }
+  const rows = json.history ?? []
+  const changedByUser = json.changedByUser ?? {}
+  if (rows.length === 0) return []
+  const key = (r: ChangeHistoryRow) => `${r.changed_at}\t${r.changed_by}`
+  const groups = new Map<string, ChangeHistoryRow[]>()
+  for (const r of rows) {
+    const k = key(r)
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k)!.push(r)
+  }
+  const result: ShareholderChangeHistoryForMapItem[] = []
+  const sortedKeys = [...groups.keys()].sort(
+    (a, b) =>
+      new Date(b.split("\t")[0]).getTime() -
+      new Date(a.split("\t")[0]).getTime(),
+  )
+  for (const k of sortedKeys) {
+    const group = groups.get(k)!
+    const first = group[0]
+    const user = changedByUser[first.changed_by]
+    const modifier = user?.name ?? user?.email ?? "알 수 없음"
+    const changes: ShareholderChangeHistoryForMapItem["changes"] = {}
+    for (const r of group) {
+      if (r.field === "memo") {
+        changes.memo = {
+          original: r.old_value ?? "",
+          modified: r.new_value ?? "",
+        }
+      }
+      if (r.field === "status") {
+        changes.status = {
+          original: r.old_value ?? "",
+          modified: r.new_value ?? "",
+        }
+      }
+    }
+    result.push({
+      modified_at: new Date(first.changed_at).toLocaleString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      modifier,
+      changes,
+    })
+  }
+
+  return result
+}
+
+export const useShareholderChangeHistoryForMap = (
+  shareholderId: string | null,
+) => {
+  return useQuery({
+    queryKey: ["shareholderChangeHistoryForMap", shareholderId],
+    queryFn: () =>
+      shareholderId
+        ? fetchShareholderChangeHistoryForMap(shareholderId)
         : Promise.resolve([]),
     enabled: !!shareholderId,
   })

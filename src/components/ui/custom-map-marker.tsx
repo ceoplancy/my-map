@@ -1,5 +1,8 @@
 import { useGetFilterMenu, usePatchExcel } from "@/api/supabase"
-import { usePatchShareholder } from "@/api/workspace"
+import {
+  usePatchShareholder,
+  useShareholderChangeHistoryForMap,
+} from "@/api/workspace"
 import { useSession } from "@/api/auth"
 import { useCallback, useEffect, useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
@@ -115,6 +118,11 @@ const CustomMapMarker = ({
     ? shareholderMutateLoading
     : excelMutateLoading
 
+  const shareholderIdForHistory = isShareholderMarker ? String(marker.id) : null
+  const { data: mapHistory = [] } = useShareholderChangeHistoryForMap(
+    shareholderIdForHistory,
+  )
+
   const makerDataMutate = useCallback(
     (
       patchData: MapMarkerData | Excel,
@@ -139,6 +147,7 @@ const CustomMapMarker = ({
           {
             patch,
             userId,
+            accessToken: session?.access_token ?? null,
           },
           {
             onSuccess: () => options?.onSuccess?.(),
@@ -150,7 +159,13 @@ const CustomMapMarker = ({
         patchExcel(patchData as Excel, options)
       }
     },
-    [isShareholderMarker, patchShareholder, patchExcel, userId],
+    [
+      isShareholderMarker,
+      patchShareholder,
+      patchExcel,
+      userId,
+      session?.access_token,
+    ],
   )
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -255,7 +270,10 @@ const CustomMapMarker = ({
                 </CloseButton>
               </InfoWindowHeader>
 
-              <ExcelDataTable data={marker} />
+              <ExcelDataTable
+                data={marker}
+                history={isShareholderMarker ? mapHistory : undefined}
+              />
 
               <InfoWindowFooter>
                 <ActionButton
