@@ -362,9 +362,8 @@ export default function UserList() {
 
       <PaginationContainer>
         <PaginationInfo>
-          총 {filteredUsers.length}명 중{" "}
-          {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
-          {Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)}명
+          총 {metadata.totalCount}명 중 {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+          -{Math.min(currentPage * ITEMS_PER_PAGE, metadata.totalCount)}명
         </PaginationInfo>
         <PaginationButtons>
           <PageButton

@@ -39,7 +39,7 @@ export default function WorkspaceAdminUsersPage() {
 
   return (
     <AdminLayout>
-      <MembersPageContent />
+      <MembersPageContent initialWorkspace={resolvedWorkspace} />
     </AdminLayout>
   )
 }

@@ -10,7 +10,7 @@ import styled from "@emotion/styled"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import ShareholderList from "@/components/admin/shareholders/ShareholderList"
+import EditListModal from "@/components/admin/shareholders/EditListModal"
 import { COLORS } from "@/styles/global-style"
 import type { Tables } from "@/types/db"
 
@@ -136,71 +136,67 @@ const LinkButton = styled(Link)`
   }
 `
 
-const SelectListButton = styled.button`
-  padding: 0.375rem 0.75rem;
-  background: ${COLORS.gray[100]};
-  color: ${COLORS.gray[700]};
-  border: none;
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  cursor: pointer;
-  &:hover {
-    background: ${COLORS.gray[200]};
-  }
-`
-
 const EmptyState = styled.p`
   padding: 2rem;
   color: ${COLORS.gray[500]};
   text-align: center;
 `
 
-const ManagementSection = styled.section`
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid ${COLORS.gray[200]};
+const CreateCard = styled(FormSection)`
+  margin-bottom: 1.5rem;
 `
 
-const ManagementHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const CreateTitle = styled(FormTitle)`
+  margin-bottom: 0.5rem;
+`
+
+const CreateDescription = styled.p`
+  font-size: 0.875rem;
+  color: ${COLORS.gray[500]};
   margin-bottom: 1rem;
+`
+
+const CreateActions = styled.div`
+  display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  align-items: flex-end;
 `
 
-const ManagementTitle = styled.h2`
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: ${COLORS.text.primary};
+const EditListButton = styled.button`
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  color: ${COLORS.blue[600]};
+  background: ${COLORS.blue[50]};
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: ${COLORS.blue[100]};
+  }
 `
 
-const ManagementActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
+const ListNameLink = styled(Link)`
+  color: ${COLORS.blue[600]};
+  font-weight: 500;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
 `
 
-const EmptyManagement = styled.div`
-  padding: 3rem;
-  text-align: center;
-  background: ${COLORS.gray[50]};
-  border-radius: 1rem;
-  color: ${COLORS.gray[600]};
-  font-size: 0.9375rem;
-`
-
-/** 워크스페이스 주주명부 목록·관리 통합 본문 */
+/** 워크스페이스 주주명부 목록 본문 (주주 관리는 별도 페이지 /lists/[listId]) */
 export function ListsPageContent() {
   const router = useRouter()
   const [currentWorkspace] = useCurrentWorkspace()
-  const listId =
-    typeof router.query.listId === "string" ? router.query.listId : null
-  const [name, setName] = useState("")
-  const [newListNameForExcel, setNewListNameForExcel] = useState("")
+  const [listName, setListName] = useState("")
   const [activeFrom, setActiveFrom] = useState("")
   const [activeTo, setActiveTo] = useState("")
   const [isVisible, setIsVisible] = useState(true)
+  const [editingList, setEditingList] = useState<ShareholderListRow | null>(
+    null,
+  )
 
   const { data: lists = [], isLoading } = useShareholderLists(
     currentWorkspace?.id ?? null,
@@ -211,53 +207,53 @@ export function ListsPageContent() {
     ? getWorkspaceAdminBase(currentWorkspace.id)
     : "/admin"
 
-  const selectList = (id: string) => {
-    router.replace(
-      { pathname: `${base}/lists`, query: { listId: id } },
-      undefined,
-      { shallow: true },
-    )
+  const listIdFromQuery =
+    typeof router.query.listId === "string" ? router.query.listId : null
+  useEffect(() => {
+    if (
+      listIdFromQuery &&
+      currentWorkspace?.id &&
+      typeof window !== "undefined"
+    ) {
+      router.replace(`${base}/lists/${listIdFromQuery}`)
+    }
+  }, [listIdFromQuery, currentWorkspace?.id, base, router])
+
+  const createListPayload = () =>
+    currentWorkspace?.id && listName.trim()
+      ? {
+          workspace_id: currentWorkspace.id,
+          name: listName.trim(),
+          active_from: activeFrom || null,
+          active_to: activeTo || null,
+          is_visible: isVisible,
+        }
+      : null
+
+  const handleCreateAndGoToExcel = () => {
+    const payload = createListPayload()
+    if (!payload) return
+    createList.mutate(payload, {
+      onSuccess: (data) => {
+        setListName("")
+        setActiveFrom("")
+        setActiveTo("")
+        router.push(`${base}/excel-import?listId=${data.id}`)
+      },
+    })
   }
 
-  const handleCreateAndGoToExcel = (e: React.FormEvent) => {
+  const handleCreateEmpty = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!currentWorkspace?.id || !newListNameForExcel.trim()) return
-    createList.mutate(
-      {
-        workspace_id: currentWorkspace.id,
-        name: newListNameForExcel.trim(),
-        active_from: null,
-        active_to: null,
-        is_visible: true,
+    const payload = createListPayload()
+    if (!payload) return
+    createList.mutate(payload, {
+      onSuccess: () => {
+        setListName("")
+        setActiveFrom("")
+        setActiveTo("")
       },
-      {
-        onSuccess: (data) => {
-          setNewListNameForExcel("")
-          router.push(`${base}/excel-import?listId=${data.id}`)
-        },
-      },
-    )
-  }
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!currentWorkspace?.id || !name.trim()) return
-    createList.mutate(
-      {
-        workspace_id: currentWorkspace.id,
-        name: name.trim(),
-        active_from: activeFrom || null,
-        active_to: activeTo || null,
-        is_visible: isVisible,
-      },
-      {
-        onSuccess: () => {
-          setName("")
-          setActiveFrom("")
-          setActiveTo("")
-        },
-      },
-    )
+    })
   }
 
   const toggleVisible = (list: ShareholderListRow) => {
@@ -273,15 +269,23 @@ export function ListsPageContent() {
     <>
       <PageTitle>주주명부 목록</PageTitle>
 
-      <FormSection>
-        <FormTitle>새 주주명부 만들기</FormTitle>
-        <form onSubmit={handleCreate}>
+      <CreateCard>
+        <CreateTitle>새 주주명부 만들기</CreateTitle>
+        <CreateDescription>
+          명부명과 옵션을 입력한 뒤, 빈 명부로 만들거나 엑셀 업로드 페이지로
+          이동할 수 있습니다.
+        </CreateDescription>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleCreateEmpty(e)
+          }}>
           <FormRow>
             <Label>
               명부명 (상장사명 등)
               <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={listName}
+                onChange={(e) => setListName(e.target.value)}
                 placeholder={LIST_NAME_PLACEHOLDER}
               />
             </Label>
@@ -309,43 +313,22 @@ export function ListsPageContent() {
               />
               지도 노출
             </ToggleLabel>
-            <Button
-              type="submit"
-              disabled={createList.isPending || !name.trim()}>
-              생성
-            </Button>
           </FormRow>
-        </form>
-
-        <FormTitle style={{ marginTop: "1.5rem" }}>
-          엑셀으로 새 명부 만들기
-        </FormTitle>
-        <p
-          style={{
-            fontSize: "0.875rem",
-            color: COLORS.gray[500],
-            marginBottom: "0.75rem",
-          }}>
-          명부를 만든 뒤 엑셀 업로드 페이지로 이동합니다.
-        </p>
-        <form onSubmit={handleCreateAndGoToExcel}>
-          <FormRow>
-            <Label>
-              명부명 (상장사명 등)
-              <Input
-                value={newListNameForExcel}
-                onChange={(e) => setNewListNameForExcel(e.target.value)}
-                placeholder={LIST_NAME_PLACEHOLDER}
-              />
-            </Label>
+          <CreateActions>
             <Button
               type="submit"
-              disabled={createList.isPending || !newListNameForExcel.trim()}>
+              disabled={createList.isPending || !listName.trim()}>
+              빈 명부 만들기
+            </Button>
+            <Button
+              type="button"
+              disabled={createList.isPending || !listName.trim()}
+              onClick={handleCreateAndGoToExcel}>
               명부 만들고 엑셀 업로드하기
             </Button>
-          </FormRow>
+          </CreateActions>
         </form>
-      </FormSection>
+      </CreateCard>
 
       <TableWrap>
         <Table>
@@ -375,7 +358,11 @@ export function ListsPageContent() {
             ) : (
               lists.map((list) => (
                 <Tr key={list.id}>
-                  <Td>{list.name}</Td>
+                  <Td>
+                    <ListNameLink href={`${base}/lists/${list.id}`}>
+                      {list.name}
+                    </ListNameLink>
+                  </Td>
                   <Td>
                     {list.active_from ?? "-"} ~ {list.active_to ?? "-"}
                   </Td>
@@ -390,11 +377,15 @@ export function ListsPageContent() {
                     </ToggleLabel>
                   </Td>
                   <Td>
-                    <SelectListButton
-                      type="button"
-                      onClick={() => selectList(list.id)}>
+                    <LinkButton href={`${base}/lists/${list.id}`}>
                       주주 보기
-                    </SelectListButton>
+                    </LinkButton>
+                    {" · "}
+                    <EditListButton
+                      type="button"
+                      onClick={() => setEditingList(list)}>
+                      수정
+                    </EditListButton>
                     {" · "}
                     <LinkButton href={`${base}/excel-import?listId=${list.id}`}>
                       엑셀 업로드
@@ -407,33 +398,12 @@ export function ListsPageContent() {
         </Table>
       </TableWrap>
 
-      <ManagementSection>
-        {listId ? (
-          <>
-            <ManagementHeader>
-              <ManagementTitle>주주 관리</ManagementTitle>
-              <ManagementActions>
-                <LinkButton
-                  href={{
-                    pathname: `${base}/change-history`,
-                    query: { listId },
-                  }}>
-                  변경 이력
-                </LinkButton>
-                <LinkButton href={`${base}/excel-import?listId=${listId}`}>
-                  엑셀 업로드
-                </LinkButton>
-              </ManagementActions>
-            </ManagementHeader>
-            <ShareholderList listId={listId} />
-          </>
-        ) : (
-          <EmptyManagement>
-            위 표에서 명부의 &quot;주주 보기&quot;를 클릭하면 선택한 명부의 주주
-            목록이 여기에 표시됩니다.
-          </EmptyManagement>
-        )}
-      </ManagementSection>
+      {editingList && (
+        <EditListModal
+          list={editingList}
+          onClose={() => setEditingList(null)}
+        />
+      )}
     </>
   )
 }

@@ -39,11 +39,6 @@ import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
 import { STORAGE_KEY } from "@/constants/map-storage"
 
-interface MapBounds {
-  sw: { lat: number; lng: number }
-  ne: { lat: number; lng: number }
-}
-
 const WorkspaceMapPage = () => {
   const router = useRouter()
   const { workspaceId } = router.query as { workspaceId: string }
@@ -114,10 +109,6 @@ const WorkspaceMapPage = () => {
     },
   )
   const { mutate: logout } = usePostSignOut()
-  const [mapBounds, setMapBounds] = useState<MapBounds>({
-    sw: { lat: 0, lng: 0 },
-    ne: { lat: 0, lng: 0 },
-  })
 
   const [workspace] = useCurrentWorkspace()
   const session = useSession().data
@@ -152,7 +143,6 @@ const WorkspaceMapPage = () => {
   const debouncedMapUpdate = useMemo(
     () =>
       debounce((target: kakao.maps.Map) => {
-        const bounds = target.getBounds()
         const latlng = target.getCenter()
         const newCenter = {
           lat: latlng.getLat(),
@@ -160,16 +150,6 @@ const WorkspaceMapPage = () => {
         }
         setCurrCenter(newCenter)
         localStorage.setItem(STORAGE_KEY.position, JSON.stringify(newCenter))
-        setMapBounds({
-          sw: {
-            lat: bounds.getSouthWest().getLat(),
-            lng: bounds.getSouthWest().getLng(),
-          },
-          ne: {
-            lat: bounds.getNorthEast().getLat(),
-            lng: bounds.getNorthEast().getLng(),
-          },
-        })
       }, 500),
     [],
   )
@@ -207,12 +187,6 @@ const WorkspaceMapPage = () => {
     resetFilters()
     router.reload()
   }, [router, resetFilters])
-
-  useEffect(() => {
-    if (mapBounds.sw.lat !== 0 && mapBounds.sw.lng !== 0) {
-      mapMarkersRefetch()
-    }
-  }, [mapBounds, mapLevel, mapMarkersRefetch])
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
@@ -276,7 +250,8 @@ const WorkspaceMapPage = () => {
 
   return (
     <>
-      {(shareholdersLoading || isLoading) && (
+      {(isLoading ||
+        (shareholdersLoading && !(shareholderData?.length ?? 0))) && (
         <SpinnerFrame>
           <GlobalSpinner
             width={18}
@@ -298,9 +273,7 @@ const WorkspaceMapPage = () => {
           <MapTypeControl position={"TOPRIGHT"} />
           <ZoomControl position={"RIGHT"} />
           {mapMarkers.length > 0 && user && (
-            <MultipleMapMarker
-              markers={mapMarkers as unknown as import("@/types/excel").Excel[]}
-            />
+            <MultipleMapMarker markers={mapMarkers} useShareholderPatchOnly />
           )}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>

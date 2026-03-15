@@ -3,6 +3,7 @@ import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import EditShareholderModal from "./EditShareholderModal"
+import AddShareholderModal from "./AddShareholderModal"
 import {
   ArrowUpward,
   ArrowDownward,
@@ -11,6 +12,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Clear as ClearIcon,
+  Add as AddIcon,
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
 import { HistoryItem } from "@/components/ui/excel-data-table"
@@ -346,9 +348,33 @@ type Filters = {
 
 type Props = { listId: string }
 
+const AddButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  background: ${COLORS.blue[500]};
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${COLORS.blue[600]};
+  }
+
+  svg {
+    font-size: 1.125rem;
+  }
+`
+
 export default function ShareholderList({ listId }: Props) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedItem, setSelectedItem] = useState<Shareholder | null>(null)
+  const [addModalOpen, setAddModalOpen] = useState(false)
   const [sort, setSort] = useState<SortConfig>({
     field: null,
     direction: "asc",
@@ -519,10 +545,21 @@ export default function ShareholderList({ listId }: Props) {
     <Container>
       <FilterSection>
         <FilterHeader>
-          <FilterTitle>
-            <FilterList />
-            주주명부 목록
-          </FilterTitle>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}>
+            <FilterTitle>
+              <FilterList />
+              주주 목록
+            </FilterTitle>
+            <AddButton type="button" onClick={() => setAddModalOpen(true)}>
+              <AddIcon />
+              주주 추가
+            </AddButton>
+          </div>
           <SearchInputWrapper>
             <Search />
             <SearchInput
@@ -757,6 +794,13 @@ export default function ShareholderList({ listId }: Props) {
           data={selectedItem}
           userId={userId}
           onClose={handleModalClose}
+        />
+      )}
+      {addModalOpen && (
+        <AddShareholderModal
+          listId={listId}
+          onClose={() => setAddModalOpen(false)}
+          onSuccess={() => refetch()}
         />
       )}
     </Container>

@@ -18,9 +18,14 @@ import { COLORS } from "@/styles/global-style"
 export type { MapMarkerData } from "@/types/map"
 const isShareholder = isShareholderMarker
 
+// 기본(미방문) 마커: #2868ED + 흰색 테두리(겹침/검은색 방지). SVG 내부는 # 사용 후 encodeURIComponent로 인코딩.
+const DEFAULT_MARKER_SVG = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="#2868ED" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0zm0 17c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/></svg>',
+)}`
+
 // status에 따른 마커 색상
 export const STATUS_MARKERS = {
-  미방문: "/svg/default.svg",
+  미방문: DEFAULT_MARKER_SVG,
   보류: "/svg/pending.svg",
   완료: "/svg/complete.svg",
   실패: "/svg/fail.svg",
@@ -68,6 +73,9 @@ interface CustomMapMarkerProps {
   onMarkerSelect?: (_marker: MapMarkerData | null) => void
   initialInfoWindowOpen?: boolean
   forceKeepOpen?: boolean
+
+  /** 워크스페이스 지도 등: 항상 shareholder API만 사용 (excel 패치 호출 안 함) */
+  useShareholderPatchOnly?: boolean
 }
 
 interface MarkerStatusProps {
@@ -84,6 +92,7 @@ const CustomMapMarker = ({
   onMarkerSelect,
   initialInfoWindowOpen = false,
   forceKeepOpen = false,
+  useShareholderPatchOnly = false,
 }: CustomMapMarkerProps) => {
   const { data: filterMenu } = useGetFilterMenu()
   const isGroupMarker = markers && markers.length > 1
@@ -101,7 +110,7 @@ const CustomMapMarker = ({
   const session = useSession().data
   const userId = session?.user?.id ?? ""
 
-  const isShareholderMarker = isShareholder(marker)
+  const isShareholderMarker = useShareholderPatchOnly || isShareholder(marker)
   const makerDataMutateIsLoading = isShareholderMarker
     ? shareholderMutateLoading
     : excelMutateLoading
@@ -116,23 +125,25 @@ const CustomMapMarker = ({
       },
     ) => {
       if (isShareholderMarker) {
+        const patch: Partial<{ id: string; status: string; memo: string }> & {
+          id: string
+        } = {
+          id: String((patchData as { id: string | number }).id),
+        }
+        const rawStatus = patchData.status ?? ""
+        if (rawStatus !== "") {
+          patch.status = rawStatus
+        }
+        patch.memo = patchData.memo ?? ""
         patchShareholder(
           {
-            patch: {
-              id: String((patchData as { id: string | number }).id),
-              status: patchData.status ?? undefined,
-              memo: patchData.memo ?? undefined,
-            },
+            patch,
             userId,
           },
           {
-            onSuccess: () => {
-              toast.success("주주 정보가 수정되었습니다.")
-              options?.onSuccess?.()
-            },
-            onSettled: () => {
-              options?.onSettled?.()
-            },
+            onSuccess: () => options?.onSuccess?.(),
+            onError: () => options?.onError?.(),
+            onSettled: () => options?.onSettled?.(),
           },
         )
       } else {

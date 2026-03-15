@@ -401,6 +401,59 @@ export const useShareholders = (params: ShareholdersParams) => {
     ],
     queryFn: () => getShareholders(params),
     enabled,
+    placeholderData: (prev) => prev,
+  })
+}
+
+export type CreateShareholderInput = {
+  list_id: string
+  name?: string | null
+  company?: string | null
+  address?: string | null
+  status?: string | null
+  stocks?: number
+  memo?: string | null
+  maker?: string | null
+  lat?: number | null
+  lng?: number | null
+  latlngaddress?: string | null
+}
+
+export const useCreateShareholder = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: CreateShareholderInput) => {
+      const { data, error } = await supabase
+        .from("shareholders")
+        .insert({
+          list_id: input.list_id,
+          name: input.name ?? null,
+          company: input.company ?? null,
+          address: input.address ?? null,
+          status: input.status ?? "미방문",
+          stocks: input.stocks ?? 0,
+          memo: input.memo ?? null,
+          maker: input.maker ?? null,
+          lat: input.lat ?? null,
+          lng: input.lng ?? null,
+          latlngaddress: input.latlngaddress ?? null,
+        })
+        .select()
+        .single()
+      if (error) throw error
+
+      return data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["shareholders", { listId: variables.list_id }],
+      })
+      toast.success("주주가 추가되었습니다.")
+    },
+    onError: () => {
+      toast.error("주주 추가에 실패했습니다.")
+    },
   })
 }
 

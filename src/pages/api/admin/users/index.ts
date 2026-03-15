@@ -13,6 +13,22 @@ export default withApiHandler(async (req, res) => {
   if (req.method === "GET") {
     const page = Math.max(1, Number(req.query.page) || 1)
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10))
+
+    // Supabase Auth listUsers does not return total count; compute by paging
+    const BATCH = 1000
+    let totalCount = 0
+    let batchPage = 0
+    while (true) {
+      const {
+        data: { users: batch },
+        error: batchError,
+      } = await admin.auth.admin.listUsers({ page: batchPage, perPage: BATCH })
+      if (batchError) return res.status(500).json({ error: batchError.message })
+      totalCount += batch.length
+      if (batch.length < BATCH) break
+      batchPage += 1
+    }
+
     const {
       data: { users },
       error,
@@ -27,8 +43,9 @@ export default withApiHandler(async (req, res) => {
       metadata: {
         currentPage: page,
         perPage: limit,
-        totalPages: Math.ceil(users.length / limit),
-        hasMore: users.length === limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: page * limit < totalCount,
       },
     })
   }

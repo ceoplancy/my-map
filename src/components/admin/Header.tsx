@@ -9,6 +9,7 @@ import {
   isWorkspaceAdminDashboardRoute,
   isWorkspaceAdminRoute,
 } from "@/lib/utils"
+import Link from "next/link"
 import { useRouter } from "next/router"
 import { useState, useRef, useEffect } from "react"
 import styled from "@emotion/styled"
@@ -191,13 +192,27 @@ const BreadcrumbCurrent = styled.span`
 `
 
 const WorkspaceSelect = styled.select`
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
   border: 1px solid ${COLORS.gray[300]};
   border-radius: 6px;
   font-size: 0.875rem;
-  background: white;
+  background-color: white;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem;
   color: ${COLORS.gray[700]};
   min-width: 160px;
+  appearance: none;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${COLORS.gray[400]};
+  }
+  &:focus {
+    outline: none;
+    border-color: ${COLORS.blue[500]};
+  }
 `
 
 const WorkspaceChangeButton = styled.button`
@@ -209,6 +224,17 @@ const WorkspaceChangeButton = styled.button`
   border: none;
   cursor: pointer;
   padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`
+
+const MapLink = styled(Link)`
+  font-size: 0.8125rem;
+  color: ${COLORS.blue[600]};
+  text-decoration: none;
+  font-weight: 500;
 
   &:hover {
     text-decoration: underline;
@@ -264,6 +290,7 @@ export default function Header() {
             {isWorkspaceAdminRoute(router.pathname) &&
               (() => {
                 const seg = router.pathname.split("/").pop() ?? ""
+                if (seg === "[listId]") return "주주 관리"
 
                 return WORKSPACE_ADMIN_SEGMENT_LABELS[seg] ?? seg
               })()}
@@ -292,6 +319,12 @@ export default function Header() {
               워크스페이스 변경
             </WorkspaceChangeButton>
           )}
+          {!isIntegratedRoute(router.pathname) &&
+            currentWorkspace?.id != null && (
+              <MapLink href={`/workspaces/${currentWorkspace.id}`}>
+                지도로 이동
+              </MapLink>
+            )}
           {/* 알림 아이콘 */}
           {/* <IconButton>
             <NotificationIcon
@@ -368,13 +401,15 @@ export default function Header() {
           ) : isWorkspaceAdminRoute(router.pathname) ? (
             (() => {
               const seg = router.pathname.split("/").pop() ?? ""
+              const label =
+                seg === "[listId]"
+                  ? "주주 관리"
+                  : (WORKSPACE_ADMIN_SEGMENT_LABELS[seg] ?? seg)
 
               return (
                 <>
                   <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                  <BreadcrumbCurrent>
-                    {WORKSPACE_ADMIN_SEGMENT_LABELS[seg] ?? seg}
-                  </BreadcrumbCurrent>
+                  <BreadcrumbCurrent>{label}</BreadcrumbCurrent>
                 </>
               )
             })()

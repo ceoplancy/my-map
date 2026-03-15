@@ -205,6 +205,7 @@ export type GetUsersResponse = {
   metadata: {
     currentPage: number
     perPage: number
+    totalCount: number
     totalPages: number
     hasMore: boolean
   }

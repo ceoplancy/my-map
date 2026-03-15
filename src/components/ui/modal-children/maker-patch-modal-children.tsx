@@ -70,8 +70,10 @@ const MakerPatchModalChildren = ({
     },
     onSubmit: (values) => {
       if (!makerData) return
-
-      const status = values.status || "미방문"
+      const status =
+        values.status && values.status.trim() !== ""
+          ? values.status.trim()
+          : "미방문"
       const original = {
         status: makerData.status,
         memo: makerData.memo,
@@ -80,9 +82,13 @@ const MakerPatchModalChildren = ({
         status,
         memo: values.memo,
       }
-      const modifier = user?.user.user_metadata.name
-        ? `${user?.user.user_metadata.name} (${user?.user.email})`
-        : `미확인 (${user?.user.email})`
+      const name = user?.user?.user_metadata?.name
+      const email = user?.user?.email ?? ""
+      const modifier = name
+        ? `${name} (${email})`
+        : email
+          ? `미확인 (${email})`
+          : "미확인"
 
       const modified_at = format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")
       const changes = findDifferences(original, modified)
@@ -160,20 +166,14 @@ const MakerPatchModalChildren = ({
             <SelectWrapper>
               <StyledSelect
                 name="status"
-                value={formik.values.status || ""}
+                value={formik.values.status || "미방문"}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}>
-                <option value="">선택하세요</option>
                 <option value="미방문">미방문</option>
                 <option value="완료">완료</option>
                 <option value="보류">보류</option>
                 <option value="실패">실패</option>
               </StyledSelect>
-              {formik.values.status === "" && formik.submitCount > 0 && (
-                <ErrorMessage style={{ marginTop: "0.25rem" }}>
-                  상태를 선택해 주세요.
-                </ErrorMessage>
-              )}
             </SelectWrapper>
           </Section>
 
@@ -421,15 +421,6 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
     padding: 10px 20px;
     font-size: 13px;
   }
-`
-
-const ErrorMessage = styled.div`
-  color: ${COLORS.gray[500]};
-  font-size: 14px;
-  padding: 12px;
-  background: ${COLORS.gray[50]};
-  border-radius: 8px;
-  text-align: center;
 `
 
 export default MakerPatchModalChildren

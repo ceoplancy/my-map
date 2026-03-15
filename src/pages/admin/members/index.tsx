@@ -7,7 +7,7 @@ import {
 } from "@/api/workspace"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import type { WorkspaceRole } from "@/types/db"
+import type { WorkspaceRole, MyWorkspaceItem } from "@/types/db"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/router"
@@ -175,8 +175,13 @@ const ModalButton = styled.button<{ primary?: boolean }>`
 `
 
 /** 워크스페이스 멤버 본문 (workspace 설정된 상태에서 사용) */
-export function MembersPageContent() {
-  const [workspace] = useCurrentWorkspace()
+export function MembersPageContent({
+  initialWorkspace = null,
+}: {
+  initialWorkspace?: MyWorkspaceItem | null
+} = {}) {
+  const [storeWorkspace] = useCurrentWorkspace()
+  const workspace = storeWorkspace ?? initialWorkspace ?? null
   const { data: members = [], isLoading } = useWorkspaceMembersWithUsers(
     workspace?.id ?? null,
   )

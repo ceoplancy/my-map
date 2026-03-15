@@ -238,7 +238,7 @@ export default function IntegratedDashboardPage() {
   }
 
   const userList = users?.users ?? []
-  const totalUsers = userList.length
+  const totalUsers = users?.metadata?.totalCount ?? userList.length
   const now = new Date()
   const newThisMonth = userList.filter(
     (u) =>
