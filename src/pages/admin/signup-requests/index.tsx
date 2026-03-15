@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import styled from "@emotion/styled"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 type SignupRequest = {
   id: string
@@ -196,7 +197,16 @@ export function SignupRequestsContent({
   const body = (
     <>
       <PageTitle>가입 승인</PageTitle>
-      {loading && <p>불러오는 중...</p>}
+      {loading && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            padding: "2rem",
+          }}>
+          <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+        </div>
+      )}
       {error && <ErrorState>{error}</ErrorState>}
       {!loading && !error && (
         <TableWrap>

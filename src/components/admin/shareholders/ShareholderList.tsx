@@ -20,6 +20,7 @@ import { reportError } from "@/lib/reportError"
 import type { Tables } from "@/types/db"
 import { useShareholders, useDeleteShareholder } from "@/api/workspace"
 import { useSession } from "@/api/auth"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 type Shareholder = Tables<"shareholders">
 
@@ -443,7 +444,13 @@ export default function ShareholderList({ listId }: Props) {
     }
   }
 
-  if (isLoading) return <div>로딩 중...</div>
+  if (isLoading)
+    return (
+      <div
+        style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+        <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+      </div>
+    )
 
   // 필터링 로직
   const filteredData = shareholdersData.filter((item: Shareholder) => {

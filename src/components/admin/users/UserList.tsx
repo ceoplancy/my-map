@@ -12,6 +12,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 const Container = styled.div`
   background: white;
@@ -245,7 +246,13 @@ export default function UserList() {
 
   const { data, isLoading } = useGetUsers(currentPage, ITEMS_PER_PAGE)
 
-  if (isLoading) return <div>로딩 중...</div>
+  if (isLoading)
+    return (
+      <div
+        style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
+        <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+      </div>
+    )
   if (!data) return null
 
   const { users, metadata } = data

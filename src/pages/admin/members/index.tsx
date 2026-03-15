@@ -14,6 +14,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/router"
 import Modal from "@/components/ui/modal"
 import { Delete as DeleteIcon } from "@mui/icons-material"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 const Container = styled.div`
   display: flex;
@@ -215,6 +216,23 @@ export function MembersPageContent({
 
   const listNamesById = Object.fromEntries(lists.map((l) => [l.id, l.name]))
 
+  /** 담당 명부 이름 배열을 가나다순 정렬 후, 많으면 앞 N개만 보여주고 "외 M개" 표시 */
+  const formatAssignedLists = (
+    allowedListIds: string[] | null | undefined,
+    maxVisible = 3,
+  ): string => {
+    if (!allowedListIds?.length) return "-"
+    const names = allowedListIds
+      .map((id) => listNamesById[id] ?? id)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "ko-KR"))
+    if (names.length === 0) return "-"
+    if (names.length <= maxVisible) return names.join(", ")
+    const visible = names.slice(0, maxVisible).join(", ")
+
+    return `${visible} 외 ${names.length - maxVisible}개`
+  }
+
   const handleAddMember = () => {
     if (!workspace?.id || !addEmail.trim()) return
     addMember.mutate(
@@ -351,7 +369,14 @@ export function MembersPageContent({
       </Modal>
       <TableWrapper>
         {isLoading ? (
-          <div style={{ padding: "2rem" }}>로딩 중...</div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "2rem",
+            }}>
+            <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+          </div>
         ) : members.length === 0 ? (
           <EmptyMessage>멤버가 없습니다.</EmptyMessage>
         ) : (
@@ -376,13 +401,7 @@ export function MembersPageContent({
                       {WORKSPACE_ROLE_LABELS[m.role as WorkspaceRole]}
                     </RoleBadge>
                   </Td>
-                  <Td>
-                    {m.allowed_list_ids?.length
-                      ? m.allowed_list_ids
-                          .map((id) => listNamesById[id] ?? id)
-                          .join(", ")
-                      : "-"}
-                  </Td>
+                  <Td>{formatAssignedLists(m.allowed_list_ids)}</Td>
                   <Td>{m.is_team_leader ? "예" : "-"}</Td>
                   <Td>
                     <DeleteBtn

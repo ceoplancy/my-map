@@ -6,6 +6,7 @@ import styled from "@emotion/styled"
 import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
 import { FIELD_LABELS } from "@/components/admin/shareholders/EditShareholderModal"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 type HistoryRow = {
   id: string
@@ -144,7 +145,14 @@ export function ChangeHistoryPageContent() {
       </Header>
       <TableWrapper>
         {loading ? (
-          <div style={{ padding: "2rem" }}>로딩 중...</div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "2rem",
+            }}>
+            <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+          </div>
         ) : error ? (
           <EmptyMessage>{error}</EmptyMessage>
         ) : !data || data.history.length === 0 ? (

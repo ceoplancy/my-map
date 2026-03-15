@@ -12,6 +12,7 @@ import { useState } from "react"
 import type { AccountType } from "@/types/db"
 import { toast } from "react-toastify"
 import Link from "next/link"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 const Container = styled.div`
   display: flex;
@@ -256,7 +257,14 @@ export default function AdminWorkspacesPage() {
 
         <TableWrapper>
           {isLoading ? (
-            <EmptyMessage>불러오는 중...</EmptyMessage>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "2rem",
+              }}>
+              <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+            </div>
           ) : workspaces.length === 0 ? (
             <EmptyMessage>
               워크스페이스가 없습니다. &quot;워크스페이스 만들기&quot;로 새

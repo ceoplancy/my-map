@@ -207,18 +207,20 @@ export default withApiHandler(async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" })
   }
 
-  const withUsers: WorkspaceMemberWithUser[] = []
-  for (const m of members ?? []) {
-    const {
-      data: { user: authUser },
-    } = await admin.auth.admin.getUserById(m.user_id)
+  const memberList = members ?? []
+  const authUsers = await Promise.all(
+    memberList.map((m) => admin.auth.admin.getUserById(m.user_id)),
+  )
+  const withUsers: WorkspaceMemberWithUser[] = memberList.map((m, i) => {
+    const authUser = authUsers[i]?.data?.user
     const email =
       authUser?.email ?? (authUser?.user_metadata?.email as string) ?? null
     const name =
       (authUser?.user_metadata?.name as string) ??
       (authUser?.user_metadata?.full_name as string) ??
       null
-    withUsers.push({
+
+    return {
       id: m.id,
       user_id: m.user_id,
       workspace_id: m.workspace_id,
@@ -228,8 +230,8 @@ export default withApiHandler(async (req, res) => {
       name: name ?? null,
       allowed_list_ids: m.allowed_list_ids ?? null,
       is_team_leader: m.is_team_leader ?? null,
-    })
-  }
+    }
+  })
 
   return res.status(200).json(withUsers)
 })

@@ -13,6 +13,7 @@ import { useRouter } from "next/router"
 import EditListModal from "@/components/admin/shareholders/EditListModal"
 import { COLORS } from "@/styles/global-style"
 import type { Tables } from "@/types/db"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 const LIST_NAME_PLACEHOLDER = "예: OO상장사"
 
@@ -344,7 +345,14 @@ export function ListsPageContent() {
             {isLoading ? (
               <tr>
                 <td colSpan={4}>
-                  <EmptyState>불러오는 중...</EmptyState>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      padding: "2rem",
+                    }}>
+                    <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+                  </div>
                 </td>
               </tr>
             ) : lists.length === 0 ? (
