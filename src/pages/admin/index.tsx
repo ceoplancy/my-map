@@ -16,6 +16,7 @@ import {
 import * as XLSX from "xlsx"
 import { type Tables, type WorkspaceRole } from "@/types/db"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
+import Select from "@/components/ui/select"
 
 const WelcomeSection = styled.div`
   background: linear-gradient(135deg, white, #f8fafc);
@@ -293,10 +294,7 @@ const ListSelectLabel = styled.label`
   color: ${COLORS.gray[700]};
 `
 
-const ListSelect = styled.select`
-  padding: 0.5rem 1rem;
-  border: 1px solid ${COLORS.gray[200]};
-  border-radius: 0.5rem;
+const ListSelect = styled(Select)`
   min-width: 200px;
 `
 

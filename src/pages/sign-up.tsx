@@ -6,6 +6,7 @@ import Font from "@/components/ui/font"
 import Image from "next/image"
 import Link from "next/link"
 import { toast } from "react-toastify"
+import Select from "@/components/ui/select"
 
 const SignInAnimation = dynamic(
   () =>
@@ -386,21 +387,12 @@ const StyledInput = styled.input`
   }
 `
 
-const StyledSelect = styled.select`
+const StyledSelect = styled(Select)`
   width: 100%;
-  padding: 1rem 2.25rem 1rem 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 1rem 2rem 1rem 1rem;
   font-size: 1rem;
-  background: white;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  cursor: pointer;
   &:focus {
     border-color: #1a73e8;
-    outline: none;
   }
 `
 

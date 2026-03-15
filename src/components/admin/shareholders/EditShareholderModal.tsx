@@ -9,6 +9,7 @@ import {
   usePatchShareholder,
   useShareholderChangeHistory,
 } from "@/api/workspace"
+import Select from "@/components/ui/select"
 
 const Overlay = styled.div`
   position: fixed;
@@ -83,19 +84,11 @@ const Input = styled.input`
   }
 `
 
-const Select = styled.select`
-  padding: 0.75rem 1rem;
-  border: 1px solid ${COLORS.gray[200]};
-  border-radius: 0.5rem;
+const ModalSelect = styled(Select)`
+  width: 100%;
+  padding: 0.75rem 2rem 0.75rem 0.75rem;
   font-size: 1rem;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem;
-
   &:focus {
-    border-color: ${COLORS.blue[500]};
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 `
@@ -336,7 +329,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.status}</Label>
-                <Select
+                <ModalSelect
                   value={formData.status || ""}
                   onChange={(e) => handleChange("status", e.target.value)}>
                   <option value="">선택하세요</option>
@@ -344,7 +337,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   <option value="완료">완료</option>
                   <option value="보류">보류</option>
                   <option value="실패">실패</option>
-                </Select>
+                </ModalSelect>
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.company}</Label>

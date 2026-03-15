@@ -11,6 +11,7 @@ import { toast } from "react-toastify"
 import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
+import Select from "@/components/ui/select"
 
 export type MakerDataMutateOptions = {
   onSuccess?: () => void
@@ -312,22 +313,12 @@ const SelectWrapper = styled.div`
   position: relative;
 `
 
-const StyledSelect = styled.select`
+const StyledSelect = styled(Select)`
   width: 100%;
-  padding: 12px 16px;
+  padding: 12px 2rem 12px 16px;
   font-size: 14px;
-  border: 1px solid ${COLORS.gray[200]};
-  border-radius: 8px;
-  background: white;
-  color: ${COLORS.gray[900]};
-  cursor: pointer;
-  transition: all 0.2s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem;
   min-height: 48px;
+  color: ${COLORS.gray[900]};
 
   &:hover {
     border-color: ${COLORS.blue[300]};

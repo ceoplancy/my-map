@@ -10,62 +10,173 @@ import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import type { WorkspaceRole, MyWorkspaceItem } from "@/types/db"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/router"
 import Modal from "@/components/ui/modal"
 import { Delete as DeleteIcon } from "@mui/icons-material"
 import GlobalSpinner from "@/components/ui/global-spinner"
+import Select from "@/components/ui/select"
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const
+const DEFAULT_PAGE_SIZE = 10
+
+/** 워크스페이스 사용자 관리에서 노출할 역할 (서비스 관리자 제외) */
+const ROLES_IN_WORKSPACE_MEMBERS = (
+  Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]
+).filter((r) => r !== "service_admin")
+
+type MemberSortKey = "name" | "email" | "role"
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
 `
 
-const Header = styled.div`
-  padding: 2rem;
-  background: linear-gradient(135deg, white, #f8fafc);
-  border-radius: 1rem;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+const HeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0;
 `
 
-const Title = styled.h1`
-  font-size: 1.75rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #1f2937, #4b5563);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+const PageTitle = styled.h1`
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: ${COLORS.text.primary};
+  margin: 0;
 `
 
-const TableWrapper = styled.div`
-  overflow-x: auto;
+const ToolbarRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0;
+`
+
+const SearchInput = styled.input`
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid ${COLORS.gray[300]};
+  border-radius: 6px;
+  min-width: 160px;
+  max-width: 220px;
+  &::placeholder {
+    color: ${COLORS.gray[500]};
+  }
+`
+
+const FilterSelect = styled(Select)``
+
+const SortSelect = styled(Select)`
+  margin-left: auto;
+`
+
+const PaginationWrap = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.75rem 0;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[600]};
+`
+
+const PageSizeSelect = styled(Select)`
+  padding: 0.35rem 1.5rem 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  background-size: 0.875rem;
+  background-position: right 0.35rem center;
+`
+
+const PageBtn = styled.button`
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8125rem;
+  border: 1px solid ${COLORS.gray[300]};
+  border-radius: 6px;
   background: white;
-  border-radius: 1rem;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  color: ${COLORS.gray[700]};
+  cursor: pointer;
+  &:hover:not(:disabled) {
+    background: ${COLORS.gray[50]};
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`
+
+const AddButton = styled.button`
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, ${COLORS.blue[500]}, ${COLORS.blue[600]});
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: auto;
+  &:hover {
+    opacity: 0.95;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`
+
+const TableWrap = styled.div`
+  overflow-x: auto;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
 `
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.875rem;
 `
 
 const Th = styled.th`
-  padding: 1rem 1.5rem;
   text-align: left;
+  padding: 0.75rem 1rem;
+  background: ${COLORS.gray[50]};
   font-weight: 600;
   color: ${COLORS.gray[700]};
   border-bottom: 1px solid ${COLORS.gray[200]};
 `
 
-const Td = styled.td`
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid ${COLORS.gray[100]};
-  font-size: 0.875rem;
+const ThSortButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
   color: ${COLORS.gray[700]};
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  &:hover {
+    color: ${COLORS.gray[900]};
+  }
+`
+
+const Td = styled.td`
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid ${COLORS.gray[200]};
+  color: ${COLORS.gray[700]};
+`
+
+const Tr = styled.tr`
+  &:last-child td {
+    border-bottom: none;
+  }
 `
 
 const RoleBadge = styled.span<{ role: WorkspaceRole }>`
@@ -91,34 +202,11 @@ const RoleBadge = styled.span<{ role: WorkspaceRole }>`
           : COLORS.gray[700]};
 `
 
-const EmptyMessage = styled.div`
-  padding: 3rem;
+const EmptyState = styled.p`
+  padding: 2rem;
+  color: ${COLORS.gray[500]};
   text-align: center;
-  color: ${COLORS.gray[600]};
-`
-
-const AddButton = styled.button`
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, ${COLORS.blue[500]}, ${COLORS.blue[600]});
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-left: auto;
-
-  &:hover {
-    opacity: 0.95;
-  }
-`
-
-const HeaderRow = styled.div`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  margin: 0;
 `
 
 const ModalContent = styled.div`
@@ -150,14 +238,9 @@ const FieldInput = styled.input`
   box-sizing: border-box;
 `
 
-const FieldSelect = styled.select`
+const FieldSelect = styled(Select)`
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid ${COLORS.gray[300]};
-  border-radius: 8px;
   margin-bottom: 1rem;
-  box-sizing: border-box;
 `
 
 const ModalActions = styled.div`
@@ -201,8 +284,12 @@ export function MembersPageContent({
 } = {}) {
   const [storeWorkspace] = useCurrentWorkspace()
   const workspace = storeWorkspace ?? initialWorkspace ?? null
-  const { data: members = [], isLoading } = useWorkspaceMembersWithUsers(
+  const { data: membersRaw = [], isLoading } = useWorkspaceMembersWithUsers(
     workspace?.id ?? null,
+  )
+  const members = useMemo(
+    () => membersRaw.filter((m) => m.role !== "service_admin"),
+    [membersRaw],
   )
   const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
   const addMember = useAddWorkspaceMember()
@@ -213,8 +300,68 @@ export function MembersPageContent({
   const [addPassword, setAddPassword] = useState("")
   const [addRole, setAddRole] = useState<WorkspaceRole>("field_agent")
   const [addAllowedListIds, setAddAllowedListIds] = useState<string[]>([])
+  const [search, setSearch] = useState("")
+  const [roleFilter, setRoleFilter] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<MemberSortKey>("name")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null)
+  const router = useRouter()
+  const userIdFromQuery =
+    typeof router.query.userId === "string" ? router.query.userId : null
 
   const listNamesById = Object.fromEntries(lists.map((l) => [l.id, l.name]))
+
+  const filteredMembers = useMemo(() => {
+    let result = members
+    if (search.trim()) {
+      const term = search.trim().toLowerCase()
+      result = result.filter(
+        (m) =>
+          (m.name ?? "").toLowerCase().includes(term) ||
+          (m.email ?? "").toLowerCase().includes(term),
+      )
+    }
+    if (roleFilter !== "all") {
+      result = result.filter((m) => m.role === roleFilter)
+    }
+
+    return result
+  }, [members, search, roleFilter])
+
+  const sortedMembers = useMemo(() => {
+    const mult = sortOrder === "asc" ? 1 : -1
+
+    return [...filteredMembers].sort((a, b) => {
+      if (sortBy === "name") {
+        return mult * (a.name ?? "").localeCompare(b.name ?? "", "ko-KR")
+      }
+      if (sortBy === "email") {
+        return mult * (a.email ?? "").localeCompare(b.email ?? "")
+      }
+      if (sortBy === "role") {
+        return mult * (a.role ?? "").localeCompare(b.role ?? "")
+      }
+
+      return 0
+    })
+  }, [filteredMembers, sortBy, sortOrder])
+
+  const totalCount = sortedMembers.length
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const paginatedMembers = useMemo(
+    () => sortedMembers.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [sortedMembers, safePage, pageSize],
+  )
+
+  useEffect(() => {
+    if (page > totalPages && totalPages >= 1) setPage(1)
+  }, [page, totalPages])
+
+  const from = totalCount === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const to = Math.min(safePage * pageSize, totalCount)
 
   /** 담당 명부 이름 배열을 가나다순 정렬 후, 많으면 앞 N개만 보여주고 "외 M개" 표시 */
   const formatAssignedLists = (
@@ -272,18 +419,69 @@ export function MembersPageContent({
     removeMember.mutate({ workspaceId: workspace.id, memberId })
   }
 
+  useEffect(() => {
+    if (!userIdFromQuery || !highlightedRowRef.current) return
+    highlightedRowRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    })
+  }, [userIdFromQuery, paginatedMembers.length])
+
   if (!workspace) return null
 
   return (
     <Container>
-      <Header>
-        <HeaderRow>
-          <Title>워크스페이스 멤버</Title>
-          <AddButton type="button" onClick={() => setAddModalOpen(true)}>
-            멤버 추가
-          </AddButton>
-        </HeaderRow>
-      </Header>
+      <HeaderRow>
+        <PageTitle>사용자 관리</PageTitle>
+        <AddButton type="button" onClick={() => setAddModalOpen(true)}>
+          멤버 추가
+        </AddButton>
+      </HeaderRow>
+      <ToolbarRow>
+        <SearchInput
+          type="search"
+          placeholder="이름 또는 이메일로 검색"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(1)
+          }}
+          aria-label="멤버 검색"
+        />
+        <FilterSelect
+          value={roleFilter}
+          onChange={(e) => {
+            setRoleFilter(e.target.value)
+            setPage(1)
+          }}
+          aria-label="역할 필터">
+          <option value="all">역할 전체</option>
+          {ROLES_IN_WORKSPACE_MEMBERS.map((r) => (
+            <option key={r} value={r}>
+              {WORKSPACE_ROLE_LABELS[r]}
+            </option>
+          ))}
+        </FilterSelect>
+        <SortSelect
+          value={`${sortBy}-${sortOrder}`}
+          onChange={(e) => {
+            const [by, order] = e.target.value.split("-") as [
+              MemberSortKey,
+              "asc" | "desc",
+            ]
+            setSortBy(by)
+            setSortOrder(order)
+            setPage(1)
+          }}
+          aria-label="정렬">
+          <option value="name-asc">이름 가나다순</option>
+          <option value="name-desc">이름 가나다역순</option>
+          <option value="email-asc">이메일 가나다순</option>
+          <option value="email-desc">이메일 가나다역순</option>
+          <option value="role-asc">역할 오름차순</option>
+          <option value="role-desc">역할 내림차순</option>
+        </SortSelect>
+      </ToolbarRow>
       <Modal open={addModalOpen} setOpen={setAddModalOpen}>
         <ModalContent>
           <ModalTitle>멤버 추가</ModalTitle>
@@ -315,13 +513,11 @@ export function MembersPageContent({
           <FieldSelect
             value={addRole}
             onChange={(e) => setAddRole(e.target.value as WorkspaceRole)}>
-            {(Object.keys(WORKSPACE_ROLE_LABELS) as WorkspaceRole[]).map(
-              (r) => (
-                <option key={r} value={r}>
-                  {WORKSPACE_ROLE_LABELS[r]}
-                </option>
-              ),
-            )}
+            {ROLES_IN_WORKSPACE_MEMBERS.map((r) => (
+              <option key={r} value={r}>
+                {WORKSPACE_ROLE_LABELS[r]}
+              </option>
+            ))}
           </FieldSelect>
           {lists.length > 0 && (
             <>
@@ -367,7 +563,7 @@ export function MembersPageContent({
           </ModalActions>
         </ModalContent>
       </Modal>
-      <TableWrapper>
+      <TableWrap>
         {isLoading ? (
           <div
             style={{
@@ -377,48 +573,161 @@ export function MembersPageContent({
             }}>
             <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
           </div>
-        ) : members.length === 0 ? (
-          <EmptyMessage>멤버가 없습니다.</EmptyMessage>
         ) : (
           <Table>
             <thead>
               <tr>
-                <Th>이름</Th>
-                <Th>이메일</Th>
-                <Th>역할</Th>
+                <Th>
+                  <ThSortButton
+                    type="button"
+                    onClick={() => {
+                      const next =
+                        sortBy === "name"
+                          ? sortOrder === "asc"
+                            ? "desc"
+                            : "asc"
+                          : "asc"
+                      setSortBy("name")
+                      setSortOrder(next)
+                      setPage(1)
+                    }}>
+                    이름
+                    {sortBy === "name" && (sortOrder === "asc" ? " ↑" : " ↓")}
+                  </ThSortButton>
+                </Th>
+                <Th>
+                  <ThSortButton
+                    type="button"
+                    onClick={() => {
+                      const next =
+                        sortBy === "email"
+                          ? sortOrder === "asc"
+                            ? "desc"
+                            : "asc"
+                          : "asc"
+                      setSortBy("email")
+                      setSortOrder(next)
+                      setPage(1)
+                    }}>
+                    이메일
+                    {sortBy === "email" && (sortOrder === "asc" ? " ↑" : " ↓")}
+                  </ThSortButton>
+                </Th>
+                <Th>
+                  <ThSortButton
+                    type="button"
+                    onClick={() => {
+                      const next =
+                        sortBy === "role"
+                          ? sortOrder === "asc"
+                            ? "desc"
+                            : "asc"
+                          : "asc"
+                      setSortBy("role")
+                      setSortOrder(next)
+                      setPage(1)
+                    }}>
+                    역할
+                    {sortBy === "role" && (sortOrder === "asc" ? " ↑" : " ↓")}
+                  </ThSortButton>
+                </Th>
                 <Th>담당 명부</Th>
                 <Th>팀장</Th>
                 <Th>작업</Th>
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => (
-                <tr key={m.id}>
-                  <Td>{m.name ?? "-"}</Td>
-                  <Td>{m.email ?? "-"}</Td>
-                  <Td>
-                    <RoleBadge role={m.role as WorkspaceRole}>
-                      {WORKSPACE_ROLE_LABELS[m.role as WorkspaceRole]}
-                    </RoleBadge>
-                  </Td>
-                  <Td>{formatAssignedLists(m.allowed_list_ids)}</Td>
-                  <Td>{m.is_team_leader ? "예" : "-"}</Td>
-                  <Td>
-                    <DeleteBtn
-                      type="button"
-                      onClick={() => handleRemoveMember(m.id)}
-                      disabled={removeMember.isPending}
-                      title="멤버 제거">
-                      <DeleteIcon sx={{ fontSize: 18 }} />
-                      삭제
-                    </DeleteBtn>
-                  </Td>
+              {members.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState>
+                      멤버가 없습니다. 멤버 추가 버튼으로 만드세요.
+                    </EmptyState>
+                  </td>
                 </tr>
-              ))}
+              ) : filteredMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState>검색 결과가 없습니다.</EmptyState>
+                  </td>
+                </tr>
+              ) : (
+                paginatedMembers.map((m) => {
+                  const isHighlighted = userIdFromQuery === m.user_id
+
+                  return (
+                    <Tr
+                      key={m.id}
+                      ref={isHighlighted ? highlightedRowRef : undefined}
+                      style={
+                        isHighlighted
+                          ? { backgroundColor: COLORS.blue[50] }
+                          : undefined
+                      }>
+                      <Td>{m.name ?? "-"}</Td>
+                      <Td>{m.email ?? "-"}</Td>
+                      <Td>
+                        <RoleBadge role={m.role as WorkspaceRole}>
+                          {WORKSPACE_ROLE_LABELS[m.role as WorkspaceRole]}
+                        </RoleBadge>
+                      </Td>
+                      <Td>{formatAssignedLists(m.allowed_list_ids)}</Td>
+                      <Td>{m.is_team_leader ? "예" : "-"}</Td>
+                      <Td>
+                        <DeleteBtn
+                          type="button"
+                          onClick={() => handleRemoveMember(m.id)}
+                          disabled={removeMember.isPending}
+                          title="멤버 제거">
+                          <DeleteIcon sx={{ fontSize: 18 }} />
+                          삭제
+                        </DeleteBtn>
+                      </Td>
+                    </Tr>
+                  )
+                })
+              )}
             </tbody>
           </Table>
         )}
-      </TableWrapper>
+      </TableWrap>
+      {!isLoading && members.length > 0 && (
+        <PaginationWrap>
+          <span>
+            총 {totalCount}건{totalCount > 0 && ` (${from}–${to} 표시)`}
+          </span>
+          <PageSizeSelect
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value))
+              setPage(1)
+            }}
+            aria-label="페이지당 개수">
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}개씩
+              </option>
+            ))}
+          </PageSizeSelect>
+          <PageBtn
+            type="button"
+            disabled={safePage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label="이전 페이지">
+            이전
+          </PageBtn>
+          <span>
+            {safePage} / {totalPages}
+          </span>
+          <PageBtn
+            type="button"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            aria-label="다음 페이지">
+            다음
+          </PageBtn>
+        </PaginationWrap>
+      )}
     </Container>
   )
 }
@@ -437,10 +746,10 @@ export default function AdminMembersPage() {
   return (
     <AdminLayout>
       <Container>
-        <Header>
-          <Title>워크스페이스 멤버</Title>
-        </Header>
-        <EmptyMessage>워크스페이스를 선택해 주세요.</EmptyMessage>
+        <HeaderRow>
+          <PageTitle>사용자 관리</PageTitle>
+        </HeaderRow>
+        <EmptyState>워크스페이스를 선택해 주세요.</EmptyState>
       </Container>
     </AdminLayout>
   )

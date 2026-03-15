@@ -1,4 +1,7 @@
-import { createSupabaseWithToken } from "@/lib/supabase/supabaseServer"
+import {
+  createSupabaseWithToken,
+  createSupabaseAdmin,
+} from "@/lib/supabase/supabaseServer"
 import { getBearerToken, getAuthUser } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
@@ -60,5 +63,32 @@ export default withApiHandler(async (req, res) => {
     .order("changed_at", { ascending: false })
     .limit(200)
 
-  return res.status(200).json({ history: history ?? [], nameById })
+  const historyRows = history ?? []
+  const changedByIds = [
+    ...new Set(historyRows.map((r: { changed_by: string }) => r.changed_by)),
+  ]
+  const admin = createSupabaseAdmin()
+  const authUsers = await Promise.all(
+    changedByIds.map((uid) => admin.auth.admin.getUserById(uid)),
+  )
+  const changedByUser: Record<
+    string,
+    { name: string | null; email: string | null }
+  > = {}
+  changedByIds.forEach((uid, i) => {
+    const u = authUsers[i]?.data?.user
+    const email =
+      (u?.email as string) ?? (u?.user_metadata?.email as string) ?? null
+    const name =
+      (u?.user_metadata?.name as string) ??
+      (u?.user_metadata?.full_name as string) ??
+      null
+    changedByUser[uid] = { name: name ?? null, email: email ?? null }
+  })
+
+  return res.status(200).json({
+    history: historyRows,
+    nameById,
+    changedByUser,
+  })
 })

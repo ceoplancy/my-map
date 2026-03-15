@@ -15,6 +15,7 @@ import { useState, useRef, useEffect } from "react"
 import styled from "@emotion/styled"
 import { toast } from "react-toastify"
 import { reportError } from "@/lib/reportError"
+import Select from "@/components/ui/select"
 
 const HeaderContainer = styled.header`
   background-color: white;
@@ -191,28 +192,8 @@ const BreadcrumbCurrent = styled.span`
   color: ${COLORS.gray[900]};
 `
 
-const WorkspaceSelect = styled.select`
-  padding: 0.5rem 2rem 0.5rem 0.75rem;
-  border: 1px solid ${COLORS.gray[300]};
-  border-radius: 6px;
-  font-size: 0.875rem;
-  background-color: white;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  background-size: 1rem;
-  color: ${COLORS.gray[700]};
+const WorkspaceSelectWrapper = styled(Select)`
   min-width: 160px;
-  appearance: none;
-  cursor: pointer;
-
-  &:hover {
-    border-color: ${COLORS.gray[400]};
-  }
-  &:focus {
-    outline: none;
-    border-color: ${COLORS.blue[500]};
-  }
 `
 
 const WorkspaceChangeButton = styled.button`
@@ -299,7 +280,7 @@ export default function Header() {
 
         <RightSection>
           {!isIntegratedRoute(router.pathname) && workspaces.length > 1 && (
-            <WorkspaceSelect
+            <WorkspaceSelectWrapper
               value={currentWorkspace?.id ?? ""}
               onChange={(e) => {
                 const ws = workspaces.find((w) => w.id === e.target.value)
@@ -310,7 +291,7 @@ export default function Header() {
                   {w.name}
                 </option>
               ))}
-            </WorkspaceSelect>
+            </WorkspaceSelectWrapper>
           )}
           {!isIntegratedRoute(router.pathname) && workspaces.length > 0 && (
             <WorkspaceChangeButton

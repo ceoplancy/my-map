@@ -2,6 +2,7 @@ import { useCreateUser, useUpdateUser, useGetFilterMenu } from "@/api/supabase"
 import { useState } from "react"
 import styled from "@emotion/styled"
 import { AUTH_ROLE_LABELS, AUTH_ROLES, type AuthRole } from "@/types/auth"
+import Select from "@/components/ui/select"
 
 const Modal = styled.div`
   position: fixed;
@@ -57,20 +58,9 @@ const Input = styled.input`
   }
 `
 
-const Select = styled.select`
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
+const FormSelect = styled(Select)`
   width: 100%;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem;
-
   &:focus {
-    outline: none;
-    border-color: #2563eb;
     box-shadow: 0 0 0 1px #2563eb;
   }
 `
@@ -240,7 +230,7 @@ export default function UserForm({ user, onClose }: UserFormProps) {
           </FormGroup>
           <FormGroup>
             <Label>권한</Label>
-            <Select
+            <FormSelect
               value={formData.role}
               onChange={(e) =>
                 setFormData({
@@ -253,7 +243,7 @@ export default function UserForm({ user, onClose }: UserFormProps) {
                   {AUTH_ROLE_LABELS[r]}
                 </option>
               ))}
-            </Select>
+            </FormSelect>
           </FormGroup>
           <FormGroup>
             <Label>조회 가능한 상태</Label>

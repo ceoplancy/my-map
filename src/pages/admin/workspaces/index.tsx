@@ -13,6 +13,7 @@ import type { AccountType } from "@/types/db"
 import { toast } from "react-toastify"
 import Link from "next/link"
 import GlobalSpinner from "@/components/ui/global-spinner"
+import Select from "@/components/ui/select"
 
 const Container = styled.div`
   display: flex;
@@ -163,17 +164,8 @@ const Input = styled.input`
   }
 `
 
-const Select = styled.select`
+const ModalSelect = styled(Select)`
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid ${COLORS.gray[300]};
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-
-  &:focus {
-    outline: none;
-    border-color: ${COLORS.blue[500]};
-  }
 `
 
 const ModalActions = styled.div`
@@ -317,7 +309,7 @@ export default function AdminWorkspacesPage() {
                 </FormGroup>
                 <FormGroup>
                   <Label htmlFor="ws-account-type">계정 유형</Label>
-                  <Select
+                  <ModalSelect
                     id="ws-account-type"
                     value={accountType}
                     onChange={(e) =>
@@ -325,7 +317,7 @@ export default function AdminWorkspacesPage() {
                     }>
                     <option value="listed_company">상장사</option>
                     <option value="proxy_company">의결권 대행사</option>
-                  </Select>
+                  </ModalSelect>
                 </FormGroup>
                 <ModalActions>
                   <SecondaryButton

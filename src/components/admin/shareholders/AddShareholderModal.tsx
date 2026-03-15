@@ -7,6 +7,7 @@ import {
   type CreateShareholderInput,
 } from "@/api/workspace"
 import { FIELD_LABELS } from "./EditShareholderModal"
+import Select from "@/components/ui/select"
 
 const Overlay = styled.div`
   position: fixed;
@@ -70,21 +71,8 @@ const Input = styled.input`
   }
 `
 
-const Select = styled.select`
-  padding: 0.5rem 0.75rem;
-  border: 1px solid ${COLORS.gray[200]};
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  background-size: 1rem;
-
-  &:focus {
-    outline: none;
-    border-color: ${COLORS.blue[500]};
-  }
+const ModalSelect = styled(Select)`
+  width: 100%;
 `
 
 const ButtonGroup = styled.div`
@@ -209,7 +197,7 @@ export default function AddShareholderModal({
           </FormGroup>
           <FormGroup>
             <Label>{FIELD_LABELS.status}</Label>
-            <Select
+            <ModalSelect
               value={form.status ?? "미방문"}
               onChange={(e) =>
                 update(
@@ -222,7 +210,7 @@ export default function AddShareholderModal({
               <option value="완료">완료</option>
               <option value="보류">보류</option>
               <option value="실패">실패</option>
-            </Select>
+            </ModalSelect>
           </FormGroup>
           <FormGroup>
             <Label>{FIELD_LABELS.stocks}</Label>

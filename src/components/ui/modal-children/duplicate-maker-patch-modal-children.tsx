@@ -8,6 +8,7 @@ import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction } from "react"
 import type { UseMutateFunction } from "@tanstack/react-query"
 import { removeTags } from "@/lib/utils"
+import Select from "@/components/ui/select"
 
 interface DuplicateMakerPatchModalChildrenProps {
   duplicateMakerData: Excel | null
@@ -47,7 +48,7 @@ const DuplicateMakerPatchModalChildren = ({
           상태
         </Font>
 
-        <select
+        <Select
           style={{ marginTop: "0.5rem" }}
           name="status-select"
           id="status-select"
@@ -68,7 +69,7 @@ const DuplicateMakerPatchModalChildren = ({
           <option value="완료">완료</option>
           <option value="보류">보류</option>
           <option value="실패">실패</option>
-        </select>
+        </Select>
       </InfoWrapper>
 
       <InfoWrapper>

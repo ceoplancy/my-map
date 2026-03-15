@@ -1,5 +1,6 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import { useRouter } from "next/router"
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import styled from "@emotion/styled"
@@ -21,6 +22,7 @@ type HistoryRow = {
 type Data = {
   history: HistoryRow[]
   nameById: Record<string, string>
+  changedByUser: Record<string, { name: string | null; email: string | null }>
 }
 
 const Container = styled.div`
@@ -81,6 +83,15 @@ const EmptyMessage = styled.div`
   color: ${COLORS.gray[600]};
 `
 
+const ChangerLink = styled(Link)`
+  color: ${COLORS.blue[600]};
+  font-weight: 500;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+`
+
 /** 변경 이력 본문 (listId 쿼리 사용) */
 export function ChangeHistoryPageContent() {
   const router = useRouter()
@@ -117,7 +128,11 @@ export function ChangeHistoryPageContent() {
         return
       }
       const json = await res.json()
-      setData({ history: json.history ?? [], nameById: json.nameById ?? {} })
+      setData({
+        history: json.history ?? [],
+        nameById: json.nameById ?? {},
+        changedByUser: json.changedByUser ?? {},
+      })
       setError(null)
       setLoading(false)
     }
@@ -170,18 +185,43 @@ export function ChangeHistoryPageContent() {
               </tr>
             </thead>
             <tbody>
-              {data.history.map((row) => (
-                <tr key={row.id}>
-                  <Td>{row.changed_at}</Td>
-                  <Td>
-                    {data.nameById[row.shareholder_id] ?? row.shareholder_id}
-                  </Td>
-                  <Td>{FIELD_LABELS[row.field] ?? row.field}</Td>
-                  <Td>{row.old_value ?? "-"}</Td>
-                  <Td>{row.new_value ?? "-"}</Td>
-                  <Td>{row.changed_by}</Td>
-                </tr>
-              ))}
+              {data.history.map((row) => {
+                const workspaceId =
+                  typeof router.query.workspaceId === "string"
+                    ? router.query.workspaceId
+                    : null
+                const userInfo = data.changedByUser[row.changed_by]
+                const changerLabel =
+                  userInfo?.name?.trim() ||
+                  userInfo?.email?.trim() ||
+                  row.changed_by
+                const usersHref = workspaceId
+                  ? `/workspaces/${workspaceId}/admin/users?userId=${row.changed_by}`
+                  : null
+
+                return (
+                  <tr key={row.id}>
+                    <Td>{row.changed_at}</Td>
+                    <Td>
+                      {data.nameById[row.shareholder_id] ?? row.shareholder_id}
+                    </Td>
+                    <Td>{FIELD_LABELS[row.field] ?? row.field}</Td>
+                    <Td>{row.old_value ?? "-"}</Td>
+                    <Td>{row.new_value ?? "-"}</Td>
+                    <Td>
+                      {usersHref ? (
+                        <ChangerLink
+                          href={usersHref}
+                          title="사용자 관리에서 보기">
+                          {changerLabel}
+                        </ChangerLink>
+                      ) : (
+                        changerLabel
+                      )}
+                    </Td>
+                  </tr>
+                )
+              })}
             </tbody>
           </Table>
         )}

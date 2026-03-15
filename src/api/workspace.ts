@@ -555,6 +555,31 @@ export const useUpdateShareholderList = () => {
   })
 }
 
+export const useDeleteShareholderList = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: { id: string; workspace_id: string }) => {
+      const { error } = await supabase
+        .from("shareholder_lists")
+        .delete()
+        .eq("id", input.id)
+      if (error) throw error
+
+      return input
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["shareholderLists", variables.workspace_id],
+      })
+      toast.success("주주명부가 삭제되었습니다.")
+    },
+    onError: () => {
+      toast.error("주주명부 삭제에 실패했습니다.")
+    },
+  })
+}
+
 const recordChangeHistory = async (
   shareholderId: string,
   userId: string,
