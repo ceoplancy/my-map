@@ -155,6 +155,44 @@ export const useAddWorkspaceMember = () => {
   })
 }
 
+export const useRemoveWorkspaceMember = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      workspaceId,
+      memberId,
+    }: {
+      workspaceId: string
+      memberId: string
+    }) => {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error("Unauthorized")
+      const res = await fetch(
+        `/api/me/workspace-members?workspaceId=${encodeURIComponent(workspaceId)}&memberId=${encodeURIComponent(memberId)}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        throw new Error(err.error ?? res.statusText)
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembersWithUsers", variables.workspaceId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembers", variables.workspaceId],
+      })
+      toast.success("멤버가 삭제되었습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "멤버 삭제에 실패했습니다.")
+    },
+  })
+}
+
 export const useShareholderLists = (workspaceId: string | null) => {
   return useQuery({
     queryKey: ["shareholderLists", workspaceId],

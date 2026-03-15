@@ -63,6 +63,34 @@ export default withApiHandler(async (req, res) => {
     return res.status(403).json({ error: "Not a member of this workspace" })
   }
 
+  if (req.method === "DELETE") {
+    if (!isWorkspaceAdmin && !isServiceAdminUser) {
+      return res
+        .status(403)
+        .json({ error: "워크스페이스 관리자만 멤버를 삭제할 수 있습니다." })
+    }
+    const memberId =
+      typeof req.query.memberId === "string"
+        ? req.query.memberId
+        : (req.body as { memberId?: string })?.memberId
+    if (!memberId) {
+      return res.status(400).json({ error: "memberId required" })
+    }
+    const target = (members ?? []).find((m) => m.id === memberId)
+    if (!target || target.workspace_id !== workspaceId) {
+      return res.status(404).json({ error: "멤버를 찾을 수 없습니다." })
+    }
+    const { error: deleteErr } = await admin
+      .from("workspace_members")
+      .delete()
+      .eq("id", memberId)
+    if (deleteErr) {
+      return res.status(500).json({ error: deleteErr.message })
+    }
+
+    return res.status(200).json({ success: true })
+  }
+
   if (req.method === "POST") {
     if (!isWorkspaceAdmin && !isServiceAdminUser) {
       return res

@@ -4,6 +4,7 @@ import {
   useWorkspaceMembersWithUsers,
   useShareholderLists,
   useAddWorkspaceMember,
+  useRemoveWorkspaceMember,
 } from "@/api/workspace"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
@@ -12,6 +13,7 @@ import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/router"
 import Modal from "@/components/ui/modal"
+import { Delete as DeleteIcon } from "@mui/icons-material"
 
 const Container = styled.div`
   display: flex;
@@ -174,6 +176,22 @@ const ModalButton = styled.button<{ primary?: boolean }>`
   color: ${(p) => (p.primary ? "white" : COLORS.gray[800])};
 `
 
+const DeleteBtn = styled.button`
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  color: ${COLORS.red[600]};
+  background: ${COLORS.red[50]};
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  &:hover {
+    background: ${COLORS.red[100]};
+  }
+`
+
 /** 워크스페이스 멤버 본문 (workspace 설정된 상태에서 사용) */
 export function MembersPageContent({
   initialWorkspace = null,
@@ -187,6 +205,7 @@ export function MembersPageContent({
   )
   const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
   const addMember = useAddWorkspaceMember()
+  const removeMember = useRemoveWorkspaceMember()
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addEmail, setAddEmail] = useState("")
   const [addName, setAddName] = useState("")
@@ -227,6 +246,12 @@ export function MembersPageContent({
         ? prev.filter((id) => id !== listId)
         : [...prev, listId],
     )
+  }
+
+  const handleRemoveMember = (memberId: string) => {
+    if (!workspace?.id) return
+    if (!confirm("이 멤버를 워크스페이스에서 제거하시겠습니까?")) return
+    removeMember.mutate({ workspaceId: workspace.id, memberId })
   }
 
   if (!workspace) return null
@@ -338,6 +363,7 @@ export function MembersPageContent({
                 <Th>역할</Th>
                 <Th>담당 명부</Th>
                 <Th>팀장</Th>
+                <Th>작업</Th>
               </tr>
             </thead>
             <tbody>
@@ -358,6 +384,16 @@ export function MembersPageContent({
                       : "-"}
                   </Td>
                   <Td>{m.is_team_leader ? "예" : "-"}</Td>
+                  <Td>
+                    <DeleteBtn
+                      type="button"
+                      onClick={() => handleRemoveMember(m.id)}
+                      disabled={removeMember.isPending}
+                      title="멤버 제거">
+                      <DeleteIcon sx={{ fontSize: 18 }} />
+                      삭제
+                    </DeleteBtn>
+                  </Td>
                 </tr>
               ))}
             </tbody>
