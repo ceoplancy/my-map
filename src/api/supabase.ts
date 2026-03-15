@@ -376,6 +376,124 @@ export const useDeleteUser = () => {
 }
 
 // =======================================
+// ============== 사용자 워크스페이스 권한 (통합 관리 ↔ 워크스페이스 사용자 관리 연동) ===============
+// =======================================
+
+export type UserWorkspaceMembership = {
+  workspaceId: string
+  workspaceName: string
+  role: string
+  memberId: string
+}
+
+const getAdminUserWorkspaces = async (
+  userId: string,
+): Promise<UserWorkspaceMembership[]> => {
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(`/api/admin/users/${userId}/workspaces`, {
+    headers,
+  })
+  if (!res.ok) {
+    const msg = await res.text()
+    reportMessage("사용자 워크스페이스 목록 조회에 실패했습니다.", "error")
+    throw new Error(msg || res.statusText)
+  }
+  const json = await res.json()
+
+  return Array.isArray(json) ? json : []
+}
+
+export const useAdminUserWorkspaces = (userId: string | null) => {
+  return useQuery({
+    queryKey: ["adminUserWorkspaces", userId],
+    queryFn: () => getAdminUserWorkspaces(userId!),
+    enabled: !!userId,
+    staleTime: 1000 * 60,
+  })
+}
+
+type AssignableWorkspaceRole = "top_admin" | "admin" | "field_agent"
+
+const addOrUpdateAdminUserWorkspace = async (
+  userId: string,
+  workspaceId: string,
+  role: AssignableWorkspaceRole,
+) => {
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(`/api/admin/users/${userId}/workspaces`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspaceId, role }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error((err as { error?: string }).error ?? res.statusText)
+  }
+}
+
+const removeAdminUserWorkspace = async (
+  userId: string,
+  workspaceId: string,
+) => {
+  const headers = await getAdminAuthHeaders()
+  const res = await fetch(
+    `/api/admin/users/${userId}/workspaces?workspaceId=${encodeURIComponent(workspaceId)}`,
+    { method: "DELETE", headers },
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error((err as { error?: string }).error ?? res.statusText)
+  }
+}
+
+export const useAddOrUpdateAdminUserWorkspace = (userId: string) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      role,
+    }: {
+      workspaceId: string
+      role: AssignableWorkspaceRole
+    }) => addOrUpdateAdminUserWorkspace(userId, workspaceId, role),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["adminUserWorkspaces", userId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembersWithUsers", variables.workspaceId],
+      })
+      toast.success("워크스페이스 권한이 반영되었습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "워크스페이스 권한 설정에 실패했습니다.")
+    },
+  })
+}
+
+export const useRemoveAdminUserWorkspace = (userId: string) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (workspaceId: string) =>
+      removeAdminUserWorkspace(userId, workspaceId),
+    onSuccess: (workspaceId) => {
+      queryClient.invalidateQueries({
+        queryKey: ["adminUserWorkspaces", userId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembersWithUsers", workspaceId],
+      })
+      toast.success("워크스페이스에서 제거되었습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "워크스페이스 제거에 실패했습니다.")
+    },
+  })
+}
+
+// =======================================
 // ============== 관리자 워크스페이스 ===============
 // =======================================
 

@@ -6,6 +6,7 @@ import {
   People,
   List as ListIcon,
   Business,
+  PersonAdd,
 } from "@mui/icons-material"
 import { usePathname } from "next/navigation"
 import { useAdminStatus } from "@/api/auth"
@@ -102,6 +103,7 @@ const NavLinkSub = styled(NavLink)`
 /** 통합 관리(서비스 최고 관리자 전용): 플랫폼 전체 */
 const INTEGRATED_MENU_ITEMS = [
   { title: "대시보드", path: ADMIN.INTEGRATED, icon: <Dashboard /> },
+  { title: "가입 승인", path: ADMIN.SIGNUP_REQUESTS, icon: <PersonAdd /> },
   { title: "사용자 관리", path: ADMIN.USERS, icon: <People /> },
   { title: "워크스페이스 관리", path: ADMIN.WORKSPACES, icon: <Business /> },
 ]
