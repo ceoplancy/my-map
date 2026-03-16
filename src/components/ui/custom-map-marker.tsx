@@ -121,6 +121,7 @@ const CustomMapMarker = ({
   const shareholderIdForHistory = isShareholderMarker ? String(marker.id) : null
   const { data: mapHistory = [] } = useShareholderChangeHistoryForMap(
     shareholderIdForHistory,
+    { enabled: isOpen },
   )
 
   const makerDataMutate = useCallback(
@@ -315,6 +316,12 @@ const CustomMapMarker = ({
           makerData={isGroupMarker ? selectedGroupMarker : marker}
           makerDataMutate={makerDataMutate}
           setMakerDataUpdateIsModalOpen={setMakerDataUpdateIsModalOpen}
+          history={
+            isShareholderMarker &&
+            (!isGroupMarker || selectedGroupMarker?.id === marker.id)
+              ? mapHistory
+              : undefined
+          }
         />
       </Modal>
       {/* 그룹 마커 선택 모달 */}

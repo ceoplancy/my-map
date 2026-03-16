@@ -247,8 +247,11 @@ export default function WorkspacesPage() {
   const router = useRouter()
   const { data: user, isLoading: userLoading } = useGetUserData()
   const hasUser = Boolean(user?.user)
-  const { data: workspaces = [], isLoading: workspacesLoading } =
-    useMyWorkspaces({ enabled: !userLoading && hasUser })
+  const {
+    data: workspaces = [],
+    isLoading: workspacesLoading,
+    isFetching: workspacesFetching,
+  } = useMyWorkspaces({ enabled: !userLoading && hasUser })
   const [, setCurrentWorkspace] = useCurrentWorkspace()
   const createWorkspace = useCreateAdminWorkspace()
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -308,7 +311,9 @@ export default function WorkspacesPage() {
     )
   }
 
-  if (workspacesLoading) {
+  const isInitialLoad =
+    workspacesLoading || (workspacesFetching && workspaces.length === 0)
+  if (isInitialLoad) {
     return (
       <>
         <Head>

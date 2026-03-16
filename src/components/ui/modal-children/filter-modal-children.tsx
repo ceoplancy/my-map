@@ -37,7 +37,10 @@ const MAJOR_CITIES = [
 
 const STOCK_RANGES = [
   { label: "1천주 미만", start: 0, end: 999 },
-  { label: "1천주 ~ 5천주", start: 1000, end: 4999 },
+  { label: "1천주 ~ 2천주", start: 1000, end: 1999 },
+  { label: "2천주 ~ 3천주", start: 2000, end: 2999 },
+  { label: "3천주 ~ 4천주", start: 3000, end: 3999 },
+  { label: "4천주 ~ 5천주", start: 4000, end: 4999 },
   { label: "5천주 ~ 1만주", start: 5000, end: 9999 },
   { label: "1만주 ~ 2만주", start: 10000, end: 19999 },
   { label: "2만주 ~ 3만주", start: 20000, end: 29999 },

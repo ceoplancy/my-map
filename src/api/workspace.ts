@@ -819,13 +819,17 @@ async function fetchShareholderChangeHistoryForMap(
 
 export const useShareholderChangeHistoryForMap = (
   shareholderId: string | null,
+  options?: { enabled?: boolean },
 ) => {
+  const enabled = !!shareholderId && options?.enabled !== false
+
   return useQuery({
     queryKey: ["shareholderChangeHistoryForMap", shareholderId],
     queryFn: () =>
       shareholderId
         ? fetchShareholderChangeHistoryForMap(shareholderId)
         : Promise.resolve([]),
-    enabled: !!shareholderId,
+    enabled,
+    staleTime: 1000 * 60 * 2,
   })
 }

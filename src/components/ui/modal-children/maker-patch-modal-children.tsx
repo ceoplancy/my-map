@@ -6,7 +6,7 @@ import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
-import ExcelDataTable from "../excel-data-table"
+import ExcelDataTable, { type HistoryItem } from "../excel-data-table"
 import { toast } from "react-toastify"
 import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
@@ -26,6 +26,9 @@ interface MakerPatchModalChildrenProps {
     _options?: MakerDataMutateOptions,
   ) => void
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
+
+  /** 지도 주주 마커: API로 불러온 변경 이력. 있으면 ExcelDataTable에 전달 */
+  history?: HistoryItem[]
 }
 
 function findDifferences<T extends Record<string, unknown>>(
@@ -50,6 +53,7 @@ const MakerPatchModalChildren = ({
   makerData,
   makerDataMutate,
   setMakerDataUpdateIsModalOpen,
+  history,
 }: MakerPatchModalChildrenProps) => {
   const { data: user } = useGetUserData()
 
@@ -159,7 +163,7 @@ const MakerPatchModalChildren = ({
         <ModalContent onSubmit={formik.handleSubmit}>
           <Section>
             <SectionTitle>현재 정보</SectionTitle>
-            {makerData && <ExcelDataTable data={makerData} />}
+            {makerData && <ExcelDataTable data={makerData} history={history} />}
           </Section>
 
           <Section>
