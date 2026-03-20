@@ -163,9 +163,15 @@ const getFilterMenu = async () => {
   if (statusError || companyError)
     throw new Error(statusError?.message || companyError?.message)
 
+  type StatusRow = { status: string }
+  type CompanyRow = { company: string }
+
+  const statusRows = (statusData ?? []) as StatusRow[]
+  const companyRows = (companyData ?? []) as CompanyRow[]
+
   // 중복 제거를 클라이언트에서 처리
-  const uniqueStatus = [...new Set(statusData.map((item) => item.status))]
-  const uniqueCompany = [...new Set(companyData.map((item) => item.company))]
+  const uniqueStatus = [...new Set(statusRows.map((item) => item.status))]
+  const uniqueCompany = [...new Set(companyRows.map((item) => item.company))]
 
   return {
     statusMenu: uniqueStatus,

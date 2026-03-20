@@ -106,6 +106,8 @@ const CustomMapMarker = ({
   const [isMarkerSelectModalOpen, setIsMarkerSelectModalOpen] = useState(false)
   const [selectedGroupMarker, setSelectedGroupMarker] =
     useState<MapMarkerData | null>(null)
+  const [patchModalSaveInProgress, setPatchModalSaveInProgress] =
+    useState(false)
 
   const { mutate: patchExcel, isPending: excelMutateLoading } = usePatchExcel()
   const { mutate: patchShareholder, isPending: shareholderMutateLoading } =
@@ -311,11 +313,16 @@ const CustomMapMarker = ({
       <Modal
         position="center"
         open={makerDataUpdateIsModalOpen}
-        setOpen={setMakerDataUpdateIsModalOpen}>
+        setOpen={(nextOpen) => {
+          if (!nextOpen && patchModalSaveInProgress) return
+          setMakerDataUpdateIsModalOpen(nextOpen)
+        }}>
         <MakerPatchModalChildren
           makerData={isGroupMarker ? selectedGroupMarker : marker}
           makerDataMutate={makerDataMutate}
           setMakerDataUpdateIsModalOpen={setMakerDataUpdateIsModalOpen}
+          mutateIsPending={makerDataMutateIsLoading}
+          onSavingChange={setPatchModalSaveInProgress}
           history={
             isShareholderMarker &&
             (!isGroupMarker || selectedGroupMarker?.id === marker.id)

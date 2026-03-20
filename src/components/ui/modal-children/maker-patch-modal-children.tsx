@@ -1,7 +1,15 @@
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
 import type { MapMarkerData } from "@/types/map"
-import { Dispatch, SetStateAction, useEffect } from "react"
+import {
+  Dispatch,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
+import CircularProgress from "@mui/material/CircularProgress"
 import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
@@ -12,6 +20,7 @@ import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
 import Select from "@/components/ui/select"
+import { hasPatchChanges, normalizeStatusForPatch } from "@/lib/makerPatchForm"
 
 export type MakerDataMutateOptions = {
   onSuccess?: () => void
@@ -29,6 +38,12 @@ interface MakerPatchModalChildrenProps {
 
   /** 지도 주주 마커: API로 불러온 변경 이력. 있으면 ExcelDataTable에 전달 */
   history?: HistoryItem[]
+
+  /** 부모 `usePatchExcel` / `usePatchShareholder`의 isPending (버튼 로딩 동기화) */
+  mutateIsPending?: boolean
+
+  /** 저장 요청 중일 때 true — 모달 바깥 클릭·닫기 방지용 */
+  onSavingChange?: (_isSaving: boolean) => void
 }
 
 function findDifferences<T extends Record<string, unknown>>(
@@ -54,8 +69,14 @@ const MakerPatchModalChildren = ({
   makerDataMutate,
   setMakerDataUpdateIsModalOpen,
   history,
+  mutateIsPending = false,
+  onSavingChange,
 }: MakerPatchModalChildrenProps) => {
   const { data: user } = useGetUserData()
+  const saveInFlightRef = useRef(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const isSaveBusy = isSaving || mutateIsPending
 
   const formik = useFormik({
     initialValues: {
@@ -74,11 +95,14 @@ const MakerPatchModalChildren = ({
       history: makerData?.history ?? [],
     },
     onSubmit: (values) => {
-      if (!makerData) return
-      const status =
-        values.status && values.status.trim() !== ""
-          ? values.status.trim()
-          : "미방문"
+      if (!makerData || saveInFlightRef.current) return
+      if (!hasPatchChanges(makerData, values)) return
+
+      saveInFlightRef.current = true
+      setIsSaving(true)
+      onSavingChange?.(true)
+
+      const status = normalizeStatusForPatch(values.status)
       const original = {
         status: makerData.status,
         memo: makerData.memo,
@@ -96,7 +120,10 @@ const MakerPatchModalChildren = ({
           : "미확인"
 
       const modified_at = format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")
-      const changes = findDifferences(original, modified)
+      const changes = findDifferences(
+        original as Record<string, unknown>,
+        modified as Record<string, unknown>,
+      )
 
       const patchData = makerData.history
         ? ({
@@ -124,6 +151,9 @@ const MakerPatchModalChildren = ({
           )
         },
         onSettled: () => {
+          saveInFlightRef.current = false
+          setIsSaving(false)
+          onSavingChange?.(false)
           setMakerDataUpdateIsModalOpen(false)
         },
       })
@@ -148,14 +178,31 @@ const MakerPatchModalChildren = ({
         history: makerData.history ?? [],
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- formik ref 동기화 제외
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- makerData 변경 시만 폼 동기화
   }, [makerData])
+
+  const hasEditableChanges = useMemo(
+    () => (makerData ? hasPatchChanges(makerData, formik.values) : false),
+    // 편집 가능 필드는 status·memo뿐 — formik.values 전체는 불필요한 재계산 유발
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- status, memo만 추적
+    [makerData, formik.values.status, formik.values.memo],
+  )
+
+  const canSubmit = hasEditableChanges && !isSaveBusy
 
   return (
     <>
       <ModalHeader>
         <HeaderTitle>주주 정보 수정</HeaderTitle>
-        <CloseButton onClick={() => setMakerDataUpdateIsModalOpen(false)}>
+        <CloseButton
+          type="button"
+          disabled={isSaveBusy}
+          aria-disabled={isSaveBusy}
+          title={isSaveBusy ? "저장 중에는 닫을 수 없습니다" : "닫기"}
+          onClick={() => {
+            if (isSaveBusy) return
+            setMakerDataUpdateIsModalOpen(false)
+          }}>
           <CloseIcon />
         </CloseButton>
       </ModalHeader>
@@ -173,7 +220,8 @@ const MakerPatchModalChildren = ({
                 name="status"
                 value={formik.values.status || "미방문"}
                 onChange={formik.handleChange}
-                onBlur={formik.handleBlur}>
+                onBlur={formik.handleBlur}
+                disabled={isSaveBusy}>
                 <option value="미방문">미방문</option>
                 <option value="완료">완료</option>
                 <option value="보류">보류</option>
@@ -190,17 +238,44 @@ const MakerPatchModalChildren = ({
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               placeholder="메모를 입력하세요..."
+              disabled={isSaveBusy}
             />
           </Section>
 
           <ButtonGroup>
-            <ActionButton type="submit" variant="primary">
-              수정 완료
+            <ActionButton
+              type="submit"
+              variant="primary"
+              disabled={!canSubmit}
+              aria-busy={isSaveBusy}
+              title={
+                isSaveBusy
+                  ? undefined
+                  : !hasEditableChanges
+                    ? "상태 또는 메모를 변경한 뒤 저장할 수 있습니다"
+                    : undefined
+              }>
+              {isSaveBusy ? (
+                <SubmitInner>
+                  <CircularProgress
+                    size={18}
+                    thickness={5}
+                    sx={{ color: "#fff" }}
+                  />
+                  저장 중…
+                </SubmitInner>
+              ) : (
+                "수정 완료"
+              )}
             </ActionButton>
             <ActionButton
               type="button"
               variant="secondary"
-              onClick={() => setMakerDataUpdateIsModalOpen(false)}>
+              disabled={isSaveBusy}
+              onClick={() => {
+                if (isSaveBusy) return
+                setMakerDataUpdateIsModalOpen(false)
+              }}>
               취소
             </ActionButton>
           </ButtonGroup>
@@ -286,10 +361,15 @@ const CloseButton = styled.button`
   cursor: pointer;
   transition: all 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: ${COLORS.gray[100]};
     color: ${COLORS.gray[700]};
     transform: rotate(90deg);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 `
 
@@ -377,6 +457,13 @@ const ButtonGroup = styled.div`
   }
 `
 
+const SubmitInner = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+`
+
 const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
   padding: 12px 24px;
   font-size: 14px;
@@ -399,7 +486,7 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
         ? "rgba(59, 130, 246, 0.2)"
         : "rgba(0, 0, 0, 0.05)"};
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-1px);
     background: ${({ variant }) =>
       variant === "primary" ? COLORS.blue[600] : COLORS.gray[50]};
@@ -407,8 +494,14 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
       variant === "primary" ? COLORS.blue[600] : COLORS.gray[400]};
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.92;
+    cursor: not-allowed;
+    transform: none;
   }
 
   @media (max-width: 768px) {

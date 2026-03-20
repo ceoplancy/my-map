@@ -8,11 +8,12 @@ import Font from "@/components/ui/font"
 import Image from "next/image"
 import Link from "next/link"
 
+/** lottie-react는 SSR 시 document 접근으로 빌드 실패 → 클라이언트만 로드 */
 const SignInAnimation = dynamic(
   () =>
-    import("@/components/animations/SignInAnimation").then(
-      (m) => m.SignInAnimation,
-    ),
+    import("@/components/animations/SignInAnimation").then((m) => ({
+      default: m.SignInAnimation,
+    })),
   { ssr: false },
 )
 
