@@ -18,17 +18,20 @@ interface MakerPatchModalChildrenProps {
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 }
 
-const findDifferences = (original: any, modified: any) => {
-  const differences: Record<string, { original: any; modified: any }> = {}
-
-  Object.keys(modified).forEach((key) => {
+function findDifferences<T extends Record<string, unknown>>(
+  original: T,
+  modified: T,
+): Record<string, { original: unknown; modified: unknown }> {
+  const differences: Record<string, { original: unknown; modified: unknown }> =
+    {}
+  for (const key of Object.keys(modified)) {
     if (original[key] !== modified[key]) {
       differences[key] = {
         original: original[key],
         modified: modified[key],
       }
     }
-  })
+  }
 
   return differences
 }
@@ -59,25 +62,38 @@ const MakerPatchModalChildren = ({
     onSubmit: (values) => {
       if (!makerData) return
 
+      // 빈 문자열이면 기본값 "미방문"으로 처리
+      const status =
+        values.status && values.status.trim() !== ""
+          ? values.status.trim()
+          : "미방문"
+
       const original = {
         status: makerData.status,
         memo: makerData.memo,
       }
       const modified = {
-        status: values.status,
+        status,
         memo: values.memo,
       }
-      const modifier = user?.user.user_metadata.name
-        ? `${user?.user.user_metadata.name} (${user?.user.email})`
-        : `미확인 (${user?.user.email})`
+      const name = user?.user?.user_metadata?.name
+      const email = user?.user?.email ?? ""
+      const modifier = name
+        ? `${name} (${email})`
+        : email
+          ? `미확인 (${email})`
+          : "미확인"
 
       const modified_at = format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")
-      const changes = findDifferences(original, modified)
+      const changes = findDifferences(
+        original as Record<string, unknown>,
+        modified as Record<string, unknown>,
+      )
 
       const patchData = makerData.history
         ? ({
             ...values,
-            status: values.status,
+            status,
             memo: values.memo,
             history: [
               ...(makerData.history as string[]),
@@ -86,7 +102,7 @@ const MakerPatchModalChildren = ({
           } as Excel)
         : ({
             ...values,
-            status: values.status,
+            status,
             memo: values.memo,
             history: [{ modifier, modified_at, changes }],
           } as Excel)
@@ -124,6 +140,7 @@ const MakerPatchModalChildren = ({
         history: makerData.history ?? [],
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- makerData 변경 시만 폼 동기화
   }, [makerData])
 
   return (
@@ -144,23 +161,16 @@ const MakerPatchModalChildren = ({
           <Section>
             <SectionTitle>상태 변경</SectionTitle>
             <SelectWrapper>
-              {formik.values.status ? (
-                <StyledSelect
-                  name="status"
-                  value={formik.values.status}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}>
-                  <option value="">선택하세요</option>
-                  <option value="미방문">미방문</option>
-                  <option value="완료">완료</option>
-                  <option value="보류">보류</option>
-                  <option value="실패">실패</option>
-                </StyledSelect>
-              ) : (
-                <ErrorMessage>
-                  상태 정보가 존재하지 않습니다. 관리자에게 문의하세요.
-                </ErrorMessage>
-              )}
+              <StyledSelect
+                name="status"
+                value={formik.values.status || "미방문"}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}>
+                <option value="미방문">미방문</option>
+                <option value="완료">완료</option>
+                <option value="보류">보류</option>
+                <option value="실패">실패</option>
+              </StyledSelect>
             </SelectWrapper>
           </Section>
 
@@ -408,15 +418,6 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
     padding: 10px 20px;
     font-size: 13px;
   }
-`
-
-const ErrorMessage = styled.div`
-  color: ${COLORS.gray[500]};
-  font-size: 14px;
-  padding: 12px;
-  background: ${COLORS.gray[50]};
-  border-radius: 8px;
-  text-align: center;
 `
 
 export default MakerPatchModalChildren

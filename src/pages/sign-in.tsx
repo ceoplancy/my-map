@@ -5,7 +5,16 @@ import Button from "@/component/button"
 import DotSpinner from "@/component/dot-spinner"
 import Font from "@/component/font"
 import Image from "next/image"
-import { SignInAnimation } from "@/components/animations/SignInAnimation"
+import dynamic from "next/dynamic"
+
+/** lottie-react는 SSR 시 document 접근으로 빌드 실패 → 클라이언트만 로드 */
+const SignInAnimation = dynamic(
+  () =>
+    import("@/components/animations/SignInAnimation").then((m) => ({
+      default: m.SignInAnimation,
+    })),
+  { ssr: false },
+)
 
 const SignIn = () => {
   const [email, setEmail] = useState("")
@@ -246,13 +255,6 @@ const StyledDotSpinner = styled(DotSpinner)`
 const Footer = styled.footer`
   text-align: center;
   padding: 2rem 0;
-`
-
-const CompanyInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  opacity: 0.8;
 `
 
 const Copyright = styled.div`

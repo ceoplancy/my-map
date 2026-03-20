@@ -9,11 +9,10 @@ const buildEslintCommand = (filenames) =>
     .join(" --file ")}`
 
 const buildCommand = () => `next build`
-const typegenCommand = () =>
-  `supabase gen types typescript --project-id dovcidsnxtvxwlbquvin --schema public > ./src/types/db.ts`
 
+/** pre-commit: 타입 생성은 Supabase 프로젝트 상태에 의존하므로 제외. 필요 시 `yarn typegen` 실행 */
 const config = {
-  "*.{js,jsx,ts,tsx}": [typegenCommand, buildEslintCommand, buildCommand],
+  "*.{js,jsx,ts,tsx}": [buildEslintCommand, buildCommand],
 }
 
 export default config
