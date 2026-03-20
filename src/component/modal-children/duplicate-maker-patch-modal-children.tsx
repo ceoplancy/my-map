@@ -53,7 +53,7 @@ const DuplicateMakerPatchModalChildren = ({
           id="status-select"
           value={duplicateMakerDataState?.status || ""}
           onChange={(e) => {
-            setDuplicateMakerDataState((prev) => {
+            setDuplicateMakerDataState((prev: Excel | null) => {
               if (!prev) {
                 return duplicateMakerData
                   ? { ...duplicateMakerData, status: e.target.value }
@@ -80,7 +80,7 @@ const DuplicateMakerPatchModalChildren = ({
           style={{ marginTop: "0.5rem" }}
           value={removeTags(duplicateMakerDataState?.memo || "")}
           onChange={(e) => {
-            setDuplicateMakerDataState((prev) => {
+            setDuplicateMakerDataState((prev: Excel | null) => {
               if (!prev) {
                 return duplicateMakerData
                   ? { ...duplicateMakerData, memo: e.target.value }
