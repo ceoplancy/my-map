@@ -254,7 +254,7 @@ const Home = () => {
                 lng: selectedMarker.lng || 0,
               }}
               clickable
-              yAnchor={-0.15}
+              yAnchor={0}
               zIndex={100}>
               <InfoPanel
                 marker={selectedMarker}
