@@ -31,14 +31,6 @@ const RightSection = styled.div`
   gap: 1rem;
 `
 
-const IconButton = styled.button`
-  padding: 0.5rem;
-  border-radius: 9999px;
-  &:hover {
-    background-color: #f3f4f6;
-  }
-`
-
 const ProfileButton = styled.button`
   display: flex;
   align-items: center;
@@ -48,22 +40,6 @@ const ProfileButton = styled.button`
   &:hover {
     background-color: #f3f4f6;
   }
-`
-
-const ProfileAvatar = styled.div`
-  width: 2rem;
-  height: 2rem;
-  border-radius: 9999px;
-  background-color: #d1d5db;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const ProfileEmail = styled.span`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
 `
 
 const DropdownMenu = styled.div`
@@ -102,22 +78,9 @@ const BreadcrumbText = styled.div`
   color: #6b7280;
 `
 
-const BreadcrumbLink = styled.span`
-  cursor: pointer;
-  &:hover {
-    color: #374151;
-  }
-`
-
 const FlexContainer = styled.div`
   display: flex;
   align-items: center;
-`
-
-const NotificationIcon = styled.svg`
-  width: 1.5rem;
-  height: 1.5rem;
-  color: ${COLORS.gray[600]};
 `
 
 const ProfileDropdown = styled.div`
@@ -227,19 +190,6 @@ export default function Header() {
         </FlexContainer>
 
         <RightSection>
-          {/* 알림 아이콘 */}
-          {/* <IconButton>
-            <NotificationIcon
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-            </NotificationIcon>
-          </IconButton> */}
-
           {/* 프로필 드롭다운 */}
           <ProfileDropdown ref={dropdownRef}>
             <ProfileButtonContainer

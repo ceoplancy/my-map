@@ -2,19 +2,9 @@ import styled from "@emotion/styled"
 
 interface GlobalSpinnerProps {
   color?: string
-  width?: number
-  height?: number
-  marginRight?: number
-  dotColor?: string
 }
 
-const GlobalSpinner = ({
-  color,
-  width,
-  height,
-  marginRight,
-  dotColor,
-}: GlobalSpinnerProps) => {
+const GlobalSpinner = ({ color }: GlobalSpinnerProps) => {
   return (
     <Frame>
       <SvgTag className="spinner" viewBox="0 0 50 50" color={color}>

@@ -5,7 +5,7 @@ import Portal from "./portal"
 
 interface ModalProps {
   open: boolean
-  setOpen: (open: boolean) => void
+  setOpen: (_open: boolean) => void
   isOverflow?: boolean
   position?:
     | "center"

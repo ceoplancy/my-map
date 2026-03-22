@@ -123,21 +123,17 @@ const Home = () => {
   )
 
   const [openMarkers, setOpenMarkers] = useState<Excel[]>([])
-  const [mapMoveSeq, setMapMoveSeq] = useState(0)
+  const [, setMapMoveSeq] = useState(0)
 
-  const getYAnchor = useCallback(
-    (lat: number, lng: number) => {
-      void mapMoveSeq
-      const map = mapRef.current
-      if (!map) return 0
-      const projection = map.getProjection()
-      const point = projection.pointFromCoords(new kakao.maps.LatLng(lat, lng))
-      const mapHeight = map.getNode().clientHeight
+  const getYAnchor = (lat: number, lng: number) => {
+    const map = mapRef.current
+    if (!map) return 0
+    const projection = map.getProjection()
+    const point = projection.pointFromCoords(new kakao.maps.LatLng(lat, lng))
+    const mapHeight = map.getNode().clientHeight
 
-      return point.y / mapHeight > 0.55 ? 1.1 : 0
-    },
-    [mapMoveSeq],
-  )
+    return point.y / mapHeight > 0.55 ? 1.1 : 0
+  }
 
   const handleMarkerClick = useCallback((marker: Excel) => {
     setOpenMarkers((prev) => {
@@ -234,12 +230,7 @@ const Home = () => {
     <>
       {(excelIsLoading || isLoading) && (
         <SpinnerFrame>
-          <GlobalSpinner
-            width={18}
-            height={18}
-            marginRight={18}
-            dotColor="#8536FF"
-          />
+          <GlobalSpinner />
         </SpinnerFrame>
       )}
 

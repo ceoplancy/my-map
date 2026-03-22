@@ -9,7 +9,6 @@ import { Excel } from "@/types/excel"
 
 import AdminLayout from "@/layouts/AdminLayout"
 import styled from "@emotion/styled"
-import { COLORS } from "@/styles/global-style"
 import * as Sentry from "@sentry/nextjs"
 
 interface GeocodingResult {
@@ -68,7 +67,7 @@ const ExcelImport = () => {
 
   const { waitForKakaoMaps } = useKakaoMaps()
 
-  const [processingItem, setProcessingItem] = useState<number | null>(null)
+  const [_processingItem, setProcessingItem] = useState<number | null>(null)
 
   const handleFile: ChangeEventHandler<HTMLInputElement> = (e) => {
     const fileTypes = [

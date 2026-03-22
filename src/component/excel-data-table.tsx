@@ -282,13 +282,6 @@ const HistoryButton = styled.button`
   }
 `
 
-const ModalWrapper = styled.div`
-  @media screen and (max-width: 768px) {
-    width: 100%;
-    margin: 0;
-  }
-`
-
 const HistoryModal = ({
   open,
   onClose,
@@ -444,23 +437,6 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
     </HistoryCard>
   )
 }
-
-// 스타일 컴포넌트 추가
-const PreviewContainer = styled.div`
-  padding: 8px 12px;
-  background: ${COLORS.gray[50]};
-  border-radius: 8px;
-
-  @media screen and (max-width: 768px) {
-    padding: 12px 16px;
-    margin: 0 -4px;
-  }
-`
-
-const PreviewHeader = styled.div`
-  display: flex;
-  gap: 4px;
-`
 
 const HistoryCard = styled.div`
   border-bottom: 1px solid ${COLORS.gray[100]};
