@@ -123,16 +123,21 @@ const Home = () => {
   )
 
   const [openMarkers, setOpenMarkers] = useState<Excel[]>([])
+  const [mapMoveSeq, setMapMoveSeq] = useState(0)
 
-  const getYAnchor = useCallback((lat: number, lng: number) => {
-    const map = mapRef.current
-    if (!map) return 0
-    const projection = map.getProjection()
-    const point = projection.pointFromCoords(new kakao.maps.LatLng(lat, lng))
-    const mapHeight = map.getNode().clientHeight
+  const getYAnchor = useCallback(
+    (lat: number, lng: number) => {
+      void mapMoveSeq
+      const map = mapRef.current
+      if (!map) return 0
+      const projection = map.getProjection()
+      const point = projection.pointFromCoords(new kakao.maps.LatLng(lat, lng))
+      const mapHeight = map.getNode().clientHeight
 
-    return point.y / mapHeight > 0.55 ? 1.1 : 0
-  }, [])
+      return point.y / mapHeight > 0.55 ? 1.1 : 0
+    },
+    [mapMoveSeq],
+  )
 
   const handleMarkerClick = useCallback((marker: Excel) => {
     setOpenMarkers((prev) => {
@@ -166,6 +171,7 @@ const Home = () => {
   const handleDragEnd = useCallback(
     (target: kakao.maps.Map) => {
       debouncedMapUpdate(target)
+      setMapMoveSeq((s) => s + 1)
     },
     [debouncedMapUpdate],
   )
@@ -261,19 +267,23 @@ const Home = () => {
             />
           )}
 
-          {openMarkers.map((m) => (
-            <CustomOverlayMap
-              key={m.id}
-              position={{ lat: m.lat || 0, lng: m.lng || 0 }}
-              clickable
-              yAnchor={getYAnchor(m.lat || 0, m.lng || 0)}
-              zIndex={100}>
-              <InfoPanel
-                marker={m}
-                onClose={() => handleCloseInfoPanel(m.id)}
-              />
-            </CustomOverlayMap>
-          ))}
+          {openMarkers.map((m) => {
+            const anchor = getYAnchor(m.lat || 0, m.lng || 0)
+
+            return (
+              <CustomOverlayMap
+                key={`${m.id}-${anchor > 0.5 ? "above" : "below"}`}
+                position={{ lat: m.lat || 0, lng: m.lng || 0 }}
+                clickable
+                yAnchor={anchor}
+                zIndex={100}>
+                <InfoPanel
+                  marker={m}
+                  onClose={() => handleCloseInfoPanel(m.id)}
+                />
+              </CustomOverlayMap>
+            )
+          })}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
