@@ -106,8 +106,6 @@ const HeaderTitle = styled.h3`
 
 const PanelBody = styled.div`
   padding: 16px;
-  overflow-y: auto;
-  max-height: 400px;
 `
 
 const PanelFooter = styled.div`

@@ -123,30 +123,10 @@ const Home = () => {
   )
 
   const [selectedMarker, setSelectedMarker] = useState<Excel | null>(null)
-  const [overlayYAnchor, setOverlayYAnchor] = useState(1.1)
 
-  const computeYAnchor = useCallback((lat: number, lng: number) => {
-    const map = mapRef.current
-    if (!map) return 1.1
-    const projection = map.getProjection()
-    const point = projection.pointFromCoords(new kakao.maps.LatLng(lat, lng))
-    const mapHeight = map.getNode().clientHeight
-    const markerRatio = point.y / mapHeight
-
-    return markerRatio < 0.35 ? -0.15 : 1.1
+  const handleMarkerClick = useCallback((marker: Excel) => {
+    setSelectedMarker((prev) => (prev?.id === marker.id ? null : marker))
   }, [])
-
-  const handleMarkerClick = useCallback(
-    (marker: Excel) => {
-      setSelectedMarker((prev) => {
-        if (prev?.id === marker.id) return null
-        setOverlayYAnchor(computeYAnchor(marker.lat || 0, marker.lng || 0))
-
-        return marker
-      })
-    },
-    [computeYAnchor],
-  )
 
   const handleCloseInfoPanel = useCallback(() => {
     setSelectedMarker(null)
@@ -274,7 +254,7 @@ const Home = () => {
                 lng: selectedMarker.lng || 0,
               }}
               clickable
-              yAnchor={overlayYAnchor}
+              yAnchor={-0.15}
               zIndex={100}>
               <InfoPanel
                 marker={selectedMarker}
