@@ -25,7 +25,12 @@ const InfoPanel = ({ marker, onClose }: InfoPanelProps) => {
 
   return (
     <>
-      <PanelContainer onClick={(e) => e.stopPropagation()}>
+      <PanelContainer
+        onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}>
         <PanelHeader>
           <HeaderTitle>주주 정보</HeaderTitle>
           <CloseBtn onClick={onClose}>
