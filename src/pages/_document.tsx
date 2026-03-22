@@ -4,6 +4,7 @@ const CustomDocument = () => {
   return (
     <Html>
       <Head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="manifest" href="/site.webmanifest" />
       </Head>
       <body>

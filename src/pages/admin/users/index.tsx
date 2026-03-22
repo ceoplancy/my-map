@@ -61,23 +61,6 @@ const AddButton = styled.button`
   }
 `
 
-const _UserRole = styled.span<{ isAdmin: boolean }>`
-  padding: 0.5rem 1rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: ${(props) =>
-    props.isAdmin
-      ? "linear-gradient(135deg, #ddd6fe, #c4b5fd)"
-      : "linear-gradient(135deg, #f3f4f6, #e5e7eb)"};
-  color: ${(props) => (props.isAdmin ? "#6d28d9" : "#374151")};
-  transition: all 0.2s ease;
-
-  &:hover {
-    transform: scale(1.05);
-  }
-`
-
 const ForbiddenMessage = styled.div`
   padding: 3rem;
   text-align: center;
