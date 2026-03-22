@@ -9,7 +9,13 @@ const nextConfig = {
     remotePatterns: [],
   },
   eslint: {
-    dirs: ["."], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
+    dirs: ["."],
+  },
+  async rewrites() {
+    return [
+      { source: "/favicon-16x16.png", destination: "/favicon.ico" },
+      { source: "/favicon-32x32.png", destination: "/favicon.ico" },
+    ]
   },
 }
 

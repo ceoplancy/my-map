@@ -7,8 +7,8 @@ import { useEffect, RefObject } from "react"
 */
 
 interface UseOnClickOutsideProps {
-  inRef: RefObject<HTMLElement>
-  exceptRef?: RefObject<HTMLElement>
+  inRef: RefObject<HTMLElement | null>
+  exceptRef?: RefObject<HTMLElement | null>
   handler: () => void
 }
 

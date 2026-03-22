@@ -6,18 +6,10 @@ import { COLORS } from "@/styles/global-style"
 import { nanoid } from "nanoid"
 import { useState } from "react"
 import ModalComponent from "./modal"
+import { normalizeExcelHistoryJson } from "@/lib/excelHistory"
+import type { HistoryChange, HistoryItem } from "@/types/excelHistory"
 
-// history 데이터 타입 정의 추가
-export type HistoryChange = {
-  memo?: { original: string; modified: string }
-  status?: { original: string; modified: string }
-}
-
-export type HistoryItem = {
-  modified_at: string
-  modifier: string
-  changes: HistoryChange
-}
+export type { HistoryChange, HistoryItem }
 
 const ExcelDataTable = ({ data }: { data: Excel }) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
@@ -29,6 +21,9 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
   }
 
   if (!data) return null
+
+  const historyItems = normalizeExcelHistoryJson(data.history)
+  const historyCount = historyItems.length
 
   return (
     <TableContainer>
@@ -72,19 +67,21 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
           <TableRow>
             <TableHeader>변경이력</TableHeader>
             <TableCell>
-              {Array.isArray(data.history) && data.history.length > 0 && (
+              {historyCount > 0 ? (
                 <HistoryButton
                   type="button"
                   onClick={() => setIsHistoryModalOpen(true)}>
-                  변경 이력 보기 ({data.history.length}건)
+                  변경 이력 보기 ({historyCount}건)
                 </HistoryButton>
+              ) : (
+                <HistoryEmptyText>등록된 변경 이력이 없습니다</HistoryEmptyText>
               )}
 
               {isHistoryModalOpen && (
                 <HistoryModal
                   open={isHistoryModalOpen}
                   onClose={() => setIsHistoryModalOpen(false)}
-                  history={data.history as HistoryItem[]}
+                  history={historyItems}
                 />
               )}
             </TableCell>
@@ -249,6 +246,11 @@ const StatusBadge = styled.span<{ status: string | null }>`
   }};
 `
 
+const HistoryEmptyText = styled.span`
+  font-size: 13px;
+  color: ${COLORS.gray[400]};
+`
+
 const HistoryButton = styled.button`
   background: none;
   border: none;
@@ -403,6 +405,9 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
       <HistoryHeader>
         <ModifierInfo>
           <ModifierName>{history.modifier}</ModifierName>
+          {history.user_id ? (
+            <UserIdHint>계정 ID: {history.user_id}</UserIdHint>
+          ) : null}
           <TimeStamp>{history.modified_at}</TimeStamp>
         </ModifierInfo>
       </HistoryHeader>
@@ -481,6 +486,12 @@ const ModifierName = styled.div`
   font-size: 14px;
   font-weight: 600;
   color: ${COLORS.gray[900]};
+`
+
+const UserIdHint = styled.div`
+  font-size: 12px;
+  color: ${COLORS.gray[500]};
+  word-break: break-all;
 `
 
 const TimeStamp = styled.div`

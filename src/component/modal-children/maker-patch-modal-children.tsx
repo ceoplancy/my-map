@@ -8,32 +8,19 @@ import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
 import ExcelDataTable from "../excel-data-table"
 import { toast } from "react-toastify"
-import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
+import {
+  buildHistoryChanges,
+  mergeHistoryWithNewEntry,
+  normalizeStatusForHistory,
+} from "@/lib/excelHistory"
+import type { HistoryItem } from "@/types/excelHistory"
 
 interface MakerPatchModalChildrenProps {
   makerData: Excel | null
   makerDataMutate: UseMutateFunction<void, unknown, Excel, unknown>
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
-}
-
-function findDifferences<T extends Record<string, unknown>>(
-  original: T,
-  modified: T,
-): Record<string, { original: unknown; modified: unknown }> {
-  const differences: Record<string, { original: unknown; modified: unknown }> =
-    {}
-  for (const key of Object.keys(modified)) {
-    if (original[key] !== modified[key]) {
-      differences[key] = {
-        original: original[key],
-        modified: modified[key],
-      }
-    }
-  }
-
-  return differences
 }
 
 const MakerPatchModalChildren = ({
@@ -62,20 +49,20 @@ const MakerPatchModalChildren = ({
     onSubmit: (values) => {
       if (!makerData) return
 
-      // 빈 문자열이면 기본값 "미방문"으로 처리
-      const status =
-        values.status && values.status.trim() !== ""
-          ? values.status.trim()
-          : "미방문"
+      const status = normalizeStatusForHistory(values.status)
+      const memoNext = values.memo ?? ""
 
-      const original = {
-        status: makerData.status,
-        memo: makerData.memo,
+      const changes = buildHistoryChanges(
+        { status: makerData.status, memo: makerData.memo },
+        { status, memo: memoNext },
+      )
+
+      if (Object.keys(changes).length === 0) {
+        toast.info("변경된 내용이 없습니다.")
+
+        return
       }
-      const modified = {
-        status,
-        memo: values.memo,
-      }
+
       const name = user?.user?.user_metadata?.name
       const email = user?.user?.email ?? ""
       const modifier = name
@@ -85,27 +72,23 @@ const MakerPatchModalChildren = ({
           : "미확인"
 
       const modified_at = format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")
-      const changes = findDifferences(
-        original as Record<string, unknown>,
-        modified as Record<string, unknown>,
-      )
 
-      const patchData = makerData.history
-        ? ({
-            ...values,
-            status,
-            memo: values.memo,
-            history: [
-              ...(makerData.history as string[]),
-              { modifier, modified_at, changes },
-            ] as Json,
-          } as Excel)
-        : ({
-            ...values,
-            status,
-            memo: values.memo,
-            history: [{ modifier, modified_at, changes }],
-          } as Excel)
+      const entry: HistoryItem = {
+        modifier,
+        modified_at,
+        changes,
+        ...(user?.user?.id ? { user_id: user.user.id } : {}),
+      }
+
+      const history = mergeHistoryWithNewEntry(makerData.history, entry)
+
+      const patchData = {
+        ...values,
+        status,
+        memo: memoNext,
+        history,
+      } as Excel
+
       makerDataMutate(patchData, {
         onSuccess: () => {
           toast.success("주주 정보가 수정되었습니다.")

@@ -1,11 +1,10 @@
 import { Excel } from "@/types/excel"
 import CustomMapMarker from "./custom-map-marker"
-
-import { useMemo, useState } from "react"
-import { useGetFilterMenu } from "@/api/supabase"
+import { useMemo } from "react"
 
 interface MultipleMapMarkerProps {
   markers: Excel[]
+  onMarkerClick: (_marker: Excel) => void
 }
 
 interface MarkerGroup {
@@ -13,24 +12,22 @@ interface MarkerGroup {
   markers: Excel[]
 }
 
-const MultipleMapMarker = ({ markers }: MultipleMapMarkerProps) => {
-  const [selectedMarker, setSelectedMarker] = useState<Excel | null>(null)
-  const { data: filterMenu } = useGetFilterMenu()
-
+const MultipleMapMarker = ({
+  markers,
+  onMarkerClick,
+}: MultipleMapMarkerProps) => {
   const markerGroups = useMemo(() => {
     const groups: MarkerGroup[] = []
-    markers.forEach((marker) => {
+    markers.forEach((m) => {
       const existingGroup = groups.find(
-        (group) =>
-          group.position.lat === marker.lat &&
-          group.position.lng === marker.lng,
+        (group) => group.position.lat === m.lat && group.position.lng === m.lng,
       )
       if (existingGroup) {
-        existingGroup.markers.push(marker)
+        existingGroup.markers.push(m)
       } else {
         groups.push({
-          position: { lat: marker.lat || 0, lng: marker.lng || 0 },
-          markers: [marker],
+          position: { lat: m.lat || 0, lng: m.lng || 0 },
+          markers: [m],
         })
       }
     })
@@ -38,24 +35,14 @@ const MultipleMapMarker = ({ markers }: MultipleMapMarkerProps) => {
     return groups
   }, [markers])
 
-  if (!filterMenu) return null
-
-  return markerGroups.map((group) => {
-    const isSelected = group.markers.some((m) => m.id === selectedMarker?.id)
-
-    return (
-      <CustomMapMarker
-        key={`${group.position.lat}-${group.position.lng}`}
-        marker={
-          selectedMarker && isSelected ? selectedMarker : group.markers[0]
-        }
-        markers={group.markers}
-        onMarkerSelect={setSelectedMarker}
-        initialInfoWindowOpen={isSelected}
-        forceKeepOpen={isSelected}
-      />
-    )
-  })
+  return markerGroups.map((group) => (
+    <CustomMapMarker
+      key={`${group.position.lat}-${group.position.lng}`}
+      marker={group.markers[0]}
+      markers={group.markers}
+      onMarkerClick={onMarkerClick}
+    />
+  ))
 }
 
 export default MultipleMapMarker

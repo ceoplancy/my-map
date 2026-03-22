@@ -1,5 +1,10 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
-import { Map, MapTypeControl, ZoomControl } from "react-kakao-maps-sdk"
+import {
+  Map,
+  MapTypeControl,
+  ZoomControl,
+  CustomOverlayMap,
+} from "react-kakao-maps-sdk"
 import { useRouter } from "next/router"
 import { debounce } from "lodash"
 import {
@@ -19,11 +24,12 @@ import styled from "@emotion/styled"
 import FilterModalChildren from "@/component/modal-children/filter-modal-children"
 import supabase from "@/lib/supabase/supabaseClient"
 import MultipleMapMarker from "@/component/multiple-map-marker"
+import InfoPanel from "@/component/info-panel"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
-import * as Sentry from "@sentry/nextjs"
+import { Excel } from "@/types/excel"
 
 interface MapBounds {
   sw: { lat: number; lng: number }
@@ -115,6 +121,20 @@ const Home = () => {
       }, 500),
     [],
   )
+
+  const [selectedMarker, setSelectedMarker] = useState<Excel | null>(null)
+
+  const handleMarkerClick = useCallback((marker: Excel) => {
+    setSelectedMarker((prev) => (prev?.id === marker.id ? null : marker))
+  }, [])
+
+  const handleCloseInfoPanel = useCallback(() => {
+    setSelectedMarker(null)
+  }, [])
+
+  const handleZoomStart = useCallback(() => {
+    setSelectedMarker(null)
+  }, [])
 
   const handleZoomChange = useCallback(
     (target: kakao.maps.Map) => {
@@ -216,10 +236,32 @@ const Home = () => {
           }}
           level={mapLevel}
           onZoomChanged={handleZoomChange}
+          onZoomStart={handleZoomStart}
           onDragEnd={handleDragEnd}>
           <MapTypeControl position={"TOPRIGHT"} />
           <ZoomControl position={"RIGHT"} />
-          {excelData && user && <MultipleMapMarker markers={excelData} />}
+          {excelData && user && (
+            <MultipleMapMarker
+              markers={excelData}
+              onMarkerClick={handleMarkerClick}
+            />
+          )}
+
+          {selectedMarker && (
+            <CustomOverlayMap
+              position={{
+                lat: selectedMarker.lat || 0,
+                lng: selectedMarker.lng || 0,
+              }}
+              clickable
+              yAnchor={1.1}
+              zIndex={100}>
+              <InfoPanel
+                marker={selectedMarker}
+                onClose={handleCloseInfoPanel}
+              />
+            </CustomOverlayMap>
+          )}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
