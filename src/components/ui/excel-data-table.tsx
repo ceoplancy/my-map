@@ -336,6 +336,7 @@ const HistoryModalContent = styled.div`
   border-radius: 16px;
   display: flex;
   flex-direction: column;
+  max-height: 80vh;
 
   @media screen and (max-width: 768px) {
     width: 100%;
