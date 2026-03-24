@@ -131,7 +131,7 @@ export default function WorkspaceAdminListShareholdersPage() {
           </LinkButton>
         </HeaderActions>
       </PageHeader>
-      <ShareholderList listId={listId} />
+      <ShareholderList listId={listId} listName={list.name} />
     </AdminLayout>
   )
 }

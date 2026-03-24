@@ -727,6 +727,70 @@ export const useShareholderChangeHistory = (shareholderId: string | null) => {
   })
 }
 
+export type LatestChange = { changed_by: string; changed_at: string }
+export type ChangeEntry = {
+  changed_by: string
+  changed_at: string
+  field: string
+  old_value: string | null
+  new_value: string | null
+}
+
+export type ListChangesResult = {
+  latest: Record<string, LatestChange>
+  all: Record<string, ChangeEntry[]>
+}
+
+const getChangesForList = async (
+  listId: string,
+): Promise<ListChangesResult> => {
+  const { data, error } = await supabase
+    .from("shareholder_change_history")
+    .select(
+      "shareholder_id, changed_by, changed_at, field, old_value, new_value, shareholders!inner(list_id)",
+    )
+    .eq("shareholders.list_id", listId)
+    .order("changed_at", { ascending: false })
+
+  if (error) {
+    reportError(error)
+
+    return { latest: {}, all: {} }
+  }
+
+  const latest: Record<string, LatestChange> = {}
+  const all: Record<string, ChangeEntry[]> = {}
+
+  for (const row of data ?? []) {
+    if (!latest[row.shareholder_id]) {
+      latest[row.shareholder_id] = {
+        changed_by: row.changed_by,
+        changed_at: row.changed_at,
+      }
+    }
+    const entry: ChangeEntry = {
+      changed_by: row.changed_by,
+      changed_at: row.changed_at,
+      field: row.field,
+      old_value: row.old_value,
+      new_value: row.new_value,
+    }
+    ;(all[row.shareholder_id] ??= []).push(entry)
+  }
+
+  return { latest, all }
+}
+
+export const useChangesForList = (listId: string | null) => {
+  return useQuery({
+    queryKey: ["changesForList", listId],
+    queryFn: () =>
+      listId ? getChangesForList(listId) : { latest: {}, all: {} },
+    enabled: !!listId,
+    staleTime: 1000 * 60,
+  })
+}
+
 /** API 응답 row */
 type ChangeHistoryRow = {
   changed_at: string

@@ -53,12 +53,10 @@ export const getMarkerImage = (
   company: string | null,
   companyList: string[],
 ) => {
-  // status가 '완료', '보류', '실패'인 경우 status 마커 사용
   if (status && status !== "미방문" && status in STATUS_MARKERS) {
     return STATUS_MARKERS[status as keyof typeof STATUS_MARKERS]
   }
 
-  // status가 '미방문'이거나 없는 경우 company 마커 사용
   if (company && companyList.length > 0) {
     const companyIndex = companyList.indexOf(company)
     if (companyIndex !== -1) {
@@ -66,8 +64,13 @@ export const getMarkerImage = (
     }
   }
 
-  // 기본 마커 (company가 없는 경우)
   return STATUS_MARKERS["미방문"]
+}
+
+const getGroupMarkerImage = (count: number) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="#2868ED" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"/><circle cx="12" cy="12" r="5.5" fill="white"/><text x="12" y="15" text-anchor="middle" font-size="9" font-weight="bold" fill="#1f2937" font-family="Arial,sans-serif">${count}</text></svg>`
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 
 interface CustomMapMarkerProps {
@@ -223,31 +226,16 @@ const CustomMapMarker = ({
         clickable={true}
         onClick={handleMarkerClick}
         image={{
-          src: getMarkerImage(
-            marker.status ?? "",
-            marker.company,
-            filterMenu.companyMenu,
-          ),
-          size: {
-            width: 30,
-            height: 40,
-          },
+          src: isGroupMarker
+            ? getGroupMarkerImage(markers.length)
+            : getMarkerImage(
+                marker.status ?? "",
+                marker.company,
+                filterMenu.companyMenu,
+              ),
+          size: { width: 30, height: 40 },
         }}
       />
-      {isGroupMarker && (
-        <CustomOverlayMap
-          position={{
-            lat: marker.lat || 0,
-            lng: marker.lng || 0,
-          }}
-          xAnchor={0.47}
-          yAnchor={1.9}
-          clickable>
-          <MarkerCounter onClick={handleMarkerClick}>
-            {markers.length}
-          </MarkerCounter>
-        </CustomOverlayMap>
-      )}
       {/* 인포윈도우 */}
       {isOpen && (
         <Portal>
@@ -261,6 +249,9 @@ const CustomMapMarker = ({
             zIndex={100}>
             <InfoWindowContainer
               onClick={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               className="info-window-persistent">
               <InfoWindowHeader>
                 <HeaderTitle>주주 정보</HeaderTitle>
@@ -384,20 +375,6 @@ const SpinnerFrame = styled.div`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `
 
-const MarkerCounter = styled.div`
-  background-color: white;
-  color: ${COLORS.gray[900]};
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: bold;
-  cursor: pointer;
-`
-
 const InfoWindowContainer = styled.div`
   &.info-window-persistent {
     pointer-events: auto;
@@ -407,6 +384,8 @@ const InfoWindowContainer = styled.div`
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   min-width: 600px;
+  max-height: 70vh;
+  overflow-y: auto;
 
   @media (max-width: 1024px) {
     min-width: 400px;
@@ -416,6 +395,7 @@ const InfoWindowContainer = styled.div`
   @media (max-width: 768px) {
     min-width: 300px;
     padding: 12px;
+    max-height: 60vh;
   }
 
   @media (max-width: 480px) {

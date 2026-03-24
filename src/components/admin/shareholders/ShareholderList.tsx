@@ -16,10 +16,15 @@ import {
   Download as DownloadIcon,
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
-import { normalizeExcelHistoryJson } from "@/lib/excelHistory"
 import { reportError } from "@/lib/reportError"
 import type { Tables } from "@/types/db"
-import { useShareholders, useDeleteShareholder } from "@/api/workspace"
+import {
+  useShareholders,
+  useDeleteShareholder,
+  useChangesForList,
+  type LatestChange,
+  type ChangeEntry,
+} from "@/api/workspace"
 import { useSession } from "@/api/auth"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
@@ -352,7 +357,7 @@ type Filters = {
   modifier: string
 }
 
-type Props = { listId: string }
+type Props = { listId: string; listName?: string }
 
 const AddButton = styled.button`
   display: inline-flex;
@@ -377,7 +382,7 @@ const AddButton = styled.button`
   }
 `
 
-export default function ShareholderList({ listId }: Props) {
+export default function ShareholderList({ listId, listName }: Props) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedItem, setSelectedItem] = useState<Shareholder | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -402,19 +407,31 @@ export default function ShareholderList({ listId }: Props) {
   } = useShareholders({ listId })
   const { data: usersData } = useGetUsers(1, 100)
   const deleteShareholderMutation = useDeleteShareholder()
+  const { data: changesData } = useChangesForList(listId)
+  const latestChanges: Record<string, LatestChange> = changesData?.latest ?? {}
+  const allChanges: Record<string, ChangeEntry[]> = changesData?.all ?? {}
 
-  const getLatestModifier = (rawHistory: unknown) => {
-    const history = normalizeExcelHistoryJson(rawHistory)
-    if (history.length === 0) return "-"
+  const usersMap = (() => {
+    const m: Record<string, string> = {}
+    for (const u of usersData?.users ?? []) {
+      m[u.id] = u.user_metadata?.name || u.email || u.id
+    }
 
-    return history[history.length - 1].modifier
+    return m
+  })()
+
+  const getLatestModifier = (shareholderId: string) => {
+    const entry = latestChanges[shareholderId]
+    if (!entry) return "-"
+
+    return usersMap[entry.changed_by] ?? entry.changed_by
   }
 
-  const getLatestModifiedDate = (rawHistory: unknown) => {
-    const history = normalizeExcelHistoryJson(rawHistory)
-    if (history.length === 0) return "-"
+  const getLatestModifiedDate = (shareholderId: string) => {
+    const entry = latestChanges[shareholderId]
+    if (!entry) return "-"
 
-    return history[history.length - 1].modified_at
+    return entry.changed_at
   }
 
   const handleModalClose = () => {
@@ -481,9 +498,7 @@ export default function ShareholderList({ listId }: Props) {
 
     const matchesModifier =
       filters.modifier === "" ||
-      normalizeExcelHistoryJson(item.history).some((h) =>
-        h.modifier.includes(filters.modifier),
-      )
+      latestChanges[item.id]?.changed_by === filters.modifier
 
     return (
       matchesSearch &&
@@ -499,8 +514,8 @@ export default function ShareholderList({ listId }: Props) {
     if (!sort.field) return 0
 
     if (sort.field === "history_modifier") {
-      const aModifier = getLatestModifier(a.history)
-      const bModifier = getLatestModifier(b.history)
+      const aModifier = getLatestModifier(a.id)
+      const bModifier = getLatestModifier(b.id)
 
       if (aModifier === "-" && bModifier !== "-") return 1
       if (bModifier === "-" && aModifier !== "-") return -1
@@ -513,8 +528,8 @@ export default function ShareholderList({ listId }: Props) {
     }
 
     if (sort.field === "history_modified_at") {
-      const aDate = getLatestModifiedDate(a.history)
-      const bDate = getLatestModifiedDate(b.history)
+      const aDate = getLatestModifiedDate(a.id)
+      const bDate = getLatestModifiedDate(b.id)
 
       if (aDate === "-" && bDate !== "-") return 1
       if (bDate === "-" && aDate !== "-") return -1
@@ -537,25 +552,27 @@ export default function ShareholderList({ listId }: Props) {
     return sort.direction === "asc" ? comparison : -comparison
   })
 
-  const formatHistoryForExport = (rawHistory: unknown): string => {
-    const history = normalizeExcelHistoryJson(rawHistory)
-    if (history.length === 0) return ""
+  const FIELD_LABELS: Record<string, string> = {
+    name: "이름",
+    company: "회사명",
+    status: "상태",
+    address: "주소",
+    memo: "메모",
+    stocks: "주식수",
+    maker: "마커",
+    latlngaddress: "기존 주소",
+  }
 
-    return history
-      .map((h) => {
-        const parts: string[] = []
-        if (h.changes?.status) {
-          parts.push(
-            `상태: ${h.changes.status.original} → ${h.changes.status.modified}`,
-          )
-        }
-        if (h.changes?.memo) {
-          parts.push(
-            `메모: ${h.changes.memo.original} → ${h.changes.memo.modified}`,
-          )
-        }
+  const formatHistoryForExport = (shareholderId: string): string => {
+    const entries = allChanges[shareholderId]
+    if (!entries?.length) return ""
 
-        return `[${h.modified_at}] ${h.modifier}: ${parts.join(", ") || "(변경 없음)"}`
+    return entries
+      .map((e) => {
+        const who = usersMap[e.changed_by] ?? e.changed_by
+        const label = FIELD_LABELS[e.field] ?? e.field
+
+        return `[${e.changed_at}] ${who}: ${label} ${e.old_value ?? "-"} → ${e.new_value ?? "-"}`
       })
       .join("\n")
   }
@@ -568,9 +585,9 @@ export default function ShareholderList({ listId }: Props) {
       상태: item.status ?? "",
       주식수: item.stocks ?? 0,
       메모: item.memo ?? "",
-      최종수정자: getLatestModifier(item.history),
-      최종수정일: getLatestModifiedDate(item.history),
-      변경이력: formatHistoryForExport(item.history),
+      최종수정자: getLatestModifier(item.id),
+      최종수정일: getLatestModifiedDate(item.id),
+      변경이력: formatHistoryForExport(item.id),
     }))
 
     const ws = XLSX.utils.json_to_sheet(exportData)
@@ -588,7 +605,11 @@ export default function ShareholderList({ listId }: Props) {
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "주주명부")
-    XLSX.writeFile(wb, `주주명부_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    const prefix = listName ? `주주명부_${listName}` : "주주명부"
+    XLSX.writeFile(
+      wb,
+      `${prefix}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    )
   }
 
   const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE)
@@ -669,7 +690,7 @@ export default function ShareholderList({ listId }: Props) {
               onChange={(e) => handleFilterChange("modifier", e.target.value)}>
               <option value="">모든 수정자</option>
               {usersData?.users.map((user) => (
-                <option key={user.id} value={user.email}>
+                <option key={user.id} value={user.id}>
                   {user.user_metadata?.name || user.email}
                 </option>
               ))}
@@ -774,8 +795,8 @@ export default function ShareholderList({ listId }: Props) {
                 <Td>{item.status}</Td>
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
-                <Td>{getLatestModifier(item.history)}</Td>
-                <Td>{getLatestModifiedDate(item.history)}</Td>
+                <Td>{getLatestModifier(item.id)}</Td>
+                <Td>{getLatestModifiedDate(item.id)}</Td>
                 <Td>
                   <ActionButton
                     className="edit"
