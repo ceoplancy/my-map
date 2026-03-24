@@ -122,8 +122,16 @@ const Home = () => {
     [],
   )
 
-  const [openMarkers, setOpenMarkers] = useState<Excel[]>([])
+  const [openMarkerIds, setOpenMarkerIds] = useState<number[]>([])
   const [, setMapMoveSeq] = useState(0)
+
+  const openMarkers = useMemo(() => {
+    if (!excelData) return []
+
+    return openMarkerIds
+      .map((id) => excelData.find((e: Excel) => e.id === id))
+      .filter((m): m is Excel => m != null)
+  }, [openMarkerIds, excelData])
 
   const getYAnchor = (lat: number, lng: number) => {
     const map = mapRef.current
@@ -136,19 +144,21 @@ const Home = () => {
   }
 
   const handleMarkerClick = useCallback((marker: Excel) => {
-    setOpenMarkers((prev) => {
-      const exists = prev.some((m) => m.id === marker.id)
+    setOpenMarkerIds((prev) => {
+      const exists = prev.includes(marker.id)
 
-      return exists ? prev.filter((m) => m.id !== marker.id) : [...prev, marker]
+      return exists
+        ? prev.filter((id) => id !== marker.id)
+        : [...prev, marker.id]
     })
   }, [])
 
   const handleCloseInfoPanel = useCallback((markerId: number) => {
-    setOpenMarkers((prev) => prev.filter((m) => m.id !== markerId))
+    setOpenMarkerIds((prev) => prev.filter((id) => id !== markerId))
   }, [])
 
   const handleZoomStart = useCallback(() => {
-    setOpenMarkers([])
+    setOpenMarkerIds([])
   }, [])
 
   const handleZoomChange = useCallback(

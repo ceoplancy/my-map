@@ -12,10 +12,12 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Clear as ClearIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
-import { HistoryItem } from "@/component/excel-data-table"
+import { normalizeExcelHistoryJson } from "@/lib/excelHistory"
 import * as Sentry from "@sentry/nextjs"
+import * as XLSX from "xlsx"
 
 const Container = styled.div`
   background: white;
@@ -286,6 +288,28 @@ const ClearFiltersButton = styled.button`
   }
 `
 
+const ExportButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: white;
+  background: ${COLORS.green[600]};
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: ${COLORS.green[700]};
+  }
+
+  svg {
+    font-size: 1.25rem;
+  }
+`
+
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
@@ -355,16 +379,16 @@ export default function ShareholderList() {
     modifier: "",
   })
 
-  // 최근 수정자 표시를 위한 함수
-  const getLatestModifier = (history: HistoryItem[] | undefined) => {
-    if (!Array.isArray(history) || history.length === 0) return "-"
+  const getLatestModifier = (rawHistory: unknown) => {
+    const history = normalizeExcelHistoryJson(rawHistory)
+    if (history.length === 0) return "-"
 
     return history[history.length - 1].modifier
   }
 
-  // 최근 수정일 표시를 위한 함수
-  const getLatestModifiedDate = (history: HistoryItem[] | undefined) => {
-    if (!Array.isArray(history) || history.length === 0) return "-"
+  const getLatestModifiedDate = (rawHistory: unknown) => {
+    const history = normalizeExcelHistoryJson(rawHistory)
+    if (history.length === 0) return "-"
 
     return history[history.length - 1].modified_at
   }
@@ -431,13 +455,11 @@ export default function ShareholderList() {
       ? item.stocks <= parseInt(filters.stocksMax)
       : true
 
-    // history 기반 수정자 필터링
     const matchesModifier =
       filters.modifier === "" ||
-      (Array.isArray(item.history) &&
-        (item.history as HistoryItem[]).some((historyItem: HistoryItem) =>
-          historyItem.modifier.includes(filters.modifier),
-        ))
+      normalizeExcelHistoryJson(item.history).some((h) =>
+        h.modifier.includes(filters.modifier),
+      )
 
     return (
       matchesSearch &&
@@ -453,8 +475,8 @@ export default function ShareholderList() {
     if (!sort.field) return 0
 
     if (sort.field === "history_modifier") {
-      const aModifier = getLatestModifier(a.history as HistoryItem[])
-      const bModifier = getLatestModifier(b.history as HistoryItem[])
+      const aModifier = getLatestModifier(a.history)
+      const bModifier = getLatestModifier(b.history)
 
       if (aModifier === "-" && bModifier !== "-") return 1
       if (bModifier === "-" && aModifier !== "-") return -1
@@ -467,8 +489,8 @@ export default function ShareholderList() {
     }
 
     if (sort.field === "history_modified_at") {
-      const aDate = getLatestModifiedDate(a.history as HistoryItem[])
-      const bDate = getLatestModifiedDate(b.history as HistoryItem[])
+      const aDate = getLatestModifiedDate(a.history)
+      const bDate = getLatestModifiedDate(b.history)
 
       if (aDate === "-" && bDate !== "-") return 1
       if (bDate === "-" && aDate !== "-") return -1
@@ -489,6 +511,60 @@ export default function ShareholderList() {
 
     return sort.direction === "asc" ? comparison : -comparison
   })
+
+  const formatHistoryForExport = (rawHistory: unknown): string => {
+    const history = normalizeExcelHistoryJson(rawHistory)
+    if (history.length === 0) return ""
+
+    return history
+      .map((h) => {
+        const parts: string[] = []
+        if (h.changes?.status) {
+          parts.push(
+            `상태: ${h.changes.status.original} → ${h.changes.status.modified}`,
+          )
+        }
+        if (h.changes?.memo) {
+          parts.push(
+            `메모: ${h.changes.memo.original} → ${h.changes.memo.modified}`,
+          )
+        }
+
+        return `[${h.modified_at}] ${h.modifier}: ${parts.join(", ") || "(변경 없음)"}`
+      })
+      .join("\n")
+  }
+
+  const handleExport = () => {
+    const exportData = sortedData.map((item: Excel) => ({
+      이름: item.name ?? "",
+      회사명: item.company ?? "",
+      주소: item.address ?? "",
+      상태: item.status ?? "",
+      주식수: item.stocks ?? 0,
+      메모: item.memo ?? "",
+      최종수정자: getLatestModifier(item.history),
+      최종수정일: getLatestModifiedDate(item.history),
+      변경이력: formatHistoryForExport(item.history),
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    ws["!cols"] = [
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 40 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 28 },
+      { wch: 60 },
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "주주명부")
+    XLSX.writeFile(wb, `주주명부_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
 
   const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE)
   const currentData = sortedData.slice(
@@ -578,6 +654,11 @@ export default function ShareholderList() {
             <ClearIcon />
             필터 초기화
           </ClearFiltersButton>
+
+          <ExportButton onClick={handleExport}>
+            <DownloadIcon />
+            엑셀 내보내기
+          </ExportButton>
         </FilterContainer>
       </FilterSection>
 
@@ -657,8 +738,8 @@ export default function ShareholderList() {
                 <Td>{item.status}</Td>
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
-                <Td>{getLatestModifier(item.history as HistoryItem[])}</Td>
-                <Td>{getLatestModifiedDate(item.history as HistoryItem[])}</Td>
+                <Td>{getLatestModifier(item.history)}</Td>
+                <Td>{getLatestModifiedDate(item.history)}</Td>
                 <Td>
                   <ActionButton
                     className="edit"
