@@ -21,15 +21,14 @@ export type HistoryItem = {
 
 interface ExcelDataTableProps {
   data: MapMarkerData
-
-  /** 지도 쪽: API로 불러온 변경 이력. 없으면 data.history 사용 */
-
   history?: HistoryItem[]
+  historyLoading?: boolean
 }
 
 const ExcelDataTable = ({
   data,
   history: historyProp,
+  historyLoading = false,
 }: ExcelDataTableProps) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const history =
@@ -88,12 +87,18 @@ const ExcelDataTable = ({
           <TableRow>
             <TableHeader>변경이력</TableHeader>
             <TableCell>
-              {history.length > 0 && (
+              {historyLoading ? (
+                <HistorySkeleton>
+                  <SkeletonBar style={{ width: "60%" }} />
+                </HistorySkeleton>
+              ) : history.length > 0 ? (
                 <HistoryButton
                   type="button"
                   onClick={() => setIsHistoryModalOpen(true)}>
                   변경 이력 보기 ({history.length}건)
                 </HistoryButton>
+              ) : (
+                <HistoryEmptyText>변경 이력 없음</HistoryEmptyText>
               )}
 
               {isHistoryModalOpen && (
@@ -263,6 +268,39 @@ const StatusBadge = styled.span<{ status: string | null }>`
         return COLORS.gray[700]
     }
   }};
+`
+
+const HistoryEmptyText = styled.span`
+  font-size: 13px;
+  color: ${COLORS.gray[400]};
+`
+
+const HistorySkeleton = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+`
+
+const SkeletonBar = styled.div`
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    ${COLORS.gray[100]} 25%,
+    ${COLORS.gray[200]} 50%,
+    ${COLORS.gray[100]} 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
 `
 
 const HistoryButton = styled.button`

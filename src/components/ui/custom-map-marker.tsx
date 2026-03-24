@@ -124,10 +124,10 @@ const CustomMapMarker = ({
     : excelMutateLoading
 
   const shareholderIdForHistory = isShareholderMarker ? String(marker.id) : null
-  const { data: mapHistory = [] } = useShareholderChangeHistoryForMap(
-    shareholderIdForHistory,
-    { enabled: isOpen },
-  )
+  const { data: mapHistory = [], isLoading: historyLoading } =
+    useShareholderChangeHistoryForMap(shareholderIdForHistory, {
+      enabled: isOpen,
+    })
 
   const makerDataMutate = useCallback(
     (
@@ -267,6 +267,7 @@ const CustomMapMarker = ({
               <ExcelDataTable
                 data={marker}
                 history={isShareholderMarker ? mapHistory : undefined}
+                historyLoading={isShareholderMarker && historyLoading}
               />
 
               <InfoWindowFooter>
