@@ -7,6 +7,7 @@ import type { AccountType, AdminWorkspaceItem } from "@/types/db"
 
 export type { AdminWorkspaceItem }
 import supabase from "@/lib/supabase/supabaseClient"
+import { getAccessToken } from "@/lib/auth/clientAuth"
 import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
 import { QUERY_KEYS } from "@/constants/query-keys"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
@@ -62,12 +63,10 @@ export const useGetFilterMenu = (options?: { enabled?: boolean }) => {
 // =======================================
 
 async function getAdminAuthHeaders(): Promise<HeadersInit> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error("Unauthorized")
+  const token = await getAccessToken()
+  if (!token) throw new Error("Unauthorized")
 
-  return { Authorization: `Bearer ${session.access_token}` }
+  return { Authorization: `Bearer ${token}` }
 }
 
 export type GetUsersResponse = {

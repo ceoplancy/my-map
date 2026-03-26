@@ -1,7 +1,7 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import { useCallback, useEffect, useState } from "react"
 import styled from "@emotion/styled"
-import supabase from "@/lib/supabase/supabaseClient"
+import { getAccessToken } from "@/lib/auth/clientAuth"
 import { toast } from "react-toastify"
 import GlobalSpinner from "@/components/ui/global-spinner"
 
@@ -120,10 +120,8 @@ export function SignupRequestsContent({
   const [acting, setActing] = useState<string | null>(null)
 
   const fetchRequests = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session?.access_token) {
+    const token = await getAccessToken()
+    if (!token) {
       setError("로그인이 필요합니다.")
       setLoading(false)
 
@@ -133,7 +131,7 @@ export function SignupRequestsContent({
       ? `/api/admin/signup-requests?workspace_id=${encodeURIComponent(workspaceId)}`
       : "/api/admin/signup-requests"
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: { Authorization: `Bearer ${token}` },
     })
     if (res.status === 401 || res.status === 403) {
       setError(
@@ -162,16 +160,14 @@ export function SignupRequestsContent({
   }, [fetchRequests])
 
   const handleAction = async (id: string, action: "approve" | "reject") => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session?.access_token) return
+    const token = await getAccessToken()
+    if (!token) return
     setActing(id)
     const res = await fetch(`/api/admin/signup-requests/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ action }),
     })

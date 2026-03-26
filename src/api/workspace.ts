@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query"
 import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
+import { getAccessToken } from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables } from "@/types/db"
 import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
@@ -90,8 +91,7 @@ export type WorkspaceMemberWithUser = {
 const getWorkspaceMembersWithUsers = async (
   workspaceId: string,
 ): Promise<WorkspaceMemberWithUser[]> => {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+  const token = await getAccessToken()
   if (!token) return []
   const res = await fetch(
     `/api/me/workspace-members?workspaceId=${encodeURIComponent(workspaceId)}`,
@@ -128,8 +128,7 @@ export const useAddWorkspaceMember = () => {
 
   return useMutation({
     mutationFn: async (input: AddWorkspaceMemberInput) => {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
+      const token = await getAccessToken()
       if (!token) throw new Error("Unauthorized")
       const body: Record<string, unknown> = {
         workspaceId: input.workspaceId,
@@ -179,8 +178,7 @@ export const useRemoveWorkspaceMember = () => {
       workspaceId: string
       memberId: string
     }) => {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
+      const token = await getAccessToken()
       if (!token) throw new Error("Unauthorized")
       const res = await fetch(
         `/api/me/workspace-members?workspaceId=${encodeURIComponent(workspaceId)}&memberId=${encodeURIComponent(memberId)}`,
@@ -698,8 +696,7 @@ export const usePatchShareholder = () => {
       // 호출부에서 session 캐시가 비어 있어도, 저장 직전 getSession()으로 토큰 보강 (변경 이력 누락 방지)
       let tokenForHistory = accessToken ?? null
       if (entries.length > 0 && !tokenForHistory) {
-        const { data: sessionData } = await supabase.auth.getSession()
-        tokenForHistory = sessionData.session?.access_token ?? null
+        tokenForHistory = await getAccessToken()
       }
       if (entries.length > 0 && tokenForHistory) {
         await recordChangeHistoryViaApi(id, tokenForHistory, entries)
@@ -873,8 +870,7 @@ export type ShareholderChangeHistoryForMapItem = {
 async function fetchShareholderChangeHistoryForMap(
   shareholderId: string,
 ): Promise<ShareholderChangeHistoryForMapItem[]> {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+  const token = await getAccessToken()
   if (!token) return []
   const res = await fetch(
     `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`,

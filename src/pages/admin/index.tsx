@@ -440,10 +440,7 @@ export function WorkspaceDashboardBody() {
       <WelcomeSection>
         <WelcomeTitle>
           안녕하세요,{" "}
-          {user?.user.user_metadata.name
-            ? user?.user.user_metadata.name
-            : user?.user.email}
-          님 👋
+          {user?.user?.user_metadata?.name ?? user?.user?.email ?? ""}님 👋
         </WelcomeTitle>
         <WelcomeText>
           이 워크스페이스의 현황을 확인하고 주주명부·멤버를 관리할 수 있습니다.

@@ -324,9 +324,11 @@ export default function Header() {
             <ProfileButtonContainer
               onClick={() => setIsProfileOpen(!isProfileOpen)}>
               <AvatarContainer>
-                <AvatarText>{user?.user.email?.[0].toUpperCase()}</AvatarText>
+                <AvatarText>
+                  {user?.user?.email?.[0]?.toUpperCase() ?? "?"}
+                </AvatarText>
               </AvatarContainer>
-              <UserEmail>{user?.user.email}</UserEmail>
+              <UserEmail>{user?.user?.email}</UserEmail>
               <DropdownIcon
                 fill="none"
                 strokeLinecap="round"

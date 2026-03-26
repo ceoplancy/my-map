@@ -15,11 +15,10 @@ import {
 
 import {
   useAdminStatus,
-  useGetUserData,
+  useAuth,
   usePostSignOut,
   useMyWorkspaces,
   useMySignupStatus,
-  useSession,
 } from "@/api/auth"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import {
@@ -31,7 +30,7 @@ import Modal from "@/components/ui/modal"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import styled from "@emotion/styled"
 import FilterModalChildren from "@/components/ui/modal-children/filter-modal-children"
-import supabase from "@/lib/supabase/supabaseClient"
+import { getAccessToken } from "@/lib/auth/clientAuth"
 import MultipleMapMarker from "@/components/ui/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
@@ -43,18 +42,18 @@ const WorkspaceMapPage = () => {
   const router = useRouter()
   const { workspaceId } = router.query as { workspaceId: string }
   const mapRef = useRef<kakao.maps.Map>(null)
-  const { data: user, isLoading } = useGetUserData()
+  const { user, isLoading } = useAuth()
   const { data: workspaces = [], isLoading: workspacesLoading } =
     useMyWorkspaces()
   const { data: signupStatus, isLoading: signupStatusLoading } =
     useMySignupStatus()
   const hasWorkspace = Array.isArray(workspaces) && workspaces.length > 0
-  const legacyAdmin = String(user?.user?.user_metadata?.role).includes("admin")
+  const legacyAdmin = String(user?.user_metadata?.role).includes("admin")
   const isAdmin = legacyAdmin || hasWorkspace
   const { data: adminStatus } = useAdminStatus()
   const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
   const pendingApproval =
-    user?.user &&
+    user &&
     !workspacesLoading &&
     !signupStatusLoading &&
     !hasWorkspace &&
@@ -102,15 +101,20 @@ const WorkspaceMapPage = () => {
   const { mutate: logout } = usePostSignOut()
 
   const [workspace] = useCurrentWorkspace()
-  const session = useSession().data
-  const userId = session?.user?.id
+
+  const userId = user?.id
   const mapWorkspaceId = resolvedWorkspace?.id ?? null
   const visibleListIds = useVisibleListIds(mapWorkspaceId, userId)
   const { data: workspaceMembers = [] } = useWorkspaceMembers(mapWorkspaceId)
   const myMember = workspaceMembers.find((m) => m.user_id === userId)
+
+  /**
+   * - top_admin / admin: 해당 workspace_id 멤버 행으로 판별
+   * - service_admin: 멤버 행은 workspace_id IS NULL 뿐이라 위 쿼리에 포함되지 않음 → isServiceAdmin 으로 판별
+   */
   const isWorkspaceAdmin =
-    !!myMember &&
-    ["service_admin", "top_admin", "admin"].includes(myMember.role)
+    isServiceAdmin ||
+    (!!myMember && ["top_admin", "admin"].includes(myMember.role))
 
   const {
     data: shareholderData,
@@ -190,14 +194,6 @@ const WorkspaceMapPage = () => {
     resetFilters()
     router.reload()
   }, [router, resetFilters, wsId])
-
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") router.reload()
-    })
-
-    return () => authListener.subscription.unsubscribe()
-  }, [router])
 
   useEffect(() => {
     if (!router.isReady || !wsId || !resolvedWorkspace?.id) return
@@ -345,10 +341,8 @@ const WorkspaceMapPage = () => {
             {hasWorkspace && (
               <MenuItem
                 onClick={async () => {
-                  const {
-                    data: { session: s },
-                  } = await supabase.auth.getSession()
-                  if (!s?.access_token) {
+                  const token = await getAccessToken()
+                  if (!token) {
                     toast.error("로그인이 필요합니다.")
 
                     return
@@ -358,7 +352,7 @@ const WorkspaceMapPage = () => {
                       method: "POST",
                       headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${s.access_token}`,
+                        Authorization: `Bearer ${token}`,
                       },
                       body: JSON.stringify({
                         workspace_id: resolvedWorkspace?.id ?? null,

@@ -2,9 +2,16 @@ import type { MyWorkspaceItem } from "@/types/db"
 import supabase from "@/lib/supabase/supabaseClient"
 import { useRouter } from "next/navigation"
 import { toast } from "react-toastify"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import * as Sentry from "@sentry/nextjs"
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query"
+import { QUERY_KEYS } from "@/constants/query-keys"
+import { fetchAuth, getAccessToken } from "@/lib/auth/clientAuth"
 import { reportError } from "@/lib/reportError"
+
 // =========================================
 // ============== post sign in
 // =========================================
@@ -33,9 +40,9 @@ export const usePostSignIn = () => {
   return useMutation({
     mutationFn: (data: { email: string; password: string }) => postSignIn(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userData"] })
-      queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
-      queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.auth })
+      void queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
+      void queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
       toast.success("정상적으로 로그인 되었습니다.")
       router.push("/workspaces")
     },
@@ -64,7 +71,10 @@ export const usePostSignOut = () => {
   return useMutation({
     mutationFn: postSignOut,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userData"] })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.auth })
+      void queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
+      void queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
+      void queryClient.invalidateQueries({ queryKey: ["mySignupStatus"] })
       toast.success("정상적으로 로그아웃 되었습니다.")
       router.push("/")
     },
@@ -77,63 +87,65 @@ export const usePostSignOut = () => {
 }
 
 // =========================================
-// ============== get user data
+// ============== Auth (단일 Query: user + session)
 // =========================================
-const getUserData = async () => {
-  const { data, error } = await supabase.auth.getUser()
 
-  if (error) {
-    reportError(error)
-    throw new Error(error.message)
+const authQueryOptions = {
+  queryKey: QUERY_KEYS.auth,
+  queryFn: fetchAuth,
+  retry: 1,
+  refetchOnMount: false,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  staleTime: 1000 * 60 * 5,
+} as const
+
+export type UseAuthQueryResult = UseQueryResult<
+  Awaited<ReturnType<typeof fetchAuth>>,
+  Error
+>
+
+/** 내부 공용 — user·session 동일 캐시 */
+export function useAuthQuery(): UseAuthQueryResult {
+  return useQuery(authQueryOptions)
+}
+
+/** `user` + `session` 편의 필드 */
+export function useAuth() {
+  const q = useAuthQuery()
+
+  return {
+    ...q,
+    user: q.data?.user ?? null,
+    session: q.data?.session ?? null,
   }
-
-  Sentry.setUser({
-    email: data.user?.email,
-    id: data.user?.id,
-    metadata: data.user?.user_metadata,
-  })
-
-  return data
 }
 
+/** 기존: `getUser()` 형태 `{ user }` — 동일 캐시 */
 export const useGetUserData = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["userData"],
-    queryFn: getUserData,
-    retry: 1,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    staleTime: 1000 * 60 * 5,
-  })
+  const q = useAuthQuery()
 
-  return { data, isLoading }
+  return {
+    data: q.data !== undefined ? { user: q.data.user } : undefined,
+    isLoading: q.isLoading,
+  }
 }
 
-// Session (includes access_token for API calls)
-const getSession = async () => {
-  const { data, error } = await supabase.auth.getSession()
-  if (error) throw new Error(error.message)
-
-  return data.session
-}
-
+/** 기존: `session`만 — 동일 캐시 */
 export const useSession = () => {
-  return useQuery({
-    queryKey: ["session"],
-    queryFn: getSession,
-    staleTime: 1000 * 60 * 5,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  })
+  const q = useAuthQuery()
+
+  return {
+    ...q,
+    data: q.data?.session ?? undefined,
+  }
 }
 
 /** @deprecated Use MyWorkspaceItem from @/types/db */
 export type WorkspaceItem = MyWorkspaceItem
 
 const fetchMyWorkspaces = async (): Promise<MyWorkspaceItem[]> => {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+  const token = await getAccessToken()
   if (!token) return []
   const res = await fetch("/api/me/workspaces", {
     headers: { Authorization: `Bearer ${token}` },
@@ -157,8 +169,7 @@ export const useMyWorkspaces = (options?: UseMyWorkspacesOptions) => {
 
 /** 통합 관리자(service_admin) 여부 — 통합 관리 메뉴/API 접근 권한 */
 const fetchAdminStatus = async (): Promise<{ isServiceAdmin: boolean }> => {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+  const token = await getAccessToken()
   if (!token) return { isServiceAdmin: false }
   const res = await fetch("/api/me/admin-status", {
     headers: { Authorization: `Bearer ${token}` },
@@ -186,8 +197,7 @@ export type SignupStatus = {
 } | null
 
 const fetchMySignupStatus = async (): Promise<SignupStatus> => {
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
+  const token = await getAccessToken()
   if (!token) return null
   const res = await fetch("/api/me/signup-status", {
     headers: { Authorization: `Bearer ${token}` },
@@ -205,3 +215,5 @@ export const useMySignupStatus = () => {
     staleTime: 1000 * 60 * 2,
   })
 }
+
+export { fetchAuth, getAccessToken } from "@/lib/auth/clientAuth"

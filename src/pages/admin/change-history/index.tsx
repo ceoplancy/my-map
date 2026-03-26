@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import styled from "@emotion/styled"
+import { getAccessToken } from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
 import EditShareholderModal, {
@@ -273,14 +274,12 @@ export function ChangeHistoryPageContent() {
   } = useQuery({
     queryKey: ["workspaceListChangeHistory", listId],
     queryFn: async () => {
-      const {
-        data: { session: s },
-      } = await supabase.auth.getSession()
-      if (!s?.access_token) {
+      const token = await getAccessToken()
+      if (!token) {
         throw new Error("LOGIN_REQUIRED")
       }
       const res = await fetch(`/api/workspace/lists/${listId}/change-history`, {
-        headers: { Authorization: `Bearer ${s.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
         throw new Error("FETCH_FAILED")

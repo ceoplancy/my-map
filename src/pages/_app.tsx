@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { AuthStateSync } from "@/components/AuthStateSync"
 
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
@@ -114,6 +115,7 @@ const App = ({ Component, pageProps }: AppProps) => {
 
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
+          <AuthStateSync />
           <HydrationBoundary state={dehydratedState}>
             <Component {...restPageProps} />
             <ToastContainer position="top-center" limit={3} autoClose={3000} />
