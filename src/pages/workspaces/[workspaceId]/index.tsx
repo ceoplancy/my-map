@@ -37,7 +37,7 @@ import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
-import { STORAGE_KEY } from "@/constants/map-storage"
+import { getMapStorageKeys } from "@/constants/map-storage"
 
 const WorkspaceMapPage = () => {
   const router = useRouter()
@@ -87,36 +87,26 @@ const WorkspaceMapPage = () => {
     router,
   ])
 
-  const { resetFilters } = useFilterStore()
+  const { resetFilters, ensureWorkspaceScope } = useFilterStore()
+
+  const wsId = typeof workspaceId === "string" ? workspaceId : null
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
-  const [mapLevel, setMapLevel] = useState<number>(() => {
-    if (typeof window === "undefined") return 6
-    const savedLevel = localStorage.getItem(STORAGE_KEY.level)
-
-    return savedLevel ? parseInt(savedLevel) : 6
-  })
+  const [mapLevel, setMapLevel] = useState<number>(6)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
   const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
-  const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>(
-    () => {
-      if (typeof window === "undefined") return { lat: 37.5665, lng: 126.978 }
-      const savedPosition = localStorage.getItem(STORAGE_KEY.position)
-
-      return savedPosition
-        ? JSON.parse(savedPosition)
-        : { lat: 37.5665, lng: 126.978 }
-    },
-  )
+  const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
+    lat: 37.5665,
+    lng: 126.978,
+  })
   const { mutate: logout } = usePostSignOut()
 
   const [workspace] = useCurrentWorkspace()
   const session = useSession().data
   const userId = session?.user?.id
-  const visibleListIds = useVisibleListIds(workspace?.id ?? null, userId)
-  const { data: workspaceMembers = [] } = useWorkspaceMembers(
-    workspace?.id ?? null,
-  )
+  const mapWorkspaceId = resolvedWorkspace?.id ?? null
+  const visibleListIds = useVisibleListIds(mapWorkspaceId, userId)
+  const { data: workspaceMembers = [] } = useWorkspaceMembers(mapWorkspaceId)
   const myMember = workspaceMembers.find((m) => m.user_id === userId)
   const isWorkspaceAdmin =
     !!myMember &&
@@ -149,9 +139,14 @@ const WorkspaceMapPage = () => {
           lng: latlng.getLng(),
         }
         setCurrCenter(newCenter)
-        localStorage.setItem(STORAGE_KEY.position, JSON.stringify(newCenter))
+        if (wsId) {
+          localStorage.setItem(
+            getMapStorageKeys(wsId).position,
+            JSON.stringify(newCenter),
+          )
+        }
       }, 500),
-    [],
+    [wsId],
   )
 
   const handleZoomChange = useCallback(
@@ -159,11 +154,16 @@ const WorkspaceMapPage = () => {
       const currentLevel = target.getLevel()
       if (mapLevel !== currentLevel) {
         setMapLevel(currentLevel)
-        localStorage.setItem(STORAGE_KEY.level, currentLevel.toString())
+        if (wsId) {
+          localStorage.setItem(
+            getMapStorageKeys(wsId).level,
+            currentLevel.toString(),
+          )
+        }
         debouncedMapUpdate(target)
       }
     },
-    [debouncedMapUpdate, mapLevel],
+    [debouncedMapUpdate, mapLevel, wsId],
   )
 
   const handleDragEnd = useCallback(
@@ -179,14 +179,17 @@ const WorkspaceMapPage = () => {
   }
 
   const handleReset = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY.level, "6")
-    localStorage.setItem(
-      STORAGE_KEY.position,
-      JSON.stringify({ lat: 37.5665, lng: 126.978 }),
-    )
+    if (wsId) {
+      const keys = getMapStorageKeys(wsId)
+      localStorage.setItem(keys.level, "6")
+      localStorage.setItem(
+        keys.position,
+        JSON.stringify({ lat: 37.5665, lng: 126.978 }),
+      )
+    }
     resetFilters()
     router.reload()
-  }, [router, resetFilters])
+  }, [router, resetFilters, wsId])
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
@@ -195,6 +198,38 @@ const WorkspaceMapPage = () => {
 
     return () => authListener.subscription.unsubscribe()
   }, [router])
+
+  useEffect(() => {
+    if (!router.isReady || !wsId || !resolvedWorkspace?.id) return
+    ensureWorkspaceScope(wsId)
+  }, [router.isReady, wsId, resolvedWorkspace?.id, ensureWorkspaceScope])
+
+  /** 워크스페이스별로 저장된 지도 중심·줌 복원 (전역 키와 분리해 빈 지도 방지) */
+  useEffect(() => {
+    if (!router.isReady || !wsId) return
+    const keys = getMapStorageKeys(wsId)
+    const savedLevel = localStorage.getItem(keys.level)
+    const savedPosition = localStorage.getItem(keys.position)
+    if (savedLevel) {
+      const n = parseInt(savedLevel, 10)
+      if (!Number.isNaN(n)) setMapLevel(n)
+    }
+    if (savedPosition) {
+      try {
+        const p = JSON.parse(savedPosition) as { lat?: unknown; lng?: unknown }
+        if (
+          typeof p.lat === "number" &&
+          typeof p.lng === "number" &&
+          Number.isFinite(p.lat) &&
+          Number.isFinite(p.lng)
+        ) {
+          setCurrCenter({ lat: p.lat, lng: p.lng })
+        }
+      } catch {
+        void 0
+      }
+    }
+  }, [router.isReady, wsId])
 
   useEffect(() => {
     const setViewHeight = () => {
@@ -326,7 +361,7 @@ const WorkspaceMapPage = () => {
                         Authorization: `Bearer ${s.access_token}`,
                       },
                       body: JSON.stringify({
-                        workspace_id: workspace?.id ?? null,
+                        workspace_id: resolvedWorkspace?.id ?? null,
                       }),
                     })
                     if (!res.ok) {
@@ -352,7 +387,11 @@ const WorkspaceMapPage = () => {
               <MenuItem
                 onClick={() =>
                   router.push(
-                    workspace ? `/workspaces/${workspace.id}/admin` : "/admin",
+                    resolvedWorkspace
+                      ? `/workspaces/${resolvedWorkspace.id}/admin`
+                      : workspace
+                        ? `/workspaces/${workspace.id}/admin`
+                        : "/admin",
                   )
                 }
                 style={{ color: COLORS.purple[700] }}>
@@ -366,9 +405,11 @@ const WorkspaceMapPage = () => {
                   router.push(
                     isServiceAdmin
                       ? "/admin/integrated"
-                      : workspace
-                        ? `/workspaces/${workspace.id}/admin`
-                        : "/admin",
+                      : resolvedWorkspace
+                        ? `/workspaces/${resolvedWorkspace.id}/admin`
+                        : workspace
+                          ? `/workspaces/${workspace.id}/admin`
+                          : "/admin",
                   )
                 }
                 style={{ color: COLORS.purple[700] }}>
@@ -389,6 +430,7 @@ const WorkspaceMapPage = () => {
               handleClose={() => setIsFilterModalOpen(false)}
               handleApplyFilters={handleApplyFilters}
               listIds={visibleListIds.length > 0 ? visibleListIds : null}
+              workspaceId={wsId ?? undefined}
             />
           </Modal>
         </Map>

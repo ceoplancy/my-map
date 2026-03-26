@@ -4,7 +4,10 @@ import {
 } from "@/lib/supabase/supabaseServer"
 import { getBearerToken, getAuthUser } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
-import { logShareholderChangeHistory } from "@/lib/server/shareholderChangeHistoryLog"
+import {
+  entriesPreviewForLog,
+  logShareholderChangeHistory,
+} from "@/lib/server/shareholderChangeHistoryLog"
 
 /** Check user is member of shareholder's workspace; return workspaceId or null */
 async function getShareholderWorkspaceAndAuth(
@@ -184,6 +187,7 @@ export default withApiHandler(async (req, res) => {
     }
 
     const fields = entries.map((e) => String(e.field))
+    const entriesPreview = entriesPreviewForLog(entries)
     logShareholderChangeHistory(req, {
       scope: "shareholder_change_history",
       phase: "post_start",
@@ -192,6 +196,7 @@ export default withApiHandler(async (req, res) => {
       userId: user.id,
       workspaceId: scope.workspaceId,
       fields,
+      entriesPreview,
       entryCount: entries.length,
     })
 
@@ -217,6 +222,7 @@ export default withApiHandler(async (req, res) => {
         userId: user.id,
         workspaceId: scope.workspaceId,
         fields,
+        entriesPreview,
         entryCount: entries.length,
         dbError: {
           code: insertError.code,
@@ -237,6 +243,7 @@ export default withApiHandler(async (req, res) => {
       userId: user.id,
       workspaceId: scope.workspaceId,
       fields,
+      entriesPreview,
       entryCount: entries.length,
       httpStatus: 201,
     })

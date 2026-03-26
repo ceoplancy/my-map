@@ -7,6 +7,7 @@ export interface StockRange {
 }
 
 interface FilterState {
+  boundWorkspaceId: string | null
   statusFilter: string[]
   companyFilter: string[]
   makerFilter: string[]
@@ -20,9 +21,10 @@ interface FilterState {
     _v: StockRange[] | ((_prev: StockRange[]) => StockRange[]),
   ) => void
   resetFilters: () => void
+  ensureWorkspaceScope: (_workspaceId: string) => void
 }
 
-const initial = {
+const filterFieldsInitial = {
   statusFilter: [] as string[],
   companyFilter: [] as string[],
   makerFilter: [] as string[],
@@ -33,7 +35,8 @@ const initial = {
 export const useFilterStore = create<FilterState>()(
   persist(
     (set) => ({
-      ...initial,
+      boundWorkspaceId: null,
+      ...filterFieldsInitial,
       setStatusFilter: (v) =>
         set((s) => ({
           statusFilter: typeof v === "function" ? v(s.statusFilter) : v,
@@ -54,7 +57,22 @@ export const useFilterStore = create<FilterState>()(
         set((s) => ({
           stocks: typeof v === "function" ? v(s.stocks) : v,
         })),
-      resetFilters: () => set(initial),
+      resetFilters: () =>
+        set((s) => ({
+          ...filterFieldsInitial,
+          boundWorkspaceId: s.boundWorkspaceId,
+        })),
+      ensureWorkspaceScope: (workspaceId) =>
+        set((s) => {
+          if (s.boundWorkspaceId === workspaceId) {
+            return s
+          }
+
+          return {
+            ...filterFieldsInitial,
+            boundWorkspaceId: workspaceId,
+          }
+        }),
     }),
     { name: "filter" },
   ),

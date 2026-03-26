@@ -8,7 +8,7 @@ import { COLORS } from "@/styles/global-style"
 import { Clear as ClearIcon } from "@mui/icons-material"
 import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
-import { STORAGE_KEY } from "@/constants/map-storage"
+import { getMapStorageKeys } from "@/constants/map-storage"
 
 interface FilterModalChildrenProps {
   handleClose: () => void
@@ -16,6 +16,9 @@ interface FilterModalChildrenProps {
 
   /** 워크스페이스 지도: 해당 명부 기준 회사/상태 옵션 사용 */
   listIds?: string[] | null
+
+  /** 지도 뷰 localStorage 키를 WS별로 분리 */
+  workspaceId?: string
 }
 
 const MAJOR_CITIES = [
@@ -60,6 +63,7 @@ const FilterModalChildren = ({
   handleClose,
   handleApplyFilters,
   listIds,
+  workspaceId,
 }: FilterModalChildrenProps) => {
   const {
     statusFilter,
@@ -252,11 +256,14 @@ const FilterModalChildren = ({
       <ButtonGroup>
         <ResetButton
           onClick={() => {
-            localStorage.setItem(STORAGE_KEY.level, "6")
-            localStorage.setItem(
-              STORAGE_KEY.position,
-              JSON.stringify({ lat: 37.5665, lng: 126.978 }),
-            )
+            if (workspaceId) {
+              const keys = getMapStorageKeys(workspaceId)
+              localStorage.setItem(keys.level, "6")
+              localStorage.setItem(
+                keys.position,
+                JSON.stringify({ lat: 37.5665, lng: 126.978 }),
+              )
+            }
             resetFilters()
           }}>
           필터 초기화

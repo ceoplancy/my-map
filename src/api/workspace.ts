@@ -445,7 +445,6 @@ export const useShareholders = (params: ShareholdersParams) => {
     ],
     queryFn: () => getShareholders(params),
     enabled,
-    placeholderData: (prev) => prev,
   })
 }
 

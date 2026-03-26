@@ -5,8 +5,43 @@ import type { NextApiRequest } from "next"
  * 한 줄 JSON으로 출력해 필터·grep에 쓰기 쉽게 함.
  *
  * scope: 고정 태그. phase: 요청 단계(원인 분류).
- * fields: POST 시 변경 필드명(민감값 제외). dbError: Supabase insert 오류.
+ * fields: POST 시 변경 필드명. entriesPreview: 필드별 이전/새 값(로그용, 길면 잘림).
+ * dbError: Supabase insert 오류.
  */
+export type ChangeEntryPreview = {
+  field: string
+  old_value: string | null
+  new_value: string | null
+}
+
+/** 한 값당 최대 길이 — Vercel 로그 한 줄 폭 과다 방지 */
+const LOG_VALUE_MAX_CHARS = 4000
+
+export function truncateForLogValue(value: string | null): string | null {
+  if (value == null) {
+    return null
+  }
+  if (value.length <= LOG_VALUE_MAX_CHARS) {
+    return value
+  }
+
+  return `${value.slice(0, LOG_VALUE_MAX_CHARS)}…(+${value.length - LOG_VALUE_MAX_CHARS} chars)`
+}
+
+export function entriesPreviewForLog(
+  entries: Array<{
+    field: string
+    old_value: string | null
+    new_value: string | null
+  }>,
+): ChangeEntryPreview[] {
+  return entries.map((e) => ({
+    field: String(e.field),
+    old_value: truncateForLogValue(e.old_value ?? null),
+    new_value: truncateForLogValue(e.new_value ?? null),
+  }))
+}
+
 export type ShareholderChangeHistoryLogPayload = {
   scope: "shareholder_change_history"
   phase:
@@ -26,6 +61,9 @@ export type ShareholderChangeHistoryLogPayload = {
   userId?: string | null
   workspaceId?: string | null
   fields?: string[]
+
+  /** POST 본문 entries의 값 요약(필드명 + old/new). */
+  entriesPreview?: ChangeEntryPreview[]
   entryCount?: number
   dbError?: { code?: string; message: string; details?: string }
   requestId?: string | null
