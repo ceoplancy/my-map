@@ -7,6 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { toast } from "react-toastify"
 import Select from "@/components/ui/select"
+import { postAuthSignup } from "@/api/nextApi"
 
 const SignInAnimation = dynamic(
   () =>
@@ -47,19 +48,14 @@ const SignUp = () => {
     }
     setIsLoading(true)
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          account_type: accountType,
-          user_name: userName,
-        }),
+      const result = await postAuthSignup({
+        email,
+        password,
+        account_type: accountType,
+        user_name: userName,
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        toast.error(data.error || "회원가입에 실패했습니다.")
+      if (!result.ok) {
+        toast.error(result.message)
 
         return
       }

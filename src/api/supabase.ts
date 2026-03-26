@@ -4,14 +4,23 @@ import { toast } from "react-toastify"
 
 import type { AuthRole } from "@/types/auth"
 import type { AccountType, AdminWorkspaceItem } from "@/types/db"
-
-export type { AdminWorkspaceItem }
 import supabase from "@/lib/supabase/supabaseClient"
+import type { AxiosResponse } from "axios"
+
+import {
+  apiClient,
+  bearerHeaders,
+  isHttpOk,
+  responseBodyAsErrorText,
+  throwApiErrorFromHttpResponse,
+  throwHttpTextError,
+} from "@/lib/apiClient"
 import { getAccessToken } from "@/lib/auth/clientAuth"
-import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
 import { QUERY_KEYS } from "@/constants/query-keys"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError, reportMessage } from "@/lib/reportError"
+
+export type { AdminWorkspaceItem }
 
 // =======================================
 // ============== get 필터 메뉴 ================
@@ -62,11 +71,41 @@ export const useGetFilterMenu = (options?: { enabled?: boolean }) => {
 // ============== 사용자 관리 기능 ===============
 // =======================================
 
-async function getAdminAuthHeaders(): Promise<HeadersInit> {
+async function getAdminAuthHeaders(): Promise<Record<string, string>> {
   const token = await getAccessToken()
   if (!token) throw new Error("Unauthorized")
 
-  return { Authorization: `Bearer ${token}` }
+  return bearerHeaders(token)
+}
+
+/** 관리자 API: 2xx면 `data`, 아니면 Sentry(옵션) 후 throw */
+async function adminJsonOrThrow<T>(
+  request: (_headers: Record<string, string>) => Promise<AxiosResponse<T>>,
+  sentryMessage?: string,
+): Promise<T> {
+  const headers = await getAdminAuthHeaders()
+  const res = await request(headers)
+  if (!isHttpOk(res.status)) {
+    const msg = responseBodyAsErrorText(res)
+    if (sentryMessage && shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage(sentryMessage, "error")
+    }
+    throw new Error(msg || res.statusText)
+  }
+
+  return res.data
+}
+
+async function adminMutationOrThrowApiError(
+  request: (
+    _headers: Record<string, string>,
+  ) => Promise<AxiosResponse<unknown>>,
+): Promise<void> {
+  const headers = await getAdminAuthHeaders()
+  const res = await request(headers)
+  if (!isHttpOk(res.status)) {
+    throwApiErrorFromHttpResponse(res, res.statusText || "Request failed")
+  }
 }
 
 export type GetUsersResponse = {
@@ -85,19 +124,14 @@ const getUsers = async (
   page: number = 1,
   limit: number = 10,
 ): Promise<GetUsersResponse> => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(`/api/admin/users?page=${page}&limit=${limit}`, {
-    headers,
-  })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("사용자 목록 조회에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-
-  return res.json() as Promise<GetUsersResponse>
+  return adminJsonOrThrow(
+    (headers) =>
+      apiClient.get<GetUsersResponse>(
+        `/api/admin/users?page=${page}&limit=${limit}`,
+        { headers },
+      ),
+    "사용자 목록 조회에 실패했습니다.",
+  )
 }
 
 export const useGetUsers = (page: number = 1, limit: number = 10) => {
@@ -113,17 +147,10 @@ export const useGetUsers = (page: number = 1, limit: number = 10) => {
 
 // 특정 사용자 조회 (서버 API 경유)
 const getUser = async (userId: string) => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(`/api/admin/users/${userId}`, { headers })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("사용자 조회에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-
-  return res.json()
+  return adminJsonOrThrow(
+    (headers) => apiClient.get(`/api/admin/users/${userId}`, { headers }),
+    "사용자 조회에 실패했습니다.",
+  )
 }
 
 // 사용자 생성 (서버 API 경유)
@@ -132,56 +159,34 @@ const createUser = async (
   password: string,
   userData?: object,
 ) => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch("/api/admin/users", {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, userData }),
-  })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("사용자 생성에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-
-  return res.json()
+  return adminJsonOrThrow(
+    (headers) =>
+      apiClient.post(
+        "/api/admin/users",
+        { email, password, userData },
+        {
+          headers,
+        },
+      ),
+    "사용자 생성에 실패했습니다.",
+  )
 }
 
 // 사용자 정보 수정 (서버 API 경유)
 const updateUser = async (userId: string, updates: object) => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(`/api/admin/users/${userId}`, {
-    method: "PATCH",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(updates),
-  })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("사용자 정보 수정에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-
-  return res.json()
+  return adminJsonOrThrow(
+    (headers) =>
+      apiClient.patch(`/api/admin/users/${userId}`, updates, { headers }),
+    "사용자 정보 수정에 실패했습니다.",
+  )
 }
 
 // 사용자 삭제 (서버 API 경유)
 const deleteUser = async (userId: string) => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(`/api/admin/users/${userId}`, {
-    method: "DELETE",
-    headers,
-  })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("사용자 삭제에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
+  await adminJsonOrThrow(
+    (headers) => apiClient.delete(`/api/admin/users/${userId}`, { headers }),
+    "사용자 삭제에 실패했습니다.",
+  )
 }
 
 export const useGetUser = (userId: string) => {
@@ -268,20 +273,13 @@ export type UserWorkspaceMembership = {
 const getAdminUserWorkspaces = async (
   userId: string,
 ): Promise<UserWorkspaceMembership[]> => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(`/api/admin/users/${userId}/workspaces`, {
-    headers,
-  })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("사용자 워크스페이스 목록 조회에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-  const json = await res.json()
+  const data = await adminJsonOrThrow(
+    (headers) =>
+      apiClient.get(`/api/admin/users/${userId}/workspaces`, { headers }),
+    "사용자 워크스페이스 목록 조회에 실패했습니다.",
+  )
 
-  return Array.isArray(json) ? json : []
+  return Array.isArray(data) ? data : []
 }
 
 export const useAdminUserWorkspaces = (userId: string | null) => {
@@ -300,35 +298,25 @@ const addOrUpdateAdminUserWorkspace = async (
   workspaceId: string,
   role: AssignableWorkspaceRole,
 ) => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(`/api/admin/users/${userId}/workspaces`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ workspaceId, role }),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(
-      apiErrorMessageFromBody(err, res.statusText || "Request failed"),
-    )
-  }
+  await adminMutationOrThrowApiError((headers) =>
+    apiClient.post(
+      `/api/admin/users/${userId}/workspaces`,
+      { workspaceId, role },
+      { headers },
+    ),
+  )
 }
 
 const removeAdminUserWorkspace = async (
   userId: string,
   workspaceId: string,
 ) => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch(
-    `/api/admin/users/${userId}/workspaces?workspaceId=${encodeURIComponent(workspaceId)}`,
-    { method: "DELETE", headers },
+  await adminMutationOrThrowApiError((headers) =>
+    apiClient.delete(
+      `/api/admin/users/${userId}/workspaces?workspaceId=${encodeURIComponent(workspaceId)}`,
+      { headers },
+    ),
   )
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(
-      apiErrorMessageFromBody(err, res.statusText || "Request failed"),
-    )
-  }
 }
 
 export const useAddOrUpdateAdminUserWorkspace = (userId: string) => {
@@ -383,18 +371,12 @@ export const useRemoveAdminUserWorkspace = (userId: string) => {
 // =======================================
 
 const getAdminWorkspaces = async (): Promise<AdminWorkspaceItem[]> => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch("/api/admin/workspaces", { headers })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("관리자 워크스페이스 목록 조회에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-  const json = await res.json()
+  const data = await adminJsonOrThrow(
+    (headers) => apiClient.get("/api/admin/workspaces", { headers }),
+    "관리자 워크스페이스 목록 조회에 실패했습니다.",
+  )
 
-  return Array.isArray(json) ? json : []
+  return Array.isArray(data) ? data : []
 }
 
 export const useAdminWorkspaces = () => {
@@ -409,21 +391,13 @@ const createAdminWorkspace = async (payload: {
   name: string
   account_type: AccountType
 }): Promise<AdminWorkspaceItem> => {
-  const headers = await getAdminAuthHeaders()
-  const res = await fetch("/api/admin/workspaces", {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  })
-  if (!res.ok) {
-    const msg = await res.text()
-    if (shouldReportSentryForHttpStatus(res.status)) {
-      reportMessage("워크스페이스 생성에 실패했습니다.", "error")
-    }
-    throw new Error(msg || res.statusText)
-  }
-
-  return res.json() as Promise<AdminWorkspaceItem>
+  return adminJsonOrThrow(
+    (headers) =>
+      apiClient.post<AdminWorkspaceItem>("/api/admin/workspaces", payload, {
+        headers,
+      }),
+    "워크스페이스 생성에 실패했습니다.",
+  )
 }
 
 export const useCreateAdminWorkspace = () => {
@@ -449,12 +423,14 @@ export const setUserRole = async (
 ): Promise<{ success: boolean; error?: unknown }> => {
   try {
     const headers = await getAdminAuthHeaders()
-    const res = await fetch(`/api/admin/users/${userId}`, {
-      method: "PATCH",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ user_metadata: { role } }),
-    })
-    if (!res.ok) throw new Error(await res.text())
+    const res = await apiClient.patch(
+      `/api/admin/users/${userId}`,
+      { user_metadata: { role } },
+      { headers },
+    )
+    if (!isHttpOk(res.status)) {
+      throwHttpTextError(res, res.statusText)
+    }
 
     return { success: true }
   } catch (error) {

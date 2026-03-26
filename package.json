@@ -26,6 +26,7 @@
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.49.1",
     "@tanstack/react-query": "^5.62.0",
+    "axios": "^1.13.6",
     "cookie": "^1.1.1",
     "date-fns": "^4.1.0",
     "formik": "^2.4.6",

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import styled from "@emotion/styled"
+import { fetchWorkspaceListChangeHistory } from "@/api/nextApi"
 import { getAccessToken } from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
@@ -278,23 +279,11 @@ export function ChangeHistoryPageContent() {
       if (!token) {
         throw new Error("LOGIN_REQUIRED")
       }
-      const res = await fetch(`/api/workspace/lists/${listId}/change-history`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) {
+      if (!listId) {
         throw new Error("FETCH_FAILED")
       }
 
-      return res.json() as Promise<{
-        history?: HistoryRow[]
-        total?: number
-        truncated?: boolean
-        nameById?: Record<string, string>
-        changedByUser?: Record<
-          string,
-          { name: string | null; email: string | null }
-        >
-      }>
+      return fetchWorkspaceListChangeHistory(token, listId)
     },
     enabled: Boolean(listId) && router.isReady,
   })

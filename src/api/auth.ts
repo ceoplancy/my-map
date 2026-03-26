@@ -9,7 +9,8 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query"
 import { QUERY_KEYS } from "@/constants/query-keys"
-import { fetchAuth, getAccessToken } from "@/lib/auth/clientAuth"
+import { getJsonWithBearerIfOk } from "@/lib/apiClient"
+import { fetchAuth } from "@/lib/auth/clientAuth"
 import { reportError } from "@/lib/reportError"
 
 // =========================================
@@ -145,13 +146,8 @@ export const useSession = () => {
 export type WorkspaceItem = MyWorkspaceItem
 
 const fetchMyWorkspaces = async (): Promise<MyWorkspaceItem[]> => {
-  const token = await getAccessToken()
-  if (!token) return []
-  const res = await fetch("/api/me/workspaces", {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) return []
-  const json = await res.json()
+  const json = await getJsonWithBearerIfOk<unknown>("/api/me/workspaces")
+  if (json === null) return []
 
   return Array.isArray(json) ? (json as MyWorkspaceItem[]) : []
 }
@@ -169,16 +165,13 @@ export const useMyWorkspaces = (options?: UseMyWorkspacesOptions) => {
 
 /** 통합 관리자(service_admin) 여부 — 통합 관리 메뉴/API 접근 권한 */
 const fetchAdminStatus = async (): Promise<{ isServiceAdmin: boolean }> => {
-  const token = await getAccessToken()
-  if (!token) return { isServiceAdmin: false }
-  const res = await fetch("/api/me/admin-status", {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) return { isServiceAdmin: false }
-  const json = await res.json()
+  const json = await getJsonWithBearerIfOk<{ isServiceAdmin?: boolean }>(
+    "/api/me/admin-status",
+  )
+  if (json === null) return { isServiceAdmin: false }
 
   return {
-    isServiceAdmin: Boolean(json?.isServiceAdmin),
+    isServiceAdmin: Boolean(json.isServiceAdmin),
   }
 }
 
@@ -197,13 +190,9 @@ export type SignupStatus = {
 } | null
 
 const fetchMySignupStatus = async (): Promise<SignupStatus> => {
-  const token = await getAccessToken()
-  if (!token) return null
-  const res = await fetch("/api/me/signup-status", {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) return null
-  const json = await res.json()
+  const json = await getJsonWithBearerIfOk<SignupStatus>(
+    "/api/me/signup-status",
+  )
 
   return json ?? null
 }

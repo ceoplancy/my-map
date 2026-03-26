@@ -102,31 +102,3 @@ export async function recoverAccessTokenAfterAuthFailure(): Promise<
 > {
   return refreshSessionOrFallbackAccessToken()
 }
-
-type FetchWithBearerRetryOptions = {
-  maxAuthRetries?: number
-}
-
-/**
- * Bearer 요청 후 401/403이면 토큰 재발급·재시도한다.
- * `execute`는 매 시도마다 새 Bearer 토큰 문자열로 호출된다.
- *
- * @param options.maxAuthRetries 인증 실패 후 추가 시도 횟수 (기본 1 → 요청 최대 2회)
- */
-export async function fetchWithBearerRetry(
-  initialAccessToken: string,
-  execute: (_token: string) => Promise<Response>,
-  options?: FetchWithBearerRetryOptions,
-): Promise<Response> {
-  const maxAuthRetries = options?.maxAuthRetries ?? 1
-  let res = await execute(initialAccessToken)
-
-  for (let i = 0; i < maxAuthRetries; i++) {
-    if (!isLikelyAuthFailureStatus(res.status)) break
-    const next = await recoverAccessTokenAfterAuthFailure()
-    if (!next) break
-    res = await execute(next)
-  }
-
-  return res
-}

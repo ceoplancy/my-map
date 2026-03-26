@@ -8,13 +8,20 @@ import {
 import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
 import {
-  fetchWithBearerRetry,
+  apiClient,
+  apiErrorMessageFromHttpResponse,
+  axiosWithBearerRetry,
+  bearerHeaders,
+  getJsonWithBearerIfOk,
+  isHttpOk,
+  throwApiErrorFromHttpResponse,
+} from "@/lib/apiClient"
+import {
   getAccessToken,
   recoverAccessTokenAfterAuthFailure,
 } from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables } from "@/types/db"
-import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError } from "@/lib/reportError"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
@@ -95,14 +102,10 @@ export type WorkspaceMemberWithUser = {
 const getWorkspaceMembersWithUsers = async (
   workspaceId: string,
 ): Promise<WorkspaceMemberWithUser[]> => {
-  const token = await getAccessToken()
-  if (!token) return []
-  const res = await fetch(
+  const json = await getJsonWithBearerIfOk<WorkspaceMemberWithUser[] | unknown>(
     `/api/me/workspace-members?workspaceId=${encodeURIComponent(workspaceId)}`,
-    { headers: { Authorization: `Bearer ${token}` } },
   )
-  if (!res.ok) return []
-  const json = await res.json()
+  if (json === null) return []
 
   return Array.isArray(json) ? json : []
 }
@@ -144,19 +147,11 @@ export const useAddWorkspaceMember = () => {
       if (input.allowed_list_ids !== undefined)
         body.allowed_list_ids = input.allowed_list_ids
 
-      const res = await fetch("/api/me/workspace-members", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+      const res = await apiClient.post("/api/me/workspace-members", body, {
+        headers: bearerHeaders(token),
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Request failed" }))
-        throw new Error(
-          apiErrorMessageFromBody(err, res.statusText || "Request failed"),
-        )
+      if (!isHttpOk(res.status)) {
+        throwApiErrorFromHttpResponse(res, res.statusText || "Request failed")
       }
     },
     onSuccess: (_, variables) => {
@@ -184,15 +179,12 @@ export const useRemoveWorkspaceMember = () => {
     }) => {
       const token = await getAccessToken()
       if (!token) throw new Error("Unauthorized")
-      const res = await fetch(
+      const res = await apiClient.delete(
         `/api/me/workspace-members?workspaceId=${encodeURIComponent(workspaceId)}&memberId=${encodeURIComponent(memberId)}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+        { headers: bearerHeaders(token) },
       )
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }))
-        throw new Error(
-          apiErrorMessageFromBody(err, res.statusText || "Request failed"),
-        )
+      if (!isHttpOk(res.status)) {
+        throwApiErrorFromHttpResponse(res, res.statusText || "Request failed")
       }
     },
     onSuccess: (_, variables) => {
@@ -628,22 +620,12 @@ const recordChangeHistoryViaApi = async (
 ): Promise<void> => {
   if (entries.length === 0) return
   const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
-  const body = JSON.stringify({ entries })
-  const res = await fetchWithBearerRetry(accessToken, (token) =>
-    fetch(url, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body,
-    }),
+  const res = await axiosWithBearerRetry(accessToken, (token) =>
+    apiClient.post(url, { entries }, { headers: bearerHeaders(token) }),
   )
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ error: res.statusText }))
-    const message = apiErrorMessageFromBody(
-      errBody as { error?: unknown },
+  if (!isHttpOk(res.status)) {
+    const message = apiErrorMessageFromHttpResponse(
+      res,
       res.statusText || "Change history failed",
     )
     const userMessage =
@@ -853,14 +835,11 @@ async function fetchShareholderChangeHistoryApiJson(
     token = (await recoverAccessTokenAfterAuthFailure()) ?? ""
   }
   if (!token) return null
-  const res = await fetchWithBearerRetry(token, (t) =>
-    fetch(url, {
-      credentials: "include",
-      headers: { Authorization: `Bearer ${t}` },
-    }),
+  const res = await axiosWithBearerRetry(token, (t) =>
+    apiClient.get(url, { headers: bearerHeaders(t) }),
   )
-  if (!res.ok) return null
-  const json = (await res.json()) as {
+  if (!isHttpOk(res.status)) return null
+  const json = res.data as {
     history?: Tables<"shareholder_change_history">[]
     changedByUser?: ChangeHistoryUserLookup
   }

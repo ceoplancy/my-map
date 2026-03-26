@@ -1,18 +1,14 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import { useCallback, useEffect, useState } from "react"
 import styled from "@emotion/styled"
+import {
+  fetchAdminSignupRequests,
+  patchAdminSignupRequest,
+  type AdminSignupRequestRow,
+} from "@/api/nextApi"
 import { getAccessToken } from "@/lib/auth/clientAuth"
 import { toast } from "react-toastify"
 import GlobalSpinner from "@/components/ui/global-spinner"
-
-type SignupRequest = {
-  id: string
-  email: string
-  account_type: string
-  workspace_name: string
-  status: string
-  created_at: string
-}
 
 const PageTitle = styled.h1`
   font-size: 1.5rem;
@@ -114,7 +110,7 @@ export function SignupRequestsContent({
   workspaceId: string | null
   noLayout?: boolean
 }) {
-  const [requests, setRequests] = useState<SignupRequest[]>([])
+  const [requests, setRequests] = useState<AdminSignupRequestRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [acting, setActing] = useState<string | null>(null)
@@ -127,13 +123,8 @@ export function SignupRequestsContent({
 
       return
     }
-    const url = workspaceId
-      ? `/api/admin/signup-requests?workspace_id=${encodeURIComponent(workspaceId)}`
-      : "/api/admin/signup-requests"
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.status === 401 || res.status === 403) {
+    const fetched = await fetchAdminSignupRequests(token, workspaceId)
+    if (fetched.kind === "forbidden") {
       setError(
         workspaceId
           ? "해당 워크스페이스의 가입 신청을 조회할 권한이 없습니다."
@@ -143,14 +134,13 @@ export function SignupRequestsContent({
 
       return
     }
-    if (!res.ok) {
+    if (fetched.kind === "error") {
       setError("목록을 불러오지 못했습니다.")
       setLoading(false)
 
       return
     }
-    const data = await res.json()
-    setRequests(Array.isArray(data) ? data : [])
+    setRequests(fetched.items)
     setError(null)
     setLoading(false)
   }, [workspaceId])
@@ -163,17 +153,9 @@ export function SignupRequestsContent({
     const token = await getAccessToken()
     if (!token) return
     setActing(id)
-    const res = await fetch(`/api/admin/signup-requests/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ action }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      toast.error(data.error || "처리에 실패했습니다.")
+    const result = await patchAdminSignupRequest(token, id, action)
+    if (!result.ok) {
+      toast.error(result.message)
       setActing(null)
 
       return

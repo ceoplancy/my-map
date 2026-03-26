@@ -30,6 +30,7 @@ import Modal from "@/components/ui/modal"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import styled from "@emotion/styled"
 import FilterModalChildren from "@/components/ui/modal-children/filter-modal-children"
+import { postWorkspaceResourceRequest } from "@/api/nextApi"
 import { getAccessToken } from "@/lib/auth/clientAuth"
 import MultipleMapMarker from "@/components/ui/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
@@ -348,19 +349,12 @@ const WorkspaceMapPage = () => {
                     return
                   }
                   try {
-                    const res = await fetch("/api/resource-requests", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                      },
-                      body: JSON.stringify({
-                        workspace_id: resolvedWorkspace?.id ?? null,
-                      }),
-                    })
-                    if (!res.ok) {
-                      const err = await res.json().catch(() => ({}))
-                      toast.error(err.error || "요청에 실패했습니다.")
+                    const result = await postWorkspaceResourceRequest(
+                      token,
+                      resolvedWorkspace?.id ?? null,
+                    )
+                    if (!result.ok) {
+                      toast.error(result.message)
 
                       return
                     }

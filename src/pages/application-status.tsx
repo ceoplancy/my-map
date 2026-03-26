@@ -5,6 +5,7 @@ import styled from "@emotion/styled"
 import Image from "next/image"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
+import { fetchMeSignupStatus } from "@/api/nextApi"
 import DotSpinner from "@/components/ui/dot-spinner"
 
 type StatusResult = "pending" | "approved" | "rejected" | null
@@ -166,17 +167,15 @@ export default function ApplicationStatusPage() {
 
         return
       }
-      const res = await fetch("/api/me/signup-status", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const result = await fetchMeSignupStatus(token)
       await supabase.auth.signOut()
-      if (!res.ok) {
+      if (!result.ok) {
         toast.error("조회에 실패했습니다.")
         setLoading(false)
 
         return
       }
-      const json = await res.json()
+      const json = result.data
       const resultStatus: StatusResult =
         json?.status === "pending"
           ? "pending"
