@@ -1,5 +1,6 @@
 import styled from "@emotion/styled"
 import type { MapMarkerData } from "@/types/map"
+import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import { toast } from "react-toastify"
 import { ContentCopy, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
@@ -7,7 +8,6 @@ import { nanoid } from "nanoid"
 import { useState } from "react"
 import ModalComponent from "./modal"
 
-// history 데이터 타입 정의 추가
 export type HistoryChange = {
   memo?: { original: string; modified: string }
   status?: { original: string; modified: string }
@@ -19,17 +19,19 @@ export type HistoryItem = {
   changes: HistoryChange
 }
 
-interface ExcelDataTableProps {
-  data: MapMarkerData
+type MarkerDetailSource = MapMarkerData | ImportSpreadsheetRow
+
+interface MarkerDetailTableProps {
+  data: MarkerDetailSource
   history?: HistoryItem[]
   historyLoading?: boolean
 }
 
-const ExcelDataTable = ({
+const MarkerDetailTable = ({
   data,
   history: historyProp,
   historyLoading = false,
-}: ExcelDataTableProps) => {
+}: MarkerDetailTableProps) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const history =
     historyProp ??
@@ -116,7 +118,7 @@ const ExcelDataTable = ({
   )
 }
 
-export default ExcelDataTable
+export default MarkerDetailTable
 
 const TableContainer = styled.div`
   background: white;
@@ -451,7 +453,6 @@ const CloseButton = styled.button`
   }
 `
 
-// 변경 이력 카드 컴포넌트 분리
 const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
   return (
     <HistoryCard>
@@ -495,7 +496,6 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
   )
 }
 
-// 스타일 컴포넌트 추가 (예비)
 const _PreviewContainer = styled.div`
   padding: 8px 12px;
   background: ${COLORS.gray[50]};

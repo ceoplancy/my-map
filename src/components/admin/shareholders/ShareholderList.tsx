@@ -1,7 +1,7 @@
 import { useGetUsers } from "@/api/supabase"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import EditShareholderModal from "./EditShareholderModal"
 import AddShareholderModal from "./AddShareholderModal"
 import {
@@ -29,8 +29,28 @@ import { useSession } from "@/api/auth"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
 import * as XLSX from "xlsx"
+import { removeTags } from "@/lib/utils"
 
 type Shareholder = Tables<"shareholders">
+
+/** date input (YYYY-MM-DD) → 로컬 자정 ms */
+function parseLocalDateStartMs(s: string): number | null {
+  if (!s.trim()) return null
+  const parts = s.split("-").map(Number)
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null
+  const [y, m, d] = parts
+
+  return new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
+}
+
+function parseLocalDateEndMs(s: string): number | null {
+  if (!s.trim()) return null
+  const parts = s.split("-").map(Number)
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null
+  const [y, m, d] = parts
+
+  return new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
+}
 
 const Container = styled.div`
   background: white;
@@ -355,6 +375,10 @@ type Filters = {
   stocksMin: string
   stocksMax: string
   modifier: string
+
+  /** YYYY-MM-DD, 변경 이력 없으면 shareholders.updated_at으로 비교 */
+  modifiedFrom: string
+  modifiedTo: string
 }
 
 type Props = { listId: string; listName?: string }
@@ -396,48 +420,74 @@ export default function ShareholderList({ listId, listName }: Props) {
     stocksMin: "",
     stocksMax: "",
     modifier: "",
+    modifiedFrom: "",
+    modifiedTo: "",
   })
 
   const { data: session } = useSession()
   const userId = session?.user?.id ?? ""
   const {
-    data: shareholdersData = [],
-    isLoading,
+    data: shareholdersData,
+    isPending: shareholdersPending,
     refetch,
   } = useShareholders({ listId })
   const { data: usersData } = useGetUsers(1, 100)
   const deleteShareholderMutation = useDeleteShareholder()
   const { data: changesData } = useChangesForList(listId)
-  const latestChanges: Record<string, LatestChange> = changesData?.latest ?? {}
-  const allChanges: Record<string, ChangeEntry[]> = changesData?.all ?? {}
+  const latestChanges = useMemo(
+    (): Record<string, LatestChange> => changesData?.latest ?? {},
+    [changesData],
+  )
+  const allChanges = useMemo(
+    (): Record<string, ChangeEntry[]> => changesData?.all ?? {},
+    [changesData],
+  )
 
-  const usersMap = (() => {
+  const usersMap = useMemo(() => {
     const m: Record<string, string> = {}
     for (const u of usersData?.users ?? []) {
       m[u.id] = u.user_metadata?.name || u.email || u.id
     }
 
     return m
-  })()
+  }, [usersData])
 
-  const getLatestModifier = (shareholderId: string) => {
-    const entry = latestChanges[shareholderId]
-    if (!entry) return "-"
+  const getLatestModifier = useCallback(
+    (shareholderId: string) => {
+      const entry = latestChanges[shareholderId]
+      if (!entry) return "-"
 
-    return usersMap[entry.changed_by] ?? entry.changed_by
-  }
+      return usersMap[entry.changed_by] ?? entry.changed_by
+    },
+    [latestChanges, usersMap],
+  )
 
-  const getLatestModifiedDate = (shareholderId: string) => {
-    const entry = latestChanges[shareholderId]
-    if (!entry) return "-"
+  const getLatestModifiedDate = useCallback(
+    (shareholderId: string) => {
+      const entry = latestChanges[shareholderId]
+      if (!entry) return "-"
 
-    return entry.changed_at
-  }
+      return entry.changed_at
+    },
+    [latestChanges],
+  )
 
-  const handleModalClose = () => {
-    setSelectedItem(null)
-    refetch()
-  }
+  const getComparableModifiedTimeMs = useCallback(
+    (item: Shareholder): number | null => {
+      const latest = latestChanges[item.id]
+      if (latest?.changed_at) {
+        const t = Date.parse(latest.changed_at)
+        if (!Number.isNaN(t)) return t
+      }
+      if (item.updated_at) {
+        const t = Date.parse(item.updated_at)
+        if (!Number.isNaN(t)) return t
+      }
+
+      return null
+    },
+    [latestChanges],
+  )
 
   const handleSort = (field: SortField) => {
     setSort((prev) => ({
@@ -450,6 +500,156 @@ export default function ShareholderList({ listId, listName }: Props) {
   const handleFilterChange = (field: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
     setCurrentPage(1)
+  }
+
+  const filteredData = useMemo(() => {
+    const rows = shareholdersData ?? []
+
+    return rows.filter((item: Shareholder) => {
+      const searchTerm = filters.search.trim().toLowerCase()
+      const memoPlain = removeTags(item.memo ?? "").toLowerCase()
+      const matchesSearch =
+        searchTerm === "" ||
+        item.company?.toLowerCase().includes(searchTerm) ||
+        item.name?.toLowerCase().includes(searchTerm) ||
+        memoPlain.includes(searchTerm) ||
+        item.address?.toLowerCase().includes(searchTerm) ||
+        item.latlngaddress?.toLowerCase().includes(searchTerm)
+
+      const matchesStatus =
+        filters.status === "" || item.status === filters.status
+
+      const minN = filters.stocksMin.trim()
+        ? parseInt(filters.stocksMin, 10)
+        : NaN
+      const maxN = filters.stocksMax.trim()
+        ? parseInt(filters.stocksMax, 10)
+        : NaN
+      const matchesStocksMin =
+        !filters.stocksMin.trim() ||
+        (!Number.isNaN(minN) && item.stocks >= minN)
+      const matchesStocksMax =
+        !filters.stocksMax.trim() ||
+        (!Number.isNaN(maxN) && item.stocks <= maxN)
+
+      const matchesModifier =
+        filters.modifier === "" ||
+        latestChanges[item.id]?.changed_by === filters.modifier ||
+        (allChanges[item.id]?.some((e) => e.changed_by === filters.modifier) ??
+          false)
+
+      const hasModifiedRange =
+        Boolean(filters.modifiedFrom.trim()) ||
+        Boolean(filters.modifiedTo.trim())
+      const modifiedMs = getComparableModifiedTimeMs(item)
+      let matchesModifiedRange = true
+      if (hasModifiedRange) {
+        if (modifiedMs === null) {
+          matchesModifiedRange = false
+        } else {
+          const fromMs = parseLocalDateStartMs(filters.modifiedFrom)
+          const toMs = parseLocalDateEndMs(filters.modifiedTo)
+          if (fromMs !== null && modifiedMs < fromMs) {
+            matchesModifiedRange = false
+          }
+          if (toMs !== null && modifiedMs > toMs) {
+            matchesModifiedRange = false
+          }
+        }
+      }
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesStocksMin &&
+        matchesStocksMax &&
+        matchesModifier &&
+        matchesModifiedRange
+      )
+    })
+  }, [
+    shareholdersData,
+    filters,
+    latestChanges,
+    allChanges,
+    getComparableModifiedTimeMs,
+  ])
+
+  const sortedData = useMemo(() => {
+    return [...filteredData].sort((a, b) => {
+      if (!sort.field) return 0
+
+      if (sort.field === "history_modifier") {
+        const aModifier = getLatestModifier(a.id)
+        const bModifier = getLatestModifier(b.id)
+
+        if (aModifier === "-" && bModifier !== "-") return 1
+        if (bModifier === "-" && aModifier !== "-") return -1
+        if (aModifier === "-" && bModifier === "-") return 0
+
+        const comparison =
+          aModifier < bModifier ? -1 : aModifier > bModifier ? 1 : 0
+
+        return sort.direction === "asc" ? comparison : -comparison
+      }
+
+      if (sort.field === "history_modified_at") {
+        const aDate = getLatestModifiedDate(a.id)
+        const bDate = getLatestModifiedDate(b.id)
+
+        if (aDate === "-" && bDate !== "-") return 1
+        if (bDate === "-" && aDate !== "-") return -1
+        if (aDate === "-" && bDate === "-") return 0
+
+        const comparison = aDate < bDate ? -1 : aDate > bDate ? 1 : 0
+
+        return sort.direction === "asc" ? comparison : -comparison
+      }
+
+      const sortKey = sort.field
+      const aValue = a[sortKey]
+      const bValue = b[sortKey]
+
+      if (aValue === null || aValue === undefined) return 1
+      if (bValue === null || bValue === undefined) return -1
+
+      const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+
+      return sort.direction === "asc" ? comparison : -comparison
+    })
+  }, [filteredData, sort, getLatestModifier, getLatestModifiedDate])
+
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / ITEMS_PER_PAGE))
+
+  /** 정렬·필터 후 결과가 줄었을 때 현재 페이지가 범위를 벗어나면 빈 목록처럼 보이는 문제 방지 */
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(sortedData.length / ITEMS_PER_PAGE))
+    if (currentPage > maxPage) setCurrentPage(maxPage)
+  }, [sortedData.length, currentPage])
+
+  const focusAfterEditRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const id = focusAfterEditRef.current
+    if (!id) return
+    const idx = sortedData.findIndex((r) => r.id === id)
+    if (idx >= 0) {
+      setCurrentPage(Math.floor(idx / ITEMS_PER_PAGE) + 1)
+      focusAfterEditRef.current = null
+
+      return
+    }
+    const sharesReady = shareholdersData !== undefined
+    const changesReady = changesData !== undefined
+    if (sharesReady && changesReady) {
+      focusAfterEditRef.current = null
+    }
+  }, [sortedData, shareholdersData, changesData])
+
+  const handleModalClose = () => {
+    const editedId = selectedItem?.id
+    setSelectedItem(null)
+    if (editedId) focusAfterEditRef.current = editedId
   }
 
   const handleDelete = async (id: string) => {
@@ -466,91 +666,14 @@ export default function ShareholderList({ listId, listName }: Props) {
     }
   }
 
-  if (isLoading)
+  if (shareholdersPending && shareholdersData === undefined) {
     return (
       <div
         style={{ display: "flex", justifyContent: "center", padding: "2rem" }}>
         <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
       </div>
     )
-
-  // 필터링 로직
-  const filteredData = shareholdersData.filter((item: Shareholder) => {
-    const searchTerm = filters.search.toLowerCase()
-    const matchesSearch =
-      searchTerm === "" ||
-      item.company?.toLowerCase().includes(searchTerm) ||
-      item.name?.toLowerCase().includes(searchTerm) ||
-      item.memo?.toLowerCase().includes(searchTerm) ||
-      item.address?.toLowerCase().includes(searchTerm) ||
-      item.latlngaddress?.toLowerCase().includes(searchTerm)
-
-    const matchesStatus =
-      filters.status === "" || item.status === filters.status
-
-    const matchesStocksMin = filters.stocksMin
-      ? item.stocks >= parseInt(filters.stocksMin)
-      : true
-
-    const matchesStocksMax = filters.stocksMax
-      ? item.stocks <= parseInt(filters.stocksMax)
-      : true
-
-    const matchesModifier =
-      filters.modifier === "" ||
-      latestChanges[item.id]?.changed_by === filters.modifier
-
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesStocksMin &&
-      matchesStocksMax &&
-      matchesModifier
-    )
-  })
-
-  // 정렬 로직
-  const sortedData = [...filteredData].sort((a, b) => {
-    if (!sort.field) return 0
-
-    if (sort.field === "history_modifier") {
-      const aModifier = getLatestModifier(a.id)
-      const bModifier = getLatestModifier(b.id)
-
-      if (aModifier === "-" && bModifier !== "-") return 1
-      if (bModifier === "-" && aModifier !== "-") return -1
-      if (aModifier === "-" && bModifier === "-") return 0
-
-      const comparison =
-        aModifier < bModifier ? -1 : aModifier > bModifier ? 1 : 0
-
-      return sort.direction === "asc" ? comparison : -comparison
-    }
-
-    if (sort.field === "history_modified_at") {
-      const aDate = getLatestModifiedDate(a.id)
-      const bDate = getLatestModifiedDate(b.id)
-
-      if (aDate === "-" && bDate !== "-") return 1
-      if (bDate === "-" && aDate !== "-") return -1
-      if (aDate === "-" && bDate === "-") return 0
-
-      const comparison = aDate < bDate ? -1 : aDate > bDate ? 1 : 0
-
-      return sort.direction === "asc" ? comparison : -comparison
-    }
-
-    const sortKey = sort.field
-    const aValue = a[sortKey]
-    const bValue = b[sortKey]
-
-    if (aValue === null || aValue === undefined) return 1
-    if (bValue === null || bValue === undefined) return -1
-
-    const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0
-
-    return sort.direction === "asc" ? comparison : -comparison
-  })
+  }
 
   const FIELD_LABELS: Record<string, string> = {
     name: "이름",
@@ -612,7 +735,6 @@ export default function ShareholderList({ listId, listName }: Props) {
     )
   }
 
-  const totalPages = Math.ceil(sortedData.length / ITEMS_PER_PAGE)
   const currentData = sortedData.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
@@ -697,6 +819,29 @@ export default function ShareholderList({ listId, listName }: Props) {
             </FilterSelect>
           </FormGroup>
 
+          <FormGroup>
+            <Label>최종 수정일</Label>
+            <StocksRangeContainer>
+              <StocksInput
+                type="date"
+                aria-label="최종 수정일 시작"
+                value={filters.modifiedFrom}
+                onChange={(e) =>
+                  handleFilterChange("modifiedFrom", e.target.value)
+                }
+              />
+              <StocksSeparator>~</StocksSeparator>
+              <StocksInput
+                type="date"
+                aria-label="최종 수정일 끝"
+                value={filters.modifiedTo}
+                onChange={(e) =>
+                  handleFilterChange("modifiedTo", e.target.value)
+                }
+              />
+            </StocksRangeContainer>
+          </FormGroup>
+
           <ClearFiltersButton
             onClick={() => {
               setFilters({
@@ -705,6 +850,8 @@ export default function ShareholderList({ listId, listName }: Props) {
                 stocksMin: "",
                 stocksMax: "",
                 modifier: "",
+                modifiedFrom: "",
+                modifiedTo: "",
               })
               setCurrentPage(1)
             }}>
@@ -714,7 +861,7 @@ export default function ShareholderList({ listId, listName }: Props) {
 
           <ExportButton onClick={handleExport}>
             <DownloadIcon />
-            엑셀 내보내기
+            .xlsx 내보내기
           </ExportButton>
         </FilterContainer>
       </FilterSection>

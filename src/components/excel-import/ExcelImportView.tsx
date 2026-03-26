@@ -42,7 +42,7 @@ import {
   Map as MapIcon,
   Close,
 } from "@mui/icons-material"
-import { Excel } from "@/types/excel"
+import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import useDebounce from "@/hooks/useDebounce"
 import { reportError } from "@/lib/reportError"
 import { BATCH_SIZE } from "@/pages/admin/excel-import"
@@ -68,7 +68,8 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
 }) => {
   const theme = useTheme()
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [currentEditData, setCurrentEditData] = useState<Excel | null>(null)
+  const [currentEditData, setCurrentEditData] =
+    useState<ImportSpreadsheetRow | null>(null)
   const [editedValues, setEditedValues] = useState<Record<string, any>>({})
 
   // 주소 검색 관련 상태
@@ -294,12 +295,12 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   }
 
   // 편집 다이얼로그 열기 함수
-  const handleEditClick = (rowData: Excel) => {
+  const handleEditClick = (rowData: ImportSpreadsheetRow) => {
     setCurrentEditData(rowData)
 
     // 모든 필드를 포함하는 초기 값 설정
     // 기본 필드 목록 정의 (필요에 따라 조정)
-    const allFields: (keyof Excel)[] = [
+    const allFields: (keyof ImportSpreadsheetRow)[] = [
       "id",
       "name",
       "address",
@@ -311,7 +312,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
     ]
 
     // 초기값 설정 (rowData에 있는 값 + 없는 필드는 빈 문자열)
-    const initialValues: Excel = rowData
+    const initialValues: ImportSpreadsheetRow = rowData
 
     allFields.forEach((field) => {
       switch (field) {
@@ -453,10 +454,11 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
           gutterBottom
           fontWeight="bold"
           color="primary">
-          엑셀 데이터 임포트
+          스프레드시트 가져오기
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph>
-          엑셀 파일을 업로드하여 주소 데이터를 위도/경도 좌표로 변환합니다.
+          .xlsx/.xls 파일을 업로드하여 주소 데이터를 위도/경도 좌표로
+          변환합니다.
         </Typography>
 
         <form onSubmit={onSubmit}>
@@ -820,7 +822,9 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                       return (
                         <TextField
                           key={field}
-                          label={FIELD_LABELS[field as keyof Excel]}
+                          label={
+                            FIELD_LABELS[field as keyof ImportSpreadsheetRow]
+                          }
                           fullWidth
                           margin="normal"
                           value={editedValues[field] || ""}
@@ -835,7 +839,9 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                     return (
                       <TextField
                         key={field}
-                        label={FIELD_LABELS[field as keyof Excel]}
+                        label={
+                          FIELD_LABELS[field as keyof ImportSpreadsheetRow]
+                        }
                         fullWidth
                         margin="normal"
                         value={editedValues[field] || ""}
@@ -934,7 +940,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
               startIcon={<FileDownload />}
               onClick={() => onExport(failData)}
               size="small">
-              엑셀 파일 다운로드
+              실패 목록 다운로드 (.xlsx)
             </Button>
           </Box>
 

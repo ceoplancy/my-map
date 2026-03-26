@@ -1,5 +1,10 @@
 import { useMemo } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
 import supabase from "@/lib/supabase/supabaseClient"
@@ -445,6 +450,7 @@ export const useShareholders = (params: ShareholdersParams) => {
     ],
     queryFn: () => getShareholders(params),
     enabled,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -707,7 +713,7 @@ export const usePatchShareholder = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["shareholders"] })
-      queryClient.invalidateQueries({ queryKey: ["excel"] })
+      queryClient.invalidateQueries({ queryKey: ["changesForList"] })
       queryClient.invalidateQueries({
         queryKey: ["shareholderChangeHistoryForMap", variables.patch.id],
       })
@@ -736,7 +742,7 @@ export const useDeleteShareholder = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shareholders"] })
-      queryClient.invalidateQueries({ queryKey: ["excel"] })
+      queryClient.invalidateQueries({ queryKey: ["changesForList"] })
     },
     onError: () => {
       toast.error("삭제에 실패했습니다.")

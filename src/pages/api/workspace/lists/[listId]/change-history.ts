@@ -5,6 +5,18 @@ import {
 import { getBearerToken, getAuthUser } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
+/** shareholders inner join 응답에서 제거하기 위한 형태 */
+type ChangeHistoryJoinedRow = {
+  id: string
+  shareholder_id: string
+  changed_by: string
+  changed_at: string
+  field: string
+  old_value: string | null
+  new_value: string | null
+  shareholders: { list_id: string }
+}
+
 export default withApiHandler(async (req, res) => {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" })
@@ -45,25 +57,67 @@ export default withApiHandler(async (req, res) => {
 
   const { data: shareholders } = await client
     .from("shareholders")
-    .select("id, name")
+    .select("id, name, company")
     .eq("list_id", listId)
   const shareholderIds = (shareholders ?? []).map((s) => s.id)
   const nameById = Object.fromEntries(
-    (shareholders ?? []).map((s) => [s.id, s.name ?? s.id]),
+    (shareholders ?? []).map((s) => {
+      const parts = [s.company?.trim(), s.name?.trim()].filter(Boolean)
+      const label = parts.length > 0 ? parts.join(" · ") : (s.id ?? "")
+
+      return [s.id, label]
+    }),
   )
 
   if (shareholderIds.length === 0) {
-    return res.status(200).json({ history: [], nameById: {} })
+    return res.status(200).json({
+      history: [],
+      total: 0,
+      nameById: {},
+      changedByUser: {},
+    })
   }
 
-  const { data: history } = await client
-    .from("shareholder_change_history")
-    .select("*")
-    .in("shareholder_id", shareholderIds)
-    .order("changed_at", { ascending: false })
-    .limit(200)
+  /**
+   * 명부 전체 변경 이력 조회.
+   * `.in("shareholder_id", ids)`는 주주 수가 많을 때 쿼리 URL이 비대해져 PostgREST fetch가 실패할 수 있음
+   * (로컬에서 `TypeError: fetch failed` / 500). shareholders와 inner join으로 list_id만 필터한다.
+   */
+  const MAX_ROWS = 8000
 
-  const historyRows = history ?? []
+  const {
+    data: historyJoined,
+    count: totalCount,
+    error: historyError,
+  } = await client
+    .from("shareholder_change_history")
+    .select(
+      `
+      id,
+      shareholder_id,
+      changed_by,
+      changed_at,
+      field,
+      old_value,
+      new_value,
+      shareholders!inner(list_id)
+    `,
+      { count: "exact" },
+    )
+    .eq("shareholders.list_id", listId)
+    .order("changed_at", { ascending: false })
+    .limit(MAX_ROWS)
+
+  if (historyError) {
+    return res.status(500).json({ error: historyError.message })
+  }
+
+  const historyRows = (historyJoined ?? []).map((row) => {
+    const { shareholders: _s, ...rest } = row as ChangeHistoryJoinedRow
+
+    return rest
+  })
+  const total = totalCount ?? historyRows.length
   const changedByIds = [
     ...new Set(historyRows.map((r: { changed_by: string }) => r.changed_by)),
   ]
@@ -88,6 +142,8 @@ export default withApiHandler(async (req, res) => {
 
   return res.status(200).json({
     history: historyRows,
+    total,
+    truncated: total > historyRows.length,
     nameById,
     changedByUser,
   })

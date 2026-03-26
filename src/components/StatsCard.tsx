@@ -1,49 +1,33 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useFilteredStats } from "@/hooks/useFilteredStats"
 import { useShareholderStats } from "@/api/workspace"
-import { useGetUserData } from "@/api/auth"
 import { useFilterStore } from "@/store/filterState"
 
 export type StatsCardProps = {
-  /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계. 있으면 shareholders 테이블 사용 */
-  listIds?: string[] | null
+  /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계 (shareholders) */
+  listIds: string[]
 }
 
 const StatsCard = ({ listIds }: StatsCardProps) => {
-  const { data: user } = useGetUserData()
   const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
 
-  const isListScoped = listIds != null
+  const hasLists = listIds.length > 0
   const { data: shareholderStats, isLoading: shareholderLoading } =
     useShareholderStats({
-      listIds: listIds ?? null,
+      listIds: hasLists ? listIds : null,
       status: statusFilter?.length ? statusFilter : undefined,
       company: companyFilter?.length ? companyFilter : undefined,
       city: cityFilter || undefined,
       stocks: stocks?.length ? stocks : undefined,
     })
 
-  const { data: excelStats, isLoading: excelLoading } = useFilteredStats(
-    {
-      status: statusFilter,
-      company: companyFilter,
-      city: cityFilter,
-      stocks: stocks,
-      userMetadata: user?.user?.user_metadata,
-    },
-    { enabled: !isListScoped },
-  )
-
-  const stats = isListScoped
-    ? (shareholderStats ?? {
-        totalShareholders: 0,
-        totalStocks: 0,
-        completedShareholders: 0,
-        completedStocks: 0,
-      })
-    : excelStats
-  const isLoading = isListScoped ? shareholderLoading : excelLoading
+  const stats = shareholderStats ?? {
+    totalShareholders: 0,
+    totalStocks: 0,
+    completedShareholders: 0,
+    completedStocks: 0,
+  }
+  const isLoading = hasLists ? shareholderLoading : false
 
   return (
     <Container>

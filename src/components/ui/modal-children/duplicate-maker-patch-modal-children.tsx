@@ -3,24 +3,26 @@ import Line from "../line"
 import Button from "../button"
 import Font from "../font"
 import { format } from "date-fns"
-import ExcelDataTable from "../excel-data-table"
-import { Excel } from "@/types/excel"
+import MarkerDetailTable from "../marker-detail-table"
+import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import { Dispatch, SetStateAction } from "react"
 import type { UseMutateFunction } from "@tanstack/react-query"
 import { removeTags } from "@/lib/utils"
 import Select from "@/components/ui/select"
 
 interface DuplicateMakerPatchModalChildrenProps {
-  duplicateMakerData: Excel | null
-  setDuplicateMakerData: Dispatch<SetStateAction<Excel | null>>
-  duplicateMakerDataState: Excel | null
-  setDuplicateMakerDataState: Dispatch<SetStateAction<Excel | null>>
+  duplicateMakerData: ImportSpreadsheetRow | null
+  setDuplicateMakerData: Dispatch<SetStateAction<ImportSpreadsheetRow | null>>
+  duplicateMakerDataState: ImportSpreadsheetRow | null
+  setDuplicateMakerDataState: Dispatch<
+    SetStateAction<ImportSpreadsheetRow | null>
+  >
   duplicateMakerDataMutate: UseMutateFunction<
     void,
     unknown,
     {
       id: number
-      patchData: Excel
+      patchData: ImportSpreadsheetRow
     },
     unknown
   >
@@ -39,7 +41,7 @@ const DuplicateMakerPatchModalChildren = ({
 
   return (
     <div style={{ width: "100%" }}>
-      <ExcelDataTable data={duplicateMakerData} />
+      <MarkerDetailTable data={duplicateMakerData} />
 
       <Line margin="2rem 0 2rem 0" />
 
@@ -54,7 +56,7 @@ const DuplicateMakerPatchModalChildren = ({
           id="status-select"
           value={duplicateMakerDataState?.status || ""}
           onChange={(e) => {
-            setDuplicateMakerDataState((prev: Excel | null) => {
+            setDuplicateMakerDataState((prev: ImportSpreadsheetRow | null) => {
               if (!prev) {
                 return duplicateMakerData
                   ? { ...duplicateMakerData, status: e.target.value }
@@ -81,7 +83,7 @@ const DuplicateMakerPatchModalChildren = ({
           style={{ marginTop: "0.5rem" }}
           value={removeTags(duplicateMakerDataState?.memo || "")}
           onChange={(e) => {
-            setDuplicateMakerDataState((prev: Excel | null) => {
+            setDuplicateMakerDataState((prev: ImportSpreadsheetRow | null) => {
               if (!prev) {
                 return duplicateMakerData
                   ? { ...duplicateMakerData, memo: e.target.value }

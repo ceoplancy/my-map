@@ -127,7 +127,7 @@ export default function WorkspaceAdminListShareholdersPage() {
             변경 이력
           </LinkButton>
           <LinkButton href={`${base}/excel-import?listId=${listId}`}>
-            엑셀 업로드
+            파일 가져오기
           </LinkButton>
         </HeaderActions>
       </PageHeader>

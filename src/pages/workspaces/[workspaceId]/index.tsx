@@ -113,7 +113,7 @@ const WorkspaceMapPage = () => {
     ["service_admin", "top_admin", "admin"].includes(myMember.role)
 
   const {
-    data: shareholderData = [],
+    data: shareholderData,
     refetch: shareholderRefetch,
     isLoading: shareholdersLoading,
   } = useShareholders({
@@ -127,7 +127,7 @@ const WorkspaceMapPage = () => {
     mapLevel,
   })
 
-  const mapMarkers = shareholderData
+  const mapMarkers = shareholderData ?? []
   const mapMarkersRefetch = shareholderRefetch
 
   const debouncedMapUpdate = useMemo(
@@ -286,7 +286,7 @@ const WorkspaceMapPage = () => {
   return (
     <>
       {(isLoading ||
-        (shareholdersLoading && !(shareholderData?.length ?? 0))) && (
+        (shareholdersLoading && shareholderData === undefined)) && (
         <SpinnerFrame>
           <GlobalSpinner
             width={18}
@@ -308,7 +308,7 @@ const WorkspaceMapPage = () => {
           <MapTypeControl position={"TOPRIGHT"} />
           <ZoomControl position={"RIGHT"} />
           {mapMarkers.length > 0 && user && (
-            <MultipleMapMarker markers={mapMarkers} useShareholderPatchOnly />
+            <MultipleMapMarker markers={mapMarkers} />
           )}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>

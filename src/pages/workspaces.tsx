@@ -14,6 +14,7 @@ import type { AccountType, MyWorkspaceItem } from "@/types/db"
 import { COLORS } from "@/styles/global-style"
 import { toast } from "react-toastify"
 import Select from "@/components/ui/select"
+import GlobalSpinner from "@/components/ui/global-spinner"
 
 const Page = styled.div`
   min-height: 100vh;
@@ -24,6 +25,13 @@ const Page = styled.div`
 const Container = styled.div`
   max-width: 40rem;
   margin: 0 auto;
+`
+
+const AuthGateSpinnerFrame = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
 `
 
 const TitleRow = styled.div`
@@ -303,9 +311,9 @@ export default function WorkspacesPage() {
     return (
       <Page>
         <Container>
-          <div style={{ textAlign: "center", padding: "3rem" }}>
-            로그인 확인 중...
-          </div>
+          <AuthGateSpinnerFrame role="status" aria-label="로딩 중">
+            <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+          </AuthGateSpinnerFrame>
         </Container>
       </Page>
     )

@@ -5,9 +5,6 @@ import { useGetFilterMenu } from "@/api/supabase"
 
 interface MultipleMapMarkerProps {
   markers: MapMarkerData[]
-
-  /** 워크스페이스 지도: 항상 shareholder 패치만 사용 */
-  useShareholderPatchOnly?: boolean
 }
 
 interface MarkerGroup {
@@ -15,10 +12,7 @@ interface MarkerGroup {
   markers: MapMarkerData[]
 }
 
-const MultipleMapMarker = ({
-  markers,
-  useShareholderPatchOnly = false,
-}: MultipleMapMarkerProps) => {
+const MultipleMapMarker = ({ markers }: MultipleMapMarkerProps) => {
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(
     null,
   )
@@ -60,7 +54,6 @@ const MultipleMapMarker = ({
         onMarkerSelect={setSelectedMarker}
         initialInfoWindowOpen={isSelected}
         forceKeepOpen={isSelected}
-        useShareholderPatchOnly={useShareholderPatchOnly}
       />
     )
   })

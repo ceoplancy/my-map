@@ -1,4 +1,4 @@
-/** 엑셀/지도 주주 행의 변경 이력 항목 (DB json history 컬럼) */
+/** 주주 행의 변경 이력 항목 (DB json history 컬럼) */
 
 export type HistoryChange = {
   memo?: { original: string; modified: string }

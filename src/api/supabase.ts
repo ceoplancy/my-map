@@ -7,148 +7,10 @@ import type { AccountType, AdminWorkspaceItem } from "@/types/db"
 
 export type { AdminWorkspaceItem }
 import supabase from "@/lib/supabase/supabaseClient"
-import { getCoordinateRanges } from "@/lib/utils"
-import { FilterParams } from "@/types"
-import { Excel } from "@/types/excel"
 import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
+import { QUERY_KEYS } from "@/constants/query-keys"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError, reportMessage } from "@/lib/reportError"
-
-// =======================================
-// ============== get 엑셀 데이터 ===============
-// =======================================
-const getExcel = async (mapLevel = 14, params?: FilterParams) => {
-  let query = supabase.from("excel").select("*", { count: "exact" })
-
-  if (params?.userMetadata) {
-    const { allowedStatus, allowedCompany, role } = params.userMetadata
-    const isAdmin = role.includes("admin")
-
-    // 허용된 상태 필터링
-    if (allowedStatus?.length > 0) {
-      query = query.in("status", allowedStatus)
-    }
-
-    // 허용된 회사 필터링
-    if (allowedCompany?.length > 0) {
-      query = query.in("company", allowedCompany)
-    }
-
-    // 사용자가 선택한 필터가 허용된 범위 내인지 확인
-    if (params.status && params.status.length > 0) {
-      if (!isAdmin) {
-        const validStatuses = params.status.filter((s) =>
-          allowedStatus?.includes(s),
-        )
-        if (validStatuses.length > 0) {
-          query = query.in("status", validStatuses)
-        }
-      } else {
-        query = query.in("status", params.status)
-      }
-    }
-
-    if (params.company && params.company.length > 0) {
-      if (!isAdmin) {
-        const validCompanies = params.company.filter((c) =>
-          allowedCompany?.includes(c),
-        )
-        if (validCompanies.length > 0) {
-          query = query.in("company", validCompanies)
-        }
-      } else {
-        query = query.in("company", params.company)
-      }
-    }
-  }
-
-  // 공통 필터 적용
-  if (params?.city && params.city.length > 0) {
-    query = query.like("address", `%${params.city}%`)
-  }
-
-  // 스톡 필터링 로직 수정
-  if (params?.stocks && params.stocks.length > 0) {
-    // OR 조건으로 각 구간 필터링
-    const stockConditions = params.stocks
-      .map((range) => `and(stocks.gte.${range.start},stocks.lte.${range.end})`)
-      .join(",")
-
-    query = query.or(stockConditions)
-  }
-
-  // 위도, 경도 필터링
-  if (params?.lat && params?.lng) {
-    const { latRange, lngRange } = getCoordinateRanges(mapLevel)
-
-    query = query.gte("lat", params.lat - latRange)
-    query = query.lte("lat", params.lat + latRange)
-    query = query.gte("lng", params.lng - lngRange)
-    query = query.lte("lng", params.lng + lngRange)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    reportError(error, { toastMessage: "엑셀 데이터 조회에 실패했습니다." })
-    throw new Error(error.message)
-  }
-
-  return data
-}
-
-export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
-  const queryKey = [
-    "excel",
-    mapLevel,
-    params?.company,
-    params?.status,
-    params?.stocks,
-    params?.city,
-    params?.userMetadata,
-  ]
-
-  return useQuery({
-    queryKey,
-    queryFn: () => getExcel(mapLevel, params),
-    staleTime: 60_000,
-    gcTime: 300_000,
-  })
-}
-
-// =========================================
-// ============== patch 마커 정보 업데이트 ============
-// =========================================
-const updateExcel = async (patchData: Excel) => {
-  const { id, ...attributes } = patchData
-  const { error } = await supabase
-    .from("excel")
-    .update(attributes)
-    .eq("id", id)
-    .select()
-
-  if (error) {
-    reportError(error, { toastMessage: "엑셀 데이터 수정에 실패했습니다." })
-    throw new Error(error.message)
-  }
-}
-
-export const usePatchExcel = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (patchData: Excel) => updateExcel(patchData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["excel"] })
-      queryClient.invalidateQueries({ queryKey: ["filteredStats"] })
-    },
-    onError: () => {
-      toast.error(
-        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
-      )
-    },
-  })
-}
 
 // =======================================
 // ============== get 필터 메뉴 ================
@@ -185,7 +47,7 @@ export const useGetFilterMenu = (options?: { enabled?: boolean }) => {
   const enabled = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ["filterMenu"],
+    queryKey: QUERY_KEYS.filterMenu,
     queryFn: getFilterMenu,
     enabled,
     refetchOnMount: false,
@@ -601,21 +463,4 @@ export const setUserRole = async (
 
     return { success: false, error }
   }
-}
-
-export const useDeleteExcel = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const { error } = await supabase.from("excel").delete().eq("id", id)
-
-      if (error) throw error
-
-      return true
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["excel"] })
-    },
-  })
 }

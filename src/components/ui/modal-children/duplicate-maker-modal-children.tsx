@@ -1,11 +1,13 @@
-import { Excel } from "@/types/excel"
+import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import Button from "../button"
 import { Dispatch, SetStateAction } from "react"
 
 interface DuplicateMakerModalChildrenProps {
-  findDuplicateLocation: () => Excel[]
-  setDuplicateMakerData: Dispatch<SetStateAction<Excel | null>>
-  setDuplicateMakerDataState: Dispatch<SetStateAction<Excel | null>>
+  findDuplicateLocation: () => ImportSpreadsheetRow[]
+  setDuplicateMakerData: Dispatch<SetStateAction<ImportSpreadsheetRow | null>>
+  setDuplicateMakerDataState: Dispatch<
+    SetStateAction<ImportSpreadsheetRow | null>
+  >
   duplicateMakerUpdateIsModalOpen: boolean
   setDuplicateMakerUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
   duplicateMakerIsModalOpen: boolean

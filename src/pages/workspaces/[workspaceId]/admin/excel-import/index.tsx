@@ -14,7 +14,7 @@ const SpinnerFrame = styled.div`
   min-height: 40vh;
 `
 
-/** listId 없이 접근 시 주주명부 목록으로 리다이렉트. listId 있으면 엑셀 업로드 본문 표시 */
+/** listId 없이 접근 시 주주명부 목록으로 리다이렉트. listId 있으면 파일 가져오기 본문 표시 */
 export default function WorkspaceAdminExcelImportPage() {
   const router = useRouter()
   const { listId } = router.query as { listId?: string }

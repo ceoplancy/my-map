@@ -364,7 +364,7 @@ export function ListsPageContent() {
     setCreateModalOpen(false)
   }
 
-  const handleCreateAndGoToExcel = () => {
+  const handleCreateAndGoToImport = () => {
     const payload = createListPayload()
     if (!payload) return
     createList.mutate(payload, {
@@ -478,7 +478,7 @@ export function ListsPageContent() {
         <ModalContent>
           <ModalTitle>새 주주명부 만들기</ModalTitle>
           <ModalDescription>
-            명부명과 옵션을 입력한 뒤, 빈 명부로 만들거나 엑셀 업로드 페이지로
+            명부명과 옵션을 입력한 뒤, 빈 명부로 만들거나 파일 가져오기 페이지로
             이동할 수 있습니다.
           </ModalDescription>
           <form
@@ -532,8 +532,8 @@ export function ListsPageContent() {
               <Button
                 type="button"
                 disabled={createList.isPending || !listName.trim()}
-                onClick={handleCreateAndGoToExcel}>
-                명부 만들고 엑셀 업로드하기
+                onClick={handleCreateAndGoToImport}>
+                명부 만들고 파일 가져오기
               </Button>
             </ModalActions>
           </form>
@@ -706,7 +706,7 @@ export function ListsPageContent() {
                     </EditListButton>
                     {" · "}
                     <LinkButton href={`${base}/excel-import?listId=${list.id}`}>
-                      엑셀 업로드
+                      파일 가져오기
                     </LinkButton>
                     {" · "}
                     <DeleteListButton

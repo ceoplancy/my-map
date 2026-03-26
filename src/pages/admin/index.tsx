@@ -407,7 +407,7 @@ export function WorkspaceDashboardBody() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "주주목록")
     XLSX.writeFile(wb, "주주목록.xlsx")
-    toast.success("엑셀 파일이 다운로드되었습니다.")
+    toast.success("스프레드시트 파일이 다운로드되었습니다.")
   }
 
   // /admin 은 워크스페이스 전용 대시보드. 통합(플랫폼) 현황은 /admin/integrated
@@ -531,7 +531,7 @@ export function WorkspaceDashboardBody() {
                 />
               </FilterGroup>
               <ExportButton onClick={handleExportExcel}>
-                엑셀 내보내기 ({shareholders.length}건)
+                .xlsx 내보내기 ({shareholders.length}건)
               </ExportButton>
             </FilterRow>
           </ContentCard>
@@ -646,7 +646,7 @@ export function WorkspaceDashboardBody() {
                 stroke="currentColor">
                 <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
               </ActionIcon>
-              <ActionText>엑셀 업로드</ActionText>
+              <ActionText>파일 가져오기</ActionText>
             </ActionButton>
 
             <SettingsButton onClick={() => toast.info("준비 중인 기능입니다.")}>

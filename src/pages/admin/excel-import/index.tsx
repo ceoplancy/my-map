@@ -4,9 +4,9 @@ import { useRouter } from "next/router"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
 import { ExcelImportView } from "@/components/excel-import/ExcelImportView"
-import { useExcelImport } from "@/hooks/useExcelImport"
+import { useSpreadsheetImport } from "@/hooks/useSpreadsheetImport"
 import { useKakaoMaps } from "@/hooks/useKakaoMaps"
-import { Excel } from "@/types/excel"
+import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import type { TablesInsert } from "@/types/db"
 
 import AdminLayout from "@/layouts/AdminLayout"
@@ -20,11 +20,11 @@ type ShareholderInsert = TablesInsert<"shareholders">
 
 interface GeocodingResult {
   success: boolean
-  data?: Excel
+  data?: ImportSpreadsheetRow
 }
 
-function excelToShareholderInsert(
-  row: Excel,
+function spreadsheetRowToShareholderInsert(
+  row: ImportSpreadsheetRow,
   listId: string,
 ): ShareholderInsert {
   return {
@@ -90,7 +90,7 @@ const EmptyMessage = styled.div`
 
 export const BATCH_SIZE = 50
 
-/** 워크스페이스 엑셀 업로드 본문 (workspace 설정된 상태에서 사용) */
+/** 워크스페이스 스프레드시트 가져오기 본문 (workspace 설정된 상태에서 사용) */
 export function ExcelImportPageContent() {
   const router = useRouter()
   const [currentWorkspace] = useCurrentWorkspace()
@@ -105,15 +105,15 @@ export function ExcelImportPageContent() {
     setFailData,
     failCount,
     setFailCount,
-    excelFile,
-    setExcelFile,
+    spreadsheetFile,
+    setSpreadsheetFile,
     fileName,
     setFileName,
     loading,
     setLoading,
     progress,
     setProgress,
-  } = useExcelImport()
+  } = useSpreadsheetImport()
 
   const { waitForKakaoMaps } = useKakaoMaps()
 
@@ -135,7 +135,9 @@ export function ExcelImportPageContent() {
     const selectedFile = e.target.files[0]
 
     if (!fileTypes.includes(selectedFile.type)) {
-      toast.error("오직 엑셀 파일만 업로드 가능합니다.")
+      toast.error(
+        "지원하는 스프레드시트 형식(.xlsx, .xls, .csv)만 업로드할 수 있습니다.",
+      )
       clearFileName()
 
       return
@@ -144,12 +146,12 @@ export function ExcelImportPageContent() {
     setFileName(selectedFile.name)
     const reader = new FileReader()
     reader.readAsArrayBuffer(selectedFile)
-    reader.onload = (e) => setExcelFile(e.target?.result as ArrayBuffer)
+    reader.onload = (e) => setSpreadsheetFile(e.target?.result as ArrayBuffer)
   }
 
   const clearFileName = (): void => {
     setFileName("")
-    setExcelFile(null)
+    setSpreadsheetFile(null)
   }
 
   const handleExport = (): void => {
@@ -187,37 +189,40 @@ export function ExcelImportPageContent() {
   }
 
   const handleGeocoding = async (
-    geocoder: any,
-    excel: Excel,
+    geocoder: InstanceType<typeof window.kakao.maps.services.Geocoder>,
+    row: ImportSpreadsheetRow,
   ): Promise<GeocodingResult> => {
     return new Promise((resolve) => {
-      geocoder.addressSearch(excel.address, (result: any[], status: string) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          resolve({
-            success: true,
-            data: {
-              ...excel,
-              lat: result[0].y.toString(),
-              lng: result[0].x.toString(),
-              stocks: excel.stocks || 0,
-            },
-          })
-        } else {
-          setFailData((prev) => [...prev, excel])
-          setFailCount((prev) => prev + 1)
-          resolve({ success: false })
-        }
-      })
+      geocoder.addressSearch(
+        row.address ?? "",
+        (result: any[], status: string) => {
+          if (status === window.kakao.maps.services.Status.OK) {
+            resolve({
+              success: true,
+              data: {
+                ...row,
+                lat: result[0].y.toString(),
+                lng: result[0].x.toString(),
+                stocks: row.stocks || 0,
+              },
+            })
+          } else {
+            setFailData((prev) => [...prev, row])
+            setFailCount((prev) => prev + 1)
+            resolve({ success: false })
+          }
+        },
+      )
     })
   }
 
   const processBatch = async (
-    excels: Excel[],
-    geocoder: any,
-  ): Promise<Excel[]> => {
+    rows: ImportSpreadsheetRow[],
+    geocoder: InstanceType<typeof window.kakao.maps.services.Geocoder>,
+  ): Promise<ImportSpreadsheetRow[]> => {
     const results = await Promise.all(
-      excels.map(async (excel) => {
-        const result = await handleGeocoding(geocoder, excel)
+      rows.map(async (row) => {
+        const result = await handleGeocoding(geocoder, row)
 
         return result
       }),
@@ -232,10 +237,10 @@ export function ExcelImportPageContent() {
     e: FormEvent<HTMLFormElement>,
   ): Promise<void> => {
     e.preventDefault()
-    if (!excelFile) return
+    if (!spreadsheetFile) return
     if (!listId) {
       toast.error(
-        "주주명부를 선택한 뒤 업로드해 주세요. 주주명부 목록에서 엑셀 업로드를 실행하세요.",
+        "주주명부를 선택한 뒤 업로드해 주세요. 주주명부 목록에서 파일 가져오기를 실행하세요.",
       )
 
       return
@@ -248,7 +253,7 @@ export function ExcelImportPageContent() {
     try {
       await waitForKakaoMaps()
 
-      const workbook = XLSX.read(excelFile, { type: "buffer" })
+      const workbook = XLSX.read(spreadsheetFile, { type: "buffer" })
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const data = XLSX.utils.sheet_to_json(worksheet)
 
@@ -259,14 +264,14 @@ export function ExcelImportPageContent() {
       const geocoder = new window.kakao.maps.services.Geocoder()
       const totalBatches = Math.ceil(totalRows / BATCH_SIZE)
 
-      let allResults: Excel[] = []
+      let allResults: ImportSpreadsheetRow[] = []
       let processedRows = 0
 
       for (let i = 0; i < totalBatches; i++) {
         const batch = data.slice(
           i * BATCH_SIZE,
           (i + 1) * BATCH_SIZE,
-        ) as Excel[]
+        ) as ImportSpreadsheetRow[]
         const batchResults = await processBatch(batch, geocoder)
         allResults = [...allResults, ...batchResults]
 
@@ -280,7 +285,7 @@ export function ExcelImportPageContent() {
 
       if (allResults.length > 0) {
         const toInsert = allResults.map((row) =>
-          excelToShareholderInsert(row, listId),
+          spreadsheetRowToShareholderInsert(row, listId),
         )
         const { error } = await supabase
           .from("shareholders")
@@ -314,7 +319,9 @@ export function ExcelImportPageContent() {
   }
 
   // 실패 데이터 수정 및 재변환 함수
-  const handleEditFailedData = async (editedData: Excel): Promise<void> => {
+  const handleEditFailedData = async (
+    editedData: ImportSpreadsheetRow,
+  ): Promise<void> => {
     if (!listId) {
       toast.error("주주명부가 선택되지 않았습니다.")
 
@@ -328,7 +335,7 @@ export function ExcelImportPageContent() {
       const result = await handleGeocoding(geocoder, editedData)
 
       if (result.success && result.data) {
-        const row = excelToShareholderInsert(result.data, listId)
+        const row = spreadsheetRowToShareholderInsert(result.data, listId)
         const { error } = await supabase
           .from("shareholders")
           .insert([row])
@@ -388,7 +395,7 @@ export function ExcelImportPageContent() {
         const result = await handleGeocoding(geocoder, failData[i])
 
         if (result.success && result.data) {
-          const row = excelToShareholderInsert(result.data, listId)
+          const row = spreadsheetRowToShareholderInsert(result.data, listId)
           const { error } = await supabase
             .from("shareholders")
             .insert([row])
@@ -439,7 +446,7 @@ export function ExcelImportPageContent() {
       ]
 
       if (!fileTypes.includes(file.type)) {
-        toast.error("엑셀 파일 형식만 업로드 가능합니다")
+        toast.error("지원하는 스프레드시트 형식만 업로드할 수 있습니다.")
         clearFileName()
 
         return
@@ -448,7 +455,7 @@ export function ExcelImportPageContent() {
       setFileName(file.name)
       const reader = new FileReader()
       reader.readAsArrayBuffer(file)
-      reader.onload = (e) => setExcelFile(e.target?.result as ArrayBuffer)
+      reader.onload = (e) => setSpreadsheetFile(e.target?.result as ArrayBuffer)
     }
   }
 
@@ -466,12 +473,12 @@ export function ExcelImportPageContent() {
     return (
       <Container>
         <Header>
-          <Title>엑셀 업로드</Title>
+          <Title>파일 가져오기</Title>
         </Header>
         <EmptyMessage>
-          주주명부를 선택한 뒤 엑셀 업로드를 진행해 주세요.{" "}
+          주주명부를 선택한 뒤 파일 가져오기를 진행해 주세요.{" "}
           <Link href={`${base}/lists`}>주주명부 목록</Link>에서 해당 명부의
-          &quot;엑셀 업로드&quot;를 눌러 주세요.
+          &quot;파일 가져오기&quot;를 눌러 주세요.
         </EmptyMessage>
       </Container>
     )
@@ -480,7 +487,7 @@ export function ExcelImportPageContent() {
   return (
     <Container>
       <Header>
-        <Title>엑셀 업로드</Title>
+        <Title>파일 가져오기</Title>
       </Header>
       <ExcelImportView
         fileName={fileName}
@@ -520,7 +527,7 @@ function ExcelImport() {
     <AdminLayout>
       <Container>
         <Header>
-          <Title>엑셀 업로드</Title>
+          <Title>파일 가져오기</Title>
         </Header>
         <EmptyMessage>워크스페이스를 선택해 주세요.</EmptyMessage>
       </Container>

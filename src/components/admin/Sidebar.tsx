@@ -108,7 +108,7 @@ const INTEGRATED_MENU_ITEMS = [
   { title: "워크스페이스 관리", path: ADMIN.WORKSPACES, icon: <Business /> },
 ]
 
-/** 워크스페이스: 주주명부 (목록·관리·엑셀 통합) */
+/** 워크스페이스: 주주명부 (목록·관리·파일 가져오기 통합) */
 const WORKSPACE_SHAREHOLDER_ITEM = {
   title: "주주명부",
   path: "/lists",

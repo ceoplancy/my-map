@@ -42,7 +42,7 @@ export const WORKSPACE_ADMIN_SEGMENT_LABELS: Record<
 > = {
   lists: "주주명부 목록",
   shareholders: "주주명부 관리",
-  "excel-import": "엑셀 업로드",
+  "excel-import": "파일 가져오기",
   members: "워크스페이스 멤버",
   users: "사용자 관리",
   "signup-requests": "가입 승인",

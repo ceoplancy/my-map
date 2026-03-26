@@ -1,5 +1,4 @@
 import styled from "@emotion/styled"
-import { Excel } from "@/types/excel"
 import type { MapMarkerData } from "@/types/map"
 import {
   Dispatch,
@@ -14,7 +13,7 @@ import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
-import ExcelDataTable, { type HistoryItem } from "../excel-data-table"
+import MarkerDetailTable, { type HistoryItem } from "../marker-detail-table"
 import { toast } from "react-toastify"
 import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
@@ -31,15 +30,15 @@ export type MakerDataMutateOptions = {
 interface MakerPatchModalChildrenProps {
   makerData: MapMarkerData | null
   makerDataMutate: (
-    _patchData: Excel | MapMarkerData,
+    _patchData: MapMarkerData,
     _options?: MakerDataMutateOptions,
   ) => void
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 
-  /** 지도 주주 마커: API로 불러온 변경 이력. 있으면 ExcelDataTable에 전달 */
+  /** 지도 주주 마커: API로 불러온 변경 이력 */
   history?: HistoryItem[]
 
-  /** 부모 `usePatchExcel` / `usePatchShareholder`의 isPending (버튼 로딩 동기화) */
+  /** 부모 `usePatchShareholder`의 isPending (버튼 로딩 동기화) */
   mutateIsPending?: boolean
 
   /** 저장 요청 중일 때 true — 모달 바깥 클릭·닫기 방지용 */
@@ -125,22 +124,32 @@ const MakerPatchModalChildren = ({
         modified as Record<string, unknown>,
       )
 
-      const patchData = makerData.history
-        ? ({
-            ...values,
-            status,
-            memo: values.memo,
-            history: [
-              ...(makerData.history as string[]),
+      const historyPayload: Json = (
+        makerData.history
+          ? [
+              ...(Array.isArray(makerData.history)
+                ? (makerData.history as unknown[])
+                : []),
               { modifier, modified_at, changes },
-            ] as Json,
-          } as Excel)
-        : ({
-            ...values,
-            status,
-            memo: values.memo,
-            history: [{ modifier, modified_at, changes }],
-          } as Excel)
+            ]
+          : [{ modifier, modified_at, changes }]
+      ) as Json
+
+      const patchData: MapMarkerData = {
+        ...makerData,
+        address: values.address,
+        company: values.company,
+        lat: values.lat,
+        lng: values.lng,
+        latlngaddress: values.latlngaddress,
+        maker: values.maker,
+        name: values.name,
+        status,
+        memo: values.memo,
+        stocks: values.stocks,
+        image: values.image,
+        history: historyPayload,
+      }
       makerDataMutate(patchData, {
         onSuccess: () => {
           toast.success("주주 정보가 수정되었습니다.")
@@ -210,7 +219,9 @@ const MakerPatchModalChildren = ({
         <ModalContent onSubmit={formik.handleSubmit}>
           <Section>
             <SectionTitle>현재 정보</SectionTitle>
-            {makerData && <ExcelDataTable data={makerData} history={history} />}
+            {makerData && (
+              <MarkerDetailTable data={makerData} history={history} />
+            )}
           </Section>
 
           <Section>

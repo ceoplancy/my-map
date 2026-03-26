@@ -1,4 +1,4 @@
-import { Excel } from "@/types/excel"
+import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import { useState } from "react"
 
 export interface Progress {
@@ -6,13 +6,13 @@ export interface Progress {
   total: number
 }
 
-export interface ExcelImportState {
-  failData: Excel[]
-  setFailData: React.Dispatch<React.SetStateAction<Excel[]>>
+export interface SpreadsheetImportState {
+  failData: ImportSpreadsheetRow[]
+  setFailData: React.Dispatch<React.SetStateAction<ImportSpreadsheetRow[]>>
   failCount: number
   setFailCount: React.Dispatch<React.SetStateAction<number>>
-  excelFile: ArrayBuffer | null
-  setExcelFile: React.Dispatch<React.SetStateAction<ArrayBuffer | null>>
+  spreadsheetFile: ArrayBuffer | null
+  setSpreadsheetFile: React.Dispatch<React.SetStateAction<ArrayBuffer | null>>
   fileName: string
   setFileName: React.Dispatch<React.SetStateAction<string>>
   loading: boolean
@@ -21,10 +21,12 @@ export interface ExcelImportState {
   setProgress: React.Dispatch<React.SetStateAction<Progress>>
 }
 
-export const useExcelImport = (): ExcelImportState => {
-  const [failData, setFailData] = useState<Excel[]>([])
+export const useSpreadsheetImport = (): SpreadsheetImportState => {
+  const [failData, setFailData] = useState<ImportSpreadsheetRow[]>([])
   const [failCount, setFailCount] = useState<number>(0)
-  const [excelFile, setExcelFile] = useState<ArrayBuffer | null>(null)
+  const [spreadsheetFile, setSpreadsheetFile] = useState<ArrayBuffer | null>(
+    null,
+  )
   const [fileName, setFileName] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [progress, setProgress] = useState<Progress>({ current: 0, total: 0 })
@@ -34,8 +36,8 @@ export const useExcelImport = (): ExcelImportState => {
     setFailData,
     failCount,
     setFailCount,
-    excelFile,
-    setExcelFile,
+    spreadsheetFile,
+    setSpreadsheetFile,
     fileName,
     setFileName,
     loading,

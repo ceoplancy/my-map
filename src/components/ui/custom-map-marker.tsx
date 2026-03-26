@@ -1,4 +1,4 @@
-import { useGetFilterMenu, usePatchExcel } from "@/api/supabase"
+import { useGetFilterMenu } from "@/api/supabase"
 import {
   usePatchShareholder,
   useShareholderChangeHistoryForMap,
@@ -7,11 +7,10 @@ import { useSession } from "@/api/auth"
 import { useCallback, useEffect, useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
-import { Excel } from "@/types/excel"
 import { type MapMarkerData, isShareholderMarker } from "@/types/map"
 import Modal from "./modal"
 import MakerPatchModalChildren from "./modal-children/maker-patch-modal-children"
-import ExcelDataTable from "./excel-data-table"
+import MarkerDetailTable from "./marker-detail-table"
 import GlobalSpinner from "./global-spinner"
 import Portal from "./portal"
 import { toast } from "react-toastify"
@@ -127,9 +126,6 @@ interface CustomMapMarkerProps {
   onMarkerSelect?: (_marker: MapMarkerData | null) => void
   initialInfoWindowOpen?: boolean
   forceKeepOpen?: boolean
-
-  /** 워크스페이스 지도 등: 항상 shareholder API만 사용 (excel 패치 호출 안 함) */
-  useShareholderPatchOnly?: boolean
 }
 
 interface MarkerStatusProps {
@@ -146,7 +142,6 @@ const CustomMapMarker = ({
   onMarkerSelect,
   initialInfoWindowOpen = false,
   forceKeepOpen = false,
-  useShareholderPatchOnly = false,
 }: CustomMapMarkerProps) => {
   const { data: filterMenu } = useGetFilterMenu()
   const isGroupMarker = markers && markers.length > 1
@@ -162,16 +157,13 @@ const CustomMapMarker = ({
   const [patchModalSaveInProgress, setPatchModalSaveInProgress] =
     useState(false)
 
-  const { mutate: patchExcel, isPending: excelMutateLoading } = usePatchExcel()
   const { mutate: patchShareholder, isPending: shareholderMutateLoading } =
     usePatchShareholder()
   const session = useSession().data
   const userId = session?.user?.id ?? ""
 
-  const isShareholderMarker = useShareholderPatchOnly || isShareholder(marker)
-  const makerDataMutateIsLoading = isShareholderMarker
-    ? shareholderMutateLoading
-    : excelMutateLoading
+  const isShareholderMarker = isShareholder(marker)
+  const makerDataMutateIsLoading = shareholderMutateLoading
 
   const shareholderIdForHistory = isShareholderMarker ? String(marker.id) : null
   const { data: mapHistory = [], isLoading: historyLoading } =
@@ -181,47 +173,38 @@ const CustomMapMarker = ({
 
   const makerDataMutate = useCallback(
     (
-      patchData: MapMarkerData | Excel,
+      patchData: MapMarkerData,
       options?: {
         onSuccess?: () => void
         onError?: () => void
         onSettled?: () => void
       },
     ) => {
-      if (isShareholderMarker) {
-        const patch: Partial<{ id: string; status: string; memo: string }> & {
-          id: string
-        } = {
-          id: String((patchData as { id: string | number }).id),
-        }
-        const rawStatus = patchData.status ?? ""
-        if (rawStatus !== "") {
-          patch.status = rawStatus
-        }
-        patch.memo = patchData.memo ?? ""
-        patchShareholder(
-          {
-            patch,
-            userId,
-            accessToken: session?.access_token ?? null,
-          },
-          {
-            onSuccess: () => options?.onSuccess?.(),
-            onError: () => options?.onError?.(),
-            onSettled: () => options?.onSettled?.(),
-          },
-        )
-      } else {
-        patchExcel(patchData as Excel, options)
+      if (!isShareholderMarker) return
+      const patch: Partial<{ id: string; status: string; memo: string }> & {
+        id: string
+      } = {
+        id: String((patchData as { id: string | number }).id),
       }
+      const rawStatus = patchData.status ?? ""
+      if (rawStatus !== "") {
+        patch.status = rawStatus
+      }
+      patch.memo = patchData.memo ?? ""
+      patchShareholder(
+        {
+          patch,
+          userId,
+          accessToken: session?.access_token ?? null,
+        },
+        {
+          onSuccess: () => options?.onSuccess?.(),
+          onError: () => options?.onError?.(),
+          onSettled: () => options?.onSettled?.(),
+        },
+      )
     },
-    [
-      isShareholderMarker,
-      patchShareholder,
-      patchExcel,
-      userId,
-      session?.access_token,
-    ],
+    [isShareholderMarker, patchShareholder, userId, session?.access_token],
   )
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -315,7 +298,7 @@ const CustomMapMarker = ({
                 </CloseButton>
               </InfoWindowHeader>
 
-              <ExcelDataTable
+              <MarkerDetailTable
                 data={marker}
                 history={isShareholderMarker ? mapHistory : undefined}
                 historyLoading={isShareholderMarker && historyLoading}
