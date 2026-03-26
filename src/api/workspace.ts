@@ -10,6 +10,7 @@ import { toast } from "react-toastify"
 import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables } from "@/types/db"
 import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
+import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError } from "@/lib/reportError"
 import { getCoordinateRanges } from "@/lib/utils"
 
@@ -632,24 +633,29 @@ const recordChangeHistoryViaApi = async (
   })
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({ error: res.statusText }))
-    const message =
-      (errBody as { error?: string }).error ??
-      res.statusText ??
-      "Change history failed"
-    reportError(new Error(message), {
-      toastMessage:
-        "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다.",
-      context: {
-        shareholder_change_history_api: {
-          shareholderId,
-          requestUrl: url,
-          httpStatus: res.status,
-          errorMessage: message,
-          entryCount: entries.length,
-          fields: entries.map((e) => e.field),
-        },
+    const message = apiErrorMessageFromBody(
+      errBody as { error?: unknown },
+      res.statusText || "Change history failed",
+    )
+    const toastMessage =
+      "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다."
+    const context = {
+      shareholder_change_history_api: {
+        shareholderId,
+        requestUrl: url,
+        httpStatus: res.status,
+        errorMessage: message,
+        entryCount: entries.length,
+        fields: entries.map((e) => e.field),
       },
-    })
+    }
+
+    /** 401/403 은 세션·권한 — Sentry 노이즈 제외 (감사 리포트 F·httpReporting 정책과 동일) */
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportError(new Error(message), { toastMessage, context })
+    } else {
+      toast.error(toastMessage)
+    }
   }
 }
 
