@@ -3,6 +3,9 @@ import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
 
 import { isNetworkNoiseError } from "@/lib/sentryNoise"
+import { unknownToError } from "@/lib/unknownToError"
+
+export { unknownToError }
 
 export type ReportErrorOptions = {
   /** 사용자에게 보여줄 토스트 메시지 (없으면 토스트 안 함) */
@@ -20,7 +23,7 @@ export function reportError(
   error: unknown,
   options: ReportErrorOptions = {},
 ): void {
-  const err = error instanceof Error ? error : new Error(String(error))
+  const err = unknownToError(error)
   if (isNetworkNoiseError(err)) {
     if (options.toastMessage) {
       toast.error(options.toastMessage)

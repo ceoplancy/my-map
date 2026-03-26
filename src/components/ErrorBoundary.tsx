@@ -1,6 +1,8 @@
 import React from "react"
 import * as Sentry from "@sentry/nextjs"
 
+import { unknownToError } from "@/lib/unknownToError"
+
 interface Props {
   children: React.ReactNode
 }
@@ -16,14 +18,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
     this.state = { hasError: false }
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error }
+  static getDerivedStateFromError(error: unknown): State {
+    return { hasError: true, error: unknownToError(error) }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    Sentry.captureException(error, {
+  componentDidCatch(error: unknown, errorInfo: React.ErrorInfo) {
+    const err = unknownToError(error)
+    Sentry.captureException(err, {
       extra: {
         componentStack: errorInfo.componentStack,
+        ...(error instanceof Error ? {} : { originalThrown: error }),
       },
     })
   }
