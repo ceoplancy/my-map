@@ -409,6 +409,19 @@ type SortConfig = {
   direction: "asc" | "desc"
 }
 
+/** 테이블 헤더·필터 정렬 셀렉트 공통 옵션 */
+const SHAREHOLDER_LIST_SORT_FIELD_OPTIONS: {
+  value: SortField
+  label: string
+}[] = [
+  { value: "name", label: "이름" },
+  { value: "status", label: "상태" },
+  { value: "stocks", label: "주식수" },
+  { value: "address", label: "주소" },
+  { value: "history_modifier", label: "최종 수정자" },
+  { value: "history_modified_at", label: "최종 수정일" },
+]
+
 type Filters = {
   search: string
   status: string
@@ -588,6 +601,19 @@ export default function ShareholderList({ listId, listName }: Props) {
       direction:
         prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }))
+  }
+
+  const handleSortFieldSelect = (value: string) => {
+    if (value === "") {
+      setSort((prev) => ({ ...prev, field: null }))
+
+      return
+    }
+    setSort((prev) => ({ ...prev, field: value as SortField }))
+  }
+
+  const handleSortDirectionSelect = (value: "asc" | "desc") => {
+    setSort((prev) => ({ ...prev, direction: value }))
   }
 
   const handleFilterChange = (field: keyof Filters, value: string) => {
@@ -926,6 +952,33 @@ export default function ShareholderList({ listId, listName }: Props) {
                   }
                 />
               </StocksRangeContainer>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>정렬 기준</Label>
+              <FilterSelect
+                value={sort.field ?? ""}
+                onChange={(e) => handleSortFieldSelect(e.target.value)}>
+                <option value="">기본 (정렬 없음)</option>
+                {SHAREHOLDER_LIST_SORT_FIELD_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </FilterSelect>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>정렬 순서</Label>
+              <FilterSelect
+                value={sort.direction}
+                disabled={!sort.field}
+                onChange={(e) =>
+                  handleSortDirectionSelect(e.target.value as "asc" | "desc")
+                }>
+                <option value="asc">오름차순</option>
+                <option value="desc">내림차순</option>
+              </FilterSelect>
             </FormGroup>
           </FilterGrid>
 
