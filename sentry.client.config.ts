@@ -5,11 +5,14 @@
 import * as Sentry from "@sentry/nextjs"
 import { supabaseIntegration } from "@supabase/sentry-js-integration"
 import { SupabaseClient } from "@supabase/supabase-js"
+import { sentryBeforeSend } from "@/lib/sentryBeforeSend"
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 Sentry.init({
   dsn: "https://676c306fdfad421e937b453d6660e633@o381107.ingest.us.sentry.io/5207933",
+
+  beforeSend: sentryBeforeSend,
 
   // Add optional integrations for additional features
   integrations: [

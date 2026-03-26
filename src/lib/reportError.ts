@@ -2,6 +2,8 @@
 import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
 
+import { isNetworkNoiseError } from "@/lib/sentryNoise"
+
 export type ReportErrorOptions = {
   /** 사용자에게 보여줄 토스트 메시지 (없으면 토스트 안 함) */
   toastMessage?: string
@@ -19,6 +21,13 @@ export function reportError(
   options: ReportErrorOptions = {},
 ): void {
   const err = error instanceof Error ? error : new Error(String(error))
+  if (isNetworkNoiseError(err)) {
+    if (options.toastMessage) {
+      toast.error(options.toastMessage)
+    }
+
+    return
+  }
   if (options.context) {
     Sentry.setContext("error-context", options.context)
   }

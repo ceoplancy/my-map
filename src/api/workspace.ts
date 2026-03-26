@@ -1,8 +1,10 @@
 import { useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
 import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables } from "@/types/db"
+import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
 import { reportError } from "@/lib/reportError"
 import { getCoordinateRanges } from "@/lib/utils"
 
@@ -140,7 +142,9 @@ export const useAddWorkspaceMember = () => {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Request failed" }))
-        throw new Error(err.error ?? res.statusText)
+        throw new Error(
+          apiErrorMessageFromBody(err, res.statusText || "Request failed"),
+        )
       }
     },
     onSuccess: (_, variables) => {
@@ -175,7 +179,9 @@ export const useRemoveWorkspaceMember = () => {
       )
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }))
-        throw new Error(err.error ?? res.statusText)
+        throw new Error(
+          apiErrorMessageFromBody(err, res.statusText || "Request failed"),
+        )
       }
     },
     onSuccess: (_, variables) => {
@@ -580,6 +586,25 @@ export const useDeleteShareholderList = () => {
   })
 }
 
+/** 서버(Vercel) 로그에 없을 수 있음 — Sentry에서 `shareholder_change_history` 태그로 조회 */
+function logChangeHistoryClientSkip(
+  reason: "no_access_token",
+  detail: {
+    shareholderId: string
+    entryCount: number
+    fields: string[]
+  },
+): void {
+  Sentry.withScope((scope) => {
+    scope.setTag("area", "shareholder_change_history")
+    scope.setContext("change_history_client_skip", { reason, ...detail })
+    Sentry.captureMessage(
+      `shareholder_change_history: client skip (${reason})`,
+      "warning",
+    )
+  })
+}
+
 /** Record change history via API (지도 쪽 RLS 대신 서버 경유로 기록) */
 const recordChangeHistoryViaApi = async (
   shareholderId: string,
@@ -591,26 +616,35 @@ const recordChangeHistoryViaApi = async (
   }>,
 ): Promise<void> => {
   if (entries.length === 0) return
-  const res = await fetch(
-    `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ entries }),
+  const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
     },
-  )
+    body: JSON.stringify({ entries }),
+  })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    reportError(
-      new Error((err as { error?: string }).error ?? "Change history failed"),
-      {
-        toastMessage:
-          "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다.",
+    const errBody = await res.json().catch(() => ({ error: res.statusText }))
+    const message =
+      (errBody as { error?: string }).error ??
+      res.statusText ??
+      "Change history failed"
+    reportError(new Error(message), {
+      toastMessage:
+        "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다.",
+      context: {
+        shareholder_change_history_api: {
+          shareholderId,
+          requestUrl: url,
+          httpStatus: res.status,
+          errorMessage: message,
+          entryCount: entries.length,
+          fields: entries.map((e) => e.field),
+        },
       },
-    )
+    })
   }
 }
 
@@ -647,8 +681,20 @@ export const usePatchShareholder = () => {
           entries.push({ field, old_value: oldVal, new_value: newStr })
         }
       }
-      if (entries.length > 0 && accessToken) {
-        await recordChangeHistoryViaApi(id, accessToken, entries)
+      // 호출부에서 session 캐시가 비어 있어도, 저장 직전 getSession()으로 토큰 보강 (변경 이력 누락 방지)
+      let tokenForHistory = accessToken ?? null
+      if (entries.length > 0 && !tokenForHistory) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        tokenForHistory = sessionData.session?.access_token ?? null
+      }
+      if (entries.length > 0 && tokenForHistory) {
+        await recordChangeHistoryViaApi(id, tokenForHistory, entries)
+      } else if (entries.length > 0 && !tokenForHistory) {
+        logChangeHistoryClientSkip("no_access_token", {
+          shareholderId: id,
+          entryCount: entries.length,
+          fields: entries.map((e) => e.field),
+        })
       }
       const { data, error } = await supabase
         .from("shareholders")

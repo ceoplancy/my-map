@@ -4,6 +4,7 @@ import {
 } from "@/lib/supabase/supabaseServer"
 import { getBearerToken, getAuthUser } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
+import { logShareholderChangeHistory } from "@/lib/server/shareholderChangeHistoryLog"
 
 /** Check user is member of shareholder's workspace; return workspaceId or null */
 async function getShareholderWorkspaceAndAuth(
@@ -41,21 +42,54 @@ async function getShareholderWorkspaceAndAuth(
 export default withApiHandler(async (req, res) => {
   const shareholderId = req.query.shareholderId as string
   if (!shareholderId) {
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "bad_request",
+      shareholderId: "(missing)",
+      method: req.method ?? "?",
+      httpStatus: 400,
+    })
+
     return res.status(400).json({ error: "shareholderId required" })
   }
 
   const token = getBearerToken(req)
   if (!token) {
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "auth_no_bearer",
+      shareholderId,
+      method: req.method ?? "?",
+      httpStatus: 401,
+    })
+
     return res.status(401).json({ error: "Unauthorized" })
   }
   const auth = await getAuthUser(token)
   if (!auth) {
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "auth_invalid_token",
+      shareholderId,
+      method: req.method ?? "?",
+      httpStatus: 401,
+    })
+
     return res.status(401).json({ error: "Unauthorized" })
   }
   const { user } = auth
 
   const scope = await getShareholderWorkspaceAndAuth(shareholderId, user.id)
   if (!scope) {
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "scope_denied",
+      shareholderId,
+      method: req.method ?? "?",
+      userId: user.id,
+      httpStatus: 404,
+    })
+
     return res
       .status(404)
       .json({ error: "Shareholder not found or access denied" })
@@ -70,10 +104,36 @@ export default withApiHandler(async (req, res) => {
       .order("changed_at", { ascending: false })
 
     if (historyError) {
+      logShareholderChangeHistory(req, {
+        scope: "shareholder_change_history",
+        phase: "get_error",
+        shareholderId,
+        method: "GET",
+        userId: user.id,
+        workspaceId: scope.workspaceId,
+        dbError: {
+          code: historyError.code,
+          message: historyError.message,
+          details: historyError.details ?? undefined,
+        },
+        httpStatus: 500,
+      })
+
       return res.status(500).json({ error: historyError.message })
     }
 
     const rows = history ?? []
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "get_ok",
+      shareholderId,
+      method: "GET",
+      userId: user.id,
+      workspaceId: scope.workspaceId,
+      entryCount: rows.length,
+      httpStatus: 200,
+    })
+
     const changedByIds = [
       ...new Set(rows.map((r: { changed_by: string }) => r.changed_by)),
     ]
@@ -109,8 +169,31 @@ export default withApiHandler(async (req, res) => {
     }
     const entries = Array.isArray(body?.entries) ? body.entries : []
     if (entries.length === 0) {
+      logShareholderChangeHistory(req, {
+        scope: "shareholder_change_history",
+        phase: "post_skip_empty",
+        shareholderId,
+        method: "POST",
+        userId: user.id,
+        workspaceId: scope.workspaceId,
+        entryCount: 0,
+        httpStatus: 200,
+      })
+
       return res.status(200).json({ success: true })
     }
+
+    const fields = entries.map((e) => String(e.field))
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "post_start",
+      shareholderId,
+      method: "POST",
+      userId: user.id,
+      workspaceId: scope.workspaceId,
+      fields,
+      entryCount: entries.length,
+    })
 
     const admin = createSupabaseAdmin()
     const toInsert = entries.map((e) => ({
@@ -126,11 +209,50 @@ export default withApiHandler(async (req, res) => {
       .insert(toInsert)
 
     if (insertError) {
+      logShareholderChangeHistory(req, {
+        scope: "shareholder_change_history",
+        phase: "post_insert_error",
+        shareholderId,
+        method: "POST",
+        userId: user.id,
+        workspaceId: scope.workspaceId,
+        fields,
+        entryCount: entries.length,
+        dbError: {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details ?? undefined,
+        },
+        httpStatus: 500,
+      })
+
       return res.status(500).json({ error: insertError.message })
     }
 
+    logShareholderChangeHistory(req, {
+      scope: "shareholder_change_history",
+      phase: "post_insert_ok",
+      shareholderId,
+      method: "POST",
+      userId: user.id,
+      workspaceId: scope.workspaceId,
+      fields,
+      entryCount: entries.length,
+      httpStatus: 201,
+    })
+
     return res.status(201).json({ success: true })
   }
+
+  logShareholderChangeHistory(req, {
+    scope: "shareholder_change_history",
+    phase: "method_not_allowed",
+    shareholderId,
+    method: req.method ?? "?",
+    userId: user.id,
+    workspaceId: scope.workspaceId,
+    httpStatus: 405,
+  })
 
   return res.status(405).json({ error: "Method not allowed" })
 })

@@ -67,8 +67,56 @@ export const getMarkerImage = (
   return STATUS_MARKERS["미방문"]
 }
 
-const getGroupMarkerImage = (count: number) => {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="#2868ED" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"/><circle cx="12" cy="12" r="5.5" fill="white"/><text x="12" y="15" text-anchor="middle" font-size="9" font-weight="bold" fill="#1f2937" font-family="Arial,sans-serif">${count}</text></svg>`
+/** 같은 좌표에 2개 이상 마커일 때, 모두 동일한 방문 상태면 클러스터 핀 색을 그 상태에 맞춤 */
+const normalizeVisitStatus = (s: string | null | undefined): string => {
+  const t = (s ?? "").trim()
+
+  return t === "" ? "미방문" : t
+}
+
+/** 클러스터 핀 채우기 — `public/svg/pending.svg`, `complete.svg`, `fail.svg`, 기본 핀과 동일한 path fill */
+const GROUP_CLUSTER_FILL: Record<keyof typeof STATUS_MARKERS, string> = {
+  미방문: "#2868ED",
+  보류: "#FFD939",
+  완료: "#4DD664",
+  실패: "#000000",
+}
+
+/** 같은 좌표에 보류·실패·완료 등 상태가 섞인 경우 — 단일 상태 색과 구분 */
+const GROUP_CLUSTER_MIXED_FILL = "#7C3AED"
+
+type GroupClusterVariant =
+  | { kind: "uniform"; status: keyof typeof STATUS_MARKERS }
+  | { kind: "mixed" }
+  | { kind: "unknown_uniform" }
+
+const resolveGroupClusterVariant = (
+  groupMarkers: MapMarkerData[],
+): GroupClusterVariant => {
+  if (groupMarkers.length < 2) return { kind: "unknown_uniform" }
+  const first = normalizeVisitStatus(groupMarkers[0].status)
+  for (let i = 1; i < groupMarkers.length; i++) {
+    if (normalizeVisitStatus(groupMarkers[i].status) !== first) {
+      return { kind: "mixed" }
+    }
+  }
+  if (first in STATUS_MARKERS) {
+    return { kind: "uniform", status: first as keyof typeof STATUS_MARKERS }
+  }
+
+  return { kind: "unknown_uniform" }
+}
+
+const getGroupMarkerImage = (count: number, variant: GroupClusterVariant) => {
+  let fill: string
+  if (variant.kind === "uniform") {
+    fill = GROUP_CLUSTER_FILL[variant.status]
+  } else if (variant.kind === "mixed") {
+    fill = GROUP_CLUSTER_MIXED_FILL
+  } else {
+    fill = GROUP_CLUSTER_FILL["미방문"]
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="${fill}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"/><circle cx="12" cy="12" r="5.5" fill="white"/><text x="12" y="15" text-anchor="middle" font-size="9" font-weight="bold" fill="#1f2937" font-family="Arial,sans-serif">${count}</text></svg>`
 
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
@@ -102,6 +150,8 @@ const CustomMapMarker = ({
 }: CustomMapMarkerProps) => {
   const { data: filterMenu } = useGetFilterMenu()
   const isGroupMarker = markers && markers.length > 1
+  const groupClusterVariant =
+    isGroupMarker && markers ? resolveGroupClusterVariant(markers) : null
 
   const [isOpen, setIsOpen] = useState(initialInfoWindowOpen)
   const [makerDataUpdateIsModalOpen, setMakerDataUpdateIsModalOpen] =
@@ -226,13 +276,14 @@ const CustomMapMarker = ({
         clickable={true}
         onClick={handleMarkerClick}
         image={{
-          src: isGroupMarker
-            ? getGroupMarkerImage(markers.length)
-            : getMarkerImage(
-                marker.status ?? "",
-                marker.company,
-                filterMenu.companyMenu,
-              ),
+          src:
+            isGroupMarker && groupClusterVariant
+              ? getGroupMarkerImage(markers.length, groupClusterVariant)
+              : getMarkerImage(
+                  marker.status ?? "",
+                  marker.company,
+                  filterMenu.companyMenu,
+                ),
           size: { width: 30, height: 40 },
         }}
       />

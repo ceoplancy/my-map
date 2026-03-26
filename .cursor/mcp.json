@@ -9,8 +9,9 @@
         "--project-ref=sujcnuhxtddbwqmwapkt"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1amNudWh4dGRkYndxbXdhcGt0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyNDA0NDAxNiwiZXhwIjoyMDM5NjIwMDE2fQ.EO0TefoCrzyVa2w9Hud6_FOsIOEZqqjJbyBGrpgxqPM"
-      }
+        "SUPABASE_ACCESS_TOKEN": "${env:SUPABASE_ACCESS_TOKEN}"
+      },
+      "envFile": "${workspaceFolder}/.env"
     },
     "tosspayments-integration-guide": {
       "command": "npx",
@@ -18,6 +19,19 @@
         "-y",
         "@tosspayments/integration-guide-mcp@latest"
       ]
+    },
+    "sentry": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sentry/mcp-server@latest",
+        "--organization-slug=my-map",
+        "--project-slug=react"
+      ],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "${env:SENTRY_ACCESS_TOKEN}"
+      },
+      "envFile": "${workspaceFolder}/.env"
     }
   }
 }

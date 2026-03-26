@@ -8,6 +8,10 @@ import { reportError } from "@/lib/reportError"
 // =========================================
 // ============== post sign in
 // =========================================
+const isBenignSignInError = (error: { message?: string; code?: string }) =>
+  error.message?.includes("Invalid login credentials") === true ||
+  error.code === "invalid_credentials"
+
 const postSignIn = async (data: { email: string; password: string }) => {
   const { error } = await supabase.auth.signInWithPassword({
     email: data.email,
@@ -15,7 +19,9 @@ const postSignIn = async (data: { email: string; password: string }) => {
   })
 
   if (error) {
-    reportError(error)
+    if (!isBenignSignInError(error)) {
+      reportError(error)
+    }
     throw new Error(error.message)
   }
 }

@@ -10,6 +10,8 @@ import supabase from "@/lib/supabase/supabaseClient"
 import { getCoordinateRanges } from "@/lib/utils"
 import { FilterParams } from "@/types"
 import { Excel } from "@/types/excel"
+import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
+import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError, reportMessage } from "@/lib/reportError"
 
 // =======================================
@@ -228,7 +230,9 @@ const getUsers = async (
   })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("사용자 목록 조회에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("사용자 목록 조회에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
 
@@ -252,7 +256,9 @@ const getUser = async (userId: string) => {
   const res = await fetch(`/api/admin/users/${userId}`, { headers })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("사용자 조회에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("사용자 조회에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
 
@@ -273,7 +279,9 @@ const createUser = async (
   })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("사용자 생성에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("사용자 생성에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
 
@@ -290,7 +298,9 @@ const updateUser = async (userId: string, updates: object) => {
   })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("사용자 정보 수정에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("사용자 정보 수정에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
 
@@ -306,7 +316,9 @@ const deleteUser = async (userId: string) => {
   })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("사용자 삭제에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("사용자 삭제에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
 }
@@ -401,7 +413,9 @@ const getAdminUserWorkspaces = async (
   })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("사용자 워크스페이스 목록 조회에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("사용자 워크스페이스 목록 조회에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
   const json = await res.json()
@@ -433,7 +447,9 @@ const addOrUpdateAdminUserWorkspace = async (
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error((err as { error?: string }).error ?? res.statusText)
+    throw new Error(
+      apiErrorMessageFromBody(err, res.statusText || "Request failed"),
+    )
   }
 }
 
@@ -448,7 +464,9 @@ const removeAdminUserWorkspace = async (
   )
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error((err as { error?: string }).error ?? res.statusText)
+    throw new Error(
+      apiErrorMessageFromBody(err, res.statusText || "Request failed"),
+    )
   }
 }
 
@@ -508,7 +526,9 @@ const getAdminWorkspaces = async (): Promise<AdminWorkspaceItem[]> => {
   const res = await fetch("/api/admin/workspaces", { headers })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("관리자 워크스페이스 목록 조회에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("관리자 워크스페이스 목록 조회에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
   const json = await res.json()
@@ -536,7 +556,9 @@ const createAdminWorkspace = async (payload: {
   })
   if (!res.ok) {
     const msg = await res.text()
-    reportMessage("워크스페이스 생성에 실패했습니다.", "error")
+    if (shouldReportSentryForHttpStatus(res.status)) {
+      reportMessage("워크스페이스 생성에 실패했습니다.", "error")
+    }
     throw new Error(msg || res.statusText)
   }
 
