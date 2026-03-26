@@ -11,3 +11,14 @@ export function truncateChangeHistoryValue(value: string): string {
 
   return `${value.slice(0, MAX_CHANGE_HISTORY_VALUE_CHARS)}\n… [truncated]`
 }
+
+/** 변경 이력 `changed_at`(ISO) 표시용 — 주주 수정 모달·기타 UI 공통 */
+export function formatChangeHistoryTimestamp(iso: string): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(t))
+}

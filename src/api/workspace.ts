@@ -768,34 +768,6 @@ export const useDeleteShareholder = () => {
   })
 }
 
-const getShareholderChangeHistory = async (
-  shareholderId: string,
-): Promise<Tables<"shareholder_change_history">[]> => {
-  const { data, error } = await supabase
-    .from("shareholder_change_history")
-    .select("*")
-    .eq("shareholder_id", shareholderId)
-    .order("changed_at", { ascending: false })
-  if (error) {
-    reportError(error)
-
-    return []
-  }
-
-  return data ?? []
-}
-
-export const useShareholderChangeHistory = (shareholderId: string | null) => {
-  return useQuery({
-    queryKey: ["shareholderChangeHistory", shareholderId],
-    queryFn: () =>
-      shareholderId
-        ? getShareholderChangeHistory(shareholderId)
-        : Promise.resolve([]),
-    enabled: !!shareholderId,
-  })
-}
-
 export type LatestChange = { changed_by: string; changed_at: string }
 export type ChangeEntry = {
   changed_by: string
@@ -860,6 +832,61 @@ export const useChangesForList = (listId: string | null) => {
   })
 }
 
+/** GET /change-history — changed_by UUID를 사용자 이름·이메일로 풀어줌 */
+export type ChangeHistoryUserLookup = Record<
+  string,
+  { name: string | null; email: string | null }
+>
+
+export type ShareholderChangeHistoryResolved = {
+  rows: Tables<"shareholder_change_history">[]
+  changedByUser: ChangeHistoryUserLookup
+}
+
+async function fetchShareholderChangeHistoryApiJson(
+  shareholderId: string,
+): Promise<ShareholderChangeHistoryResolved | null> {
+  const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
+  let token = await getAccessToken()
+  if (!token) {
+    token = (await recoverAccessTokenAfterAuthFailure()) ?? ""
+  }
+  if (!token) return null
+  const res = await fetchWithBearerRetry(token, (t) =>
+    fetch(url, { headers: { Authorization: `Bearer ${t}` } }),
+  )
+  if (!res.ok) return null
+  const json = (await res.json()) as {
+    history?: Tables<"shareholder_change_history">[]
+    changedByUser?: ChangeHistoryUserLookup
+  }
+
+  return {
+    rows: json.history ?? [],
+    changedByUser: json.changedByUser ?? {},
+  }
+}
+
+export const useShareholderChangeHistory = (shareholderId: string | null) => {
+  return useQuery({
+    queryKey: ["shareholderChangeHistory", shareholderId],
+    queryFn: async () => {
+      if (!shareholderId) {
+        return { rows: [], changedByUser: {} }
+      }
+      const parsed = await fetchShareholderChangeHistoryApiJson(shareholderId)
+
+      return (
+        parsed ?? {
+          rows: [],
+          changedByUser: {},
+        }
+      )
+    },
+    enabled: !!shareholderId,
+  })
+}
+
 /** API 응답 row */
 type ChangeHistoryRow = {
   changed_at: string
@@ -882,26 +909,10 @@ export type ShareholderChangeHistoryForMapItem = {
 async function fetchShareholderChangeHistoryForMap(
   shareholderId: string,
 ): Promise<ShareholderChangeHistoryForMapItem[]> {
-  const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
-  let token = await getAccessToken()
-  if (!token) {
-    token = (await recoverAccessTokenAfterAuthFailure()) ?? ""
-  }
-  if (!token) return []
-  const res = await fetchWithBearerRetry(token, (t) =>
-    fetch(url, { headers: { Authorization: `Bearer ${t}` } }),
-  )
-  if (!res.ok) return []
-  const json = (await res.json()) as {
-    history?: ChangeHistoryRow[]
-    changedByUser?: Record<
-      string,
-      { name: string | null; email: string | null }
-    >
-  }
-  const rows = json.history ?? []
-  const changedByUser = json.changedByUser ?? {}
-  if (rows.length === 0) return []
+  const parsed = await fetchShareholderChangeHistoryApiJson(shareholderId)
+  if (!parsed || parsed.rows.length === 0) return []
+  const rows = parsed.rows as ChangeHistoryRow[]
+  const changedByUser = parsed.changedByUser
   const key = (r: ChangeHistoryRow) => `${r.changed_at}\t${r.changed_by}`
   const groups = new Map<string, ChangeHistoryRow[]>()
   for (const r of rows) {

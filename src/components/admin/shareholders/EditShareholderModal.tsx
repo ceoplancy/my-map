@@ -3,6 +3,7 @@ import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
+import { formatChangeHistoryTimestamp } from "@/lib/shareholderChangeHistoryValues"
 import { reportError } from "@/lib/reportError"
 import type { Tables } from "@/types/db"
 import {
@@ -263,7 +264,15 @@ export const FIELD_LABELS: Record<string, string> = {
 export default function EditShareholderModal({ data, userId, onClose }: Props) {
   const [formData, setFormData] = useState<Shareholder>(data)
   const patchShareholder = usePatchShareholder()
-  const { data: changeHistory = [] } = useShareholderChangeHistory(data.id)
+  const { data: changeHistoryBundle } = useShareholderChangeHistory(data.id)
+  const changeHistoryRows = changeHistoryBundle?.rows ?? []
+  const changedByUser = changeHistoryBundle?.changedByUser ?? {}
+
+  const modifierLabel = (uid: string) => {
+    const u = changedByUser[uid]
+
+    return u?.name?.trim() || u?.email || uid
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -394,13 +403,17 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           <HistorySection>
             <HistoryTitle>변경 이력</HistoryTitle>
             <HistoryList>
-              {changeHistory.length > 0
-                ? changeHistory.map((row) => (
+              {changeHistoryRows.length > 0
+                ? changeHistoryRows.map((row) => (
                     <HistoryCard key={row.id}>
                       <HistoryHeader>
                         <ModifierInfo>
-                          <ModifierName>{row.changed_by}</ModifierName>
-                          <TimeStamp>{row.changed_at}</TimeStamp>
+                          <ModifierName>
+                            {modifierLabel(row.changed_by)}
+                          </ModifierName>
+                          <TimeStamp>
+                            {formatChangeHistoryTimestamp(row.changed_at)}
+                          </TimeStamp>
                         </ModifierInfo>
                       </HistoryHeader>
                       <HistoryDetails>
