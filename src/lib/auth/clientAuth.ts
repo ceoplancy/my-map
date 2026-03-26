@@ -4,6 +4,9 @@ import type { Session, User } from "@supabase/supabase-js"
 import supabase from "@/lib/supabase/supabaseClient"
 import { reportError } from "@/lib/reportError"
 
+/** 액세스 JWT 만료 이 시각 이전이면 `refreshSession`(리프레시 토큰 사용)으로 재발급 시도 */
+const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000
+
 /** 클라이언트 인증 스냅샷 — React Query `QUERY_KEYS.auth` 단일 소스 */
 export type AuthSnapshot = {
   user: User | null
@@ -43,24 +46,36 @@ export async function fetchAuth(): Promise<AuthSnapshot> {
 }
 
 /**
- * Bearer / fetch용 — API Route에 넣을 액세스 토큰.
- * `getSession()`만 쓰면 만료 직전·만료 토큰이 그대로 나가 서버에서 `auth_invalid_token`이 날 수 있어,
- * 만료 임박(60초 이내)이면 `refreshSession` 후 토큰을 반환합니다.
+ * Bearer / fetch용 — API Route에 넣을 **유효한** 액세스 토큰.
+ * - 세션의 `expires_at` 기준으로 만료 **5분 전**이면 `refreshSession()`으로 액세스 토큰 재발급(리프레시 토큰 사용).
+ * - `refreshSession`이 실패하면 `getUser()`로 서버 검증·세션 갱신을 한 번 더 유도한 뒤 세션에서 토큰을 읽습니다.
+ * 사용자는 만료를 직접 알 필요가 없도록 API 호출 직전에 여기서 정리합니다.
  */
 export async function getAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw new Error(error.message)
 
-  let session = data.session
+  const session = data.session
   if (!session?.access_token) return null
 
   const expMs = session.expires_at ? session.expires_at * 1000 : 0
-  const refreshBufferMs = 60_000
-  if (!session.expires_at || expMs < Date.now() + refreshBufferMs) {
-    const { data: ref, error: refErr } = await supabase.auth.refreshSession()
-    if (refErr) return null
-    session = ref.session ?? session
+  const needsRefresh =
+    !session.expires_at || expMs <= Date.now() + ACCESS_TOKEN_REFRESH_MARGIN_MS
+
+  if (!needsRefresh) {
+    return session.access_token
   }
 
-  return session?.access_token ?? null
+  const { data: refreshed, error: refreshErr } =
+    await supabase.auth.refreshSession()
+  if (!refreshErr && refreshed.session?.access_token) {
+    return refreshed.session.access_token
+  }
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser()
+  if (userErr || !userData.user) return null
+
+  const { data: after } = await supabase.auth.getSession()
+
+  return after.session?.access_token ?? null
 }
