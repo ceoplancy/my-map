@@ -23,6 +23,8 @@ const DROPPED_EXCEPTION_MESSAGE_SUBSTRINGS = [
   "ReactCurrentDispatcher",
   "zoomSeq is not defined",
   "mapLevel is not defined",
+  // 세션·Bearer 누락·만료 401 등 — 이벤트 문자열이 `Error: Unauthorized` 형태일 때도 걸러짐
+  "Unauthorized",
 ] as const
 
 export function matchesDroppedSentryExceptionText(value: string): boolean {
@@ -42,7 +44,7 @@ export function shouldDropOriginalExceptionForSentry(error: Error): boolean {
     return true
   }
 
-  if (error.message === "Unauthorized") {
+  if (error.message.includes("Unauthorized")) {
     return true
   }
 

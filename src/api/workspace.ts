@@ -624,14 +624,27 @@ const recordChangeHistoryViaApi = async (
 ): Promise<void> => {
   if (entries.length === 0) return
   const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ entries }),
-  })
+  const body = JSON.stringify({ entries })
+  const post = (token: string) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+    })
+
+  let res = await post(accessToken)
+
+  // 만료 직전·Safari 등에서 Bearer가 거절되면 세션 갱신 후 1회 재시도
+  if (res.status === 401) {
+    const { error: refreshErr } = await supabase.auth.refreshSession()
+    if (!refreshErr) {
+      const next = await getAccessToken()
+      if (next) res = await post(next)
+    }
+  }
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({ error: res.statusText }))
     const message = apiErrorMessageFromBody(
@@ -870,12 +883,23 @@ export type ShareholderChangeHistoryForMapItem = {
 async function fetchShareholderChangeHistoryForMap(
   shareholderId: string,
 ): Promise<ShareholderChangeHistoryForMapItem[]> {
-  const token = await getAccessToken()
+  const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
+  let token = await getAccessToken()
   if (!token) return []
-  const res = await fetch(
-    `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  )
+  let res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 401) {
+    const { error: refreshErr } = await supabase.auth.refreshSession()
+    if (!refreshErr) {
+      token = (await getAccessToken()) ?? ""
+      if (token) {
+        res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      }
+    }
+  }
   if (!res.ok) return []
   const json = (await res.json()) as {
     history?: ChangeHistoryRow[]
