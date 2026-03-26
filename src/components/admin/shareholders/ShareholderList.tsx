@@ -30,6 +30,7 @@ import { useSession } from "@/api/auth"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
 import * as XLSX from "xlsx"
+import { buildShareholderRegistryExportFileName } from "@/lib/shareholderRegistryExportFilename"
 import { removeTags } from "@/lib/utils"
 import supabase from "@/lib/supabase/supabaseClient"
 import { useGetUsers } from "@/api/supabase"
@@ -302,9 +303,10 @@ const FilterWrap = styled.div`
 
 const FilterGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  /* 주식수·날짜는 가로 2칸이라 열 최소 폭이 너무 좁으면 넘치고 라벨·입력 정렬이 깨짐 */
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
   gap: 1rem 1.25rem;
-  align-items: end;
+  align-items: start;
 `
 
 const FilterToolbar = styled.div`
@@ -318,6 +320,7 @@ const FilterToolbar = styled.div`
 
 const StocksRangeContainer = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 `
@@ -378,6 +381,7 @@ const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
 `
 
 const Label = styled.label`
@@ -812,11 +816,7 @@ export default function ShareholderList({ listId, listName }: Props) {
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "주주명부")
-    const prefix = listName ? `주주명부_${listName}` : "주주명부"
-    XLSX.writeFile(
-      wb,
-      `${prefix}_${new Date().toISOString().slice(0, 10)}.xlsx`,
-    )
+    XLSX.writeFile(wb, buildShareholderRegistryExportFileName(listName))
   }
 
   const currentData = sortedData.slice(

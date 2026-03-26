@@ -7,6 +7,7 @@ import { toast } from "react-toastify"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/router"
 import { useCurrentWorkspace } from "@/store/workspaceState"
+import { buildShareholderRegistryExportFileName } from "@/lib/shareholderRegistryExportFilename"
 import { getWorkspaceAdminBase } from "@/lib/utils"
 import {
   useShareholderLists,
@@ -394,6 +395,15 @@ export function WorkspaceDashboardBody() {
 
       return
     }
+    const listName =
+      effectiveListId != null
+        ? (lists.find((l) => l.id === effectiveListId)?.name ?? "")
+        : ""
+
+    const fileName = buildShareholderRegistryExportFileName(
+      listName || undefined,
+    )
+
     const rows = (shareholders as Tables<"shareholders">[]).map((s) => ({
       주주ID: s.id,
       이름: s.name ?? "",
@@ -406,8 +416,8 @@ export function WorkspaceDashboardBody() {
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "주주목록")
-    XLSX.writeFile(wb, "주주목록.xlsx")
+    XLSX.utils.book_append_sheet(wb, ws, "주주명부")
+    XLSX.writeFile(wb, fileName)
     toast.success("스프레드시트 파일이 다운로드되었습니다.")
   }
 
