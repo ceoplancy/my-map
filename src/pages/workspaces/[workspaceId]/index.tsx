@@ -252,10 +252,8 @@ const WorkspaceMapPage = () => {
   }, [])
 
   useEffect(() => {
-    if (!isLoading && !session) {
-      toast.error("로그인이 필요합니다.")
-      router.push(ROUTES.signIn)
-    }
+    if (isLoading || session) return
+    void router.replace(ROUTES.signIn)
   }, [isLoading, router, session])
 
   if (pendingApproval) {

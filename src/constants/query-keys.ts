@@ -6,4 +6,7 @@ export const QUERY_KEYS = {
   // Supabase getUser + getSession 단일 스냅샷 — useGetUserData / useSession 공유
   auth: ["auth"] as const,
   filterMenu: ["filterMenu"] as const,
+  myWorkspaces: ["myWorkspaces"] as const,
+  adminStatus: ["adminStatus"] as const,
+  mySignupStatus: ["mySignupStatus"] as const,
 } as const

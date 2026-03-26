@@ -407,7 +407,7 @@ export const useCreateAdminWorkspace = () => {
     mutationFn: createAdminWorkspace,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminWorkspaces"] })
-      queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.myWorkspaces })
       toast.success("워크스페이스가 생성되었습니다.")
     },
     onError: () => {
