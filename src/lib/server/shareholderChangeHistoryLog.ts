@@ -53,6 +53,8 @@ export type ShareholderChangeHistoryLogPayload = {
     | "get_error"
     | "auth_no_bearer"
     | "auth_invalid_token"
+    | "auth_invalid_bearer_and_cookie"
+    | "auth_no_bearer_or_cookie_session"
     | "scope_denied"
     | "bad_request"
     | "method_not_allowed"
@@ -96,6 +98,8 @@ export function logShareholderChangeHistory(
     payload.phase === "get_error" ||
     payload.phase === "auth_no_bearer" ||
     payload.phase === "auth_invalid_token" ||
+    payload.phase === "auth_invalid_bearer_and_cookie" ||
+    payload.phase === "auth_no_bearer_or_cookie_session" ||
     payload.phase === "scope_denied"
   ) {
     console.error(`[shareholder_change_history] ${msg}`)

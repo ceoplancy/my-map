@@ -1,4 +1,6 @@
-import type { NextApiRequest } from "next"
+import { createServerClient } from "@supabase/ssr"
+import type { NextApiRequest, NextApiResponse } from "next"
+import { serialize } from "cookie"
 import {
   createSupabaseAdmin,
   createSupabaseAnon,
@@ -26,6 +28,64 @@ export async function getAuthUser(
   } = await client.auth.getUser(token)
 
   if (error || !user) return null
+
+  return { user, token }
+}
+
+/** Pages API 전용 — `req.cookies` + `Set-Cookie`로 미들웨어와 동일한 세션을 읽는다. */
+function createSupabaseServerClientFromApiCookies(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  const anonKey = process.env.NEXT_PUBLIC_ANON_KEY ?? ""
+  if (!url || !anonKey) return null
+
+  return createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        const c = req.cookies ?? {}
+
+        return Object.entries(c).map(([name, value]) => ({
+          name,
+          value: value ?? "",
+        }))
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          res.appendHeader("Set-Cookie", serialize(name, value, options))
+        })
+      },
+    },
+  })
+}
+
+/**
+ * Pages API: 클라이언트가 보낸 Bearer와 동일한 쿠키 세션(미들웨어·`createBrowserClient`)을 모두 허용.
+ * 모바일 Safari 등에서 Bearer가 비어 있거나 만료 직후 쿠키만 최신인 경우 401을 줄이기 위함.
+ */
+export async function getAuthUserFromApiRequest(
+  req: NextApiRequest,
+  res: NextApiResponse,
+): Promise<{ user: User; token: string } | null> {
+  const bearer = getBearerToken(req)
+  if (bearer) {
+    const fromBearer = await getAuthUser(bearer)
+    if (fromBearer) return fromBearer
+  }
+
+  const supabase = createSupabaseServerClientFromApiCookies(req, res)
+  if (!supabase) return null
+
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser()
+  if (userErr || !user) return null
+
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) return null
 
   return { user, token }
 }

@@ -2,7 +2,7 @@ import {
   createSupabaseWithToken,
   createSupabaseAdmin,
 } from "@/lib/supabase/supabaseServer"
-import { getBearerToken, getAuthUser } from "@/lib/api-auth"
+import { getAuthUserFromApiRequest } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 /** shareholders inner join 응답에서 제거하기 위한 형태 */
@@ -25,11 +25,7 @@ export default withApiHandler(async (req, res) => {
   if (typeof listId !== "string") {
     return res.status(400).json({ error: "listId required" })
   }
-  const token = getBearerToken(req)
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" })
-  }
-  const auth = await getAuthUser(token)
+  const auth = await getAuthUserFromApiRequest(req, res)
   if (!auth) {
     return res.status(401).json({ error: "Unauthorized" })
   }

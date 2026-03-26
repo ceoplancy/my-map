@@ -2,7 +2,7 @@ import {
   createSupabaseAdmin,
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
-import { getBearerToken, isServiceAdmin } from "@/lib/api-auth"
+import { getAuthUserFromApiRequest, isServiceAdmin } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 /** 해당 워크스페이스명에 대한 가입 승인/반려 권한 여부 */
@@ -37,8 +37,9 @@ export default withApiHandler(async (req, res) => {
   if (req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const token = getBearerToken(req)
-  if (!token) return res.status(401).json({ error: "Unauthorized" })
+  const auth = await getAuthUserFromApiRequest(req, res)
+  if (!auth) return res.status(401).json({ error: "Unauthorized" })
+  const { token } = auth
   const id = req.query.id as string
   const body = req.body as { action: "approve" | "reject" }
   if (!id || !body?.action) {

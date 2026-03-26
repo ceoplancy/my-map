@@ -1,5 +1,5 @@
 import { createSupabaseWithToken } from "@/lib/supabase/supabaseServer"
-import { getBearerToken, getAuthUser } from "@/lib/api-auth"
+import { getAuthUserFromApiRequest } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 import { sendResourceRequestNotificationStub } from "@/lib/emailStub"
 
@@ -7,11 +7,7 @@ export default withApiHandler(async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" })
   }
-  const token = getBearerToken(req)
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" })
-  }
-  const auth = await getAuthUser(token)
+  const auth = await getAuthUserFromApiRequest(req, res)
   if (!auth) {
     return res.status(401).json({ error: "Unauthorized" })
   }

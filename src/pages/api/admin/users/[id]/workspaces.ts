@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from "@/lib/supabase/supabaseServer"
-import { getBearerToken, isServiceAdmin } from "@/lib/api-auth"
+import { getAuthUserFromApiRequest, isServiceAdmin } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 const ASSIGNABLE_ROLES = ["top_admin", "admin", "field_agent"] as const
@@ -13,8 +13,8 @@ export type UserWorkspaceMembership = {
 
 /** GET: 사용자의 워크스페이스 멤버십 목록 (서비스 관리자 전용) */
 export default withApiHandler(async (req, res) => {
-  const token = getBearerToken(req)
-  if (!token || !(await isServiceAdmin(token))) {
+  const auth = await getAuthUserFromApiRequest(req, res)
+  if (!auth || !(await isServiceAdmin(auth.token))) {
     return res.status(401).json({ error: "Unauthorized" })
   }
 

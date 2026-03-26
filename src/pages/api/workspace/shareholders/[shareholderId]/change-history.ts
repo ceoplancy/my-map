@@ -2,7 +2,7 @@ import {
   createSupabaseAdmin,
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
-import { getBearerToken, getAuthUser } from "@/lib/api-auth"
+import { getAuthUserFromApiRequest, getBearerToken } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 import {
   entriesPreviewForLog,
@@ -57,23 +57,14 @@ export default withApiHandler(async (req, res) => {
     return res.status(400).json({ error: "shareholderId required" })
   }
 
-  const token = getBearerToken(req)
-  if (!token) {
-    logShareholderChangeHistory(req, {
-      scope: "shareholder_change_history",
-      phase: "auth_no_bearer",
-      shareholderId,
-      method: req.method ?? "?",
-      httpStatus: 401,
-    })
-
-    return res.status(401).json({ error: "Unauthorized" })
-  }
-  const auth = await getAuthUser(token)
+  const hadBearer = !!getBearerToken(req)
+  const auth = await getAuthUserFromApiRequest(req, res)
   if (!auth) {
     logShareholderChangeHistory(req, {
       scope: "shareholder_change_history",
-      phase: "auth_invalid_token",
+      phase: hadBearer
+        ? "auth_invalid_bearer_and_cookie"
+        : "auth_no_bearer_or_cookie_session",
       shareholderId,
       method: req.method ?? "?",
       httpStatus: 401,
@@ -81,7 +72,7 @@ export default withApiHandler(async (req, res) => {
 
     return res.status(401).json({ error: "Unauthorized" })
   }
-  const { user } = auth
+  const { user, token } = auth
 
   const scope = await getShareholderWorkspaceAndAuth(shareholderId, user.id)
   if (!scope) {

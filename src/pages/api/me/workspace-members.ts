@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from "@/lib/supabase/supabaseServer"
-import { getBearerToken, getAuthUser, isServiceAdmin } from "@/lib/api-auth"
+import { getAuthUserFromApiRequest, isServiceAdmin } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 export type WorkspaceMemberWithUser = {
@@ -23,13 +23,9 @@ const WORKSPACE_ROLES = [
 
 /** GET: workspace members. POST: add member by email (workspace admin only). */
 export default withApiHandler(async (req, res) => {
-  const token = getBearerToken(req)
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" })
-  }
-  const auth = await getAuthUser(token)
+  const auth = await getAuthUserFromApiRequest(req, res)
   if (!auth) return res.status(401).json({ error: "Unauthorized" })
-  const { user } = auth
+  const { user, token } = auth
 
   const workspaceId =
     typeof req.query.workspaceId === "string"
