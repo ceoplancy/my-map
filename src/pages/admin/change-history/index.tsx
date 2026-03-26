@@ -2,12 +2,19 @@ import AdminLayout from "@/layouts/AdminLayout"
 import { useRouter } from "next/router"
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import styled from "@emotion/styled"
 import supabase from "@/lib/supabase/supabaseClient"
 import { COLORS } from "@/styles/global-style"
-import { FIELD_LABELS } from "@/components/admin/shareholders/EditShareholderModal"
+import EditShareholderModal, {
+  FIELD_LABELS,
+} from "@/components/admin/shareholders/EditShareholderModal"
 import GlobalSpinner from "@/components/ui/global-spinner"
+import { formatDateTimeKo } from "@/lib/formatDateTimeKo"
+import { useSession } from "@/api/auth"
+import type { Tables } from "@/types/db"
+import { toast } from "react-toastify"
 
 type HistoryRow = {
   id: string
@@ -61,11 +68,13 @@ const TableWrapper = styled.div`
 
 const Table = styled.table`
   width: 100%;
+  min-width: 56rem;
   border-collapse: collapse;
+  table-layout: auto;
 `
 
 const Th = styled.th`
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.25rem;
   text-align: left;
   font-weight: 600;
   color: ${COLORS.gray[700]};
@@ -73,10 +82,76 @@ const Th = styled.th`
 `
 
 const Td = styled.td`
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.25rem;
   border-bottom: 1px solid ${COLORS.gray[100]};
   font-size: 0.875rem;
   color: ${COLORS.gray[700]};
+  vertical-align: top;
+`
+
+/** 일시 — 포맷된 문자열 한 줄 */
+const ThColDate = styled(Th)`
+  white-space: nowrap;
+  min-width: 11rem;
+  width: 1%;
+`
+
+const TdColDate = styled(Td)`
+  white-space: nowrap;
+  min-width: 11rem;
+  width: 1%;
+`
+
+/** 주주 */
+const ThColShareholder = styled(Th)`
+  min-width: 12rem;
+  max-width: 18rem;
+`
+
+const TdColShareholder = styled(Td)`
+  min-width: 12rem;
+  max-width: 18rem;
+  word-break: break-word;
+`
+
+/** 필드명 — 짧은 라벨이 줄바꿈되지 않도록 */
+const ThColField = styled(Th)`
+  white-space: nowrap;
+  min-width: 6.5rem;
+  width: 1%;
+`
+
+const TdColField = styled(Td)`
+  white-space: nowrap;
+  min-width: 6.5rem;
+  width: 1%;
+`
+
+/** 변경 전·후 — 긴 본문은 이 열 안에서만 줄바꿈 */
+const ThColBody = styled(Th)`
+  min-width: 12rem;
+  max-width: 22rem;
+  word-break: break-word;
+`
+
+const TdColBody = styled(Td)`
+  min-width: 12rem;
+  max-width: 22rem;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+`
+
+/** 변경자 — 이름 한 줄 */
+const ThColChanger = styled(Th)`
+  white-space: nowrap;
+  min-width: 8rem;
+  width: 1%;
+`
+
+const TdColChanger = styled(Td)`
+  white-space: nowrap;
+  min-width: 8rem;
+  width: 1%;
 `
 
 const EmptyMessage = styled.div`
@@ -132,84 +207,152 @@ const TotalNote = styled.div`
 `
 
 const ChangerLink = styled(Link)`
+  display: inline-block;
   color: ${COLORS.blue[600]};
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
   &:hover {
     text-decoration: underline;
   }
 `
 
+const ShareholderOpenButton = styled.button`
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: ${COLORS.blue[600]};
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover {
+    color: ${COLORS.blue[700]};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${COLORS.blue[500]};
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+`
+
+const ModalLoadingOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+`
+
 /** 변경 이력 본문 (listId 쿼리 사용) */
 export function ChangeHistoryPageContent() {
   const router = useRouter()
+  const { data: session } = useSession()
   const listId =
     router.isReady && typeof router.query.listId === "string"
       ? router.query.listId
       : null
-  const [data, setData] = useState<Data | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [shareholderIdForModal, setShareholderIdForModal] = useState<
+    string | null
+  >(null)
   const [search, setSearch] = useState("")
 
-  useEffect(() => {
-    if (!router.isReady) {
-      return
-    }
-    if (!listId) {
-      setLoading(false)
-      setData(null)
-      setError("명부를 선택해 주세요.")
-
-      return
-    }
-    let cancelled = false
-    const fetchHistory = async () => {
-      setLoading(true)
-      setError(null)
+  const {
+    data: historyPayload,
+    isLoading: isHistoryLoading,
+    isError: isHistoryError,
+    error: historyError,
+    refetch: refetchHistory,
+  } = useQuery({
+    queryKey: ["workspaceListChangeHistory", listId],
+    queryFn: async () => {
       const {
-        data: { session },
+        data: { session: s },
       } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        if (!cancelled) {
-          setError("로그인이 필요합니다.")
-          setLoading(false)
-        }
-
-        return
+      if (!s?.access_token) {
+        throw new Error("LOGIN_REQUIRED")
       }
       const res = await fetch(`/api/workspace/lists/${listId}/change-history`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${s.access_token}` },
       })
       if (!res.ok) {
-        if (!cancelled) {
-          setError("변경 이력을 불러오지 못했습니다.")
-          setLoading(false)
-        }
-
-        return
+        throw new Error("FETCH_FAILED")
       }
-      const json = await res.json()
-      if (cancelled) return
-      setData({
-        history: json.history ?? [],
-        total:
-          typeof json.total === "number"
-            ? json.total
-            : (json.history?.length ?? 0),
-        truncated: Boolean(json.truncated),
-        nameById: json.nameById ?? {},
-        changedByUser: json.changedByUser ?? {},
-      })
-      setError(null)
-      setLoading(false)
-    }
-    void fetchHistory()
 
-    return () => {
-      cancelled = true
+      return res.json() as Promise<{
+        history?: HistoryRow[]
+        total?: number
+        truncated?: boolean
+        nameById?: Record<string, string>
+        changedByUser?: Record<
+          string,
+          { name: string | null; email: string | null }
+        >
+      }>
+    },
+    enabled: Boolean(listId) && router.isReady,
+  })
+
+  const data: Data | null = useMemo(() => {
+    if (!historyPayload) return null
+
+    return {
+      history: historyPayload.history ?? [],
+      total:
+        typeof historyPayload.total === "number"
+          ? historyPayload.total
+          : (historyPayload.history?.length ?? 0),
+      truncated: Boolean(historyPayload.truncated),
+      nameById: historyPayload.nameById ?? {},
+      changedByUser: historyPayload.changedByUser ?? {},
     }
-  }, [listId, router.isReady])
+  }, [historyPayload])
+
+  const errorMessage = useMemo(() => {
+    if (!isHistoryError || !historyError) return null
+    const msg =
+      historyError instanceof Error
+        ? historyError.message
+        : String(historyError)
+    if (msg === "LOGIN_REQUIRED") return "로그인이 필요합니다."
+
+    return "변경 이력을 불러오지 못했습니다."
+  }, [isHistoryError, historyError])
+
+  const loading = Boolean(listId) && router.isReady && isHistoryLoading
+
+  const {
+    data: modalShareholder,
+    isPending: modalLoading,
+    isError: modalFetchError,
+  } = useQuery({
+    queryKey: ["shareholderRowForModal", shareholderIdForModal],
+    queryFn: async () => {
+      const { data: row, error } = await supabase
+        .from("shareholders")
+        .select("*")
+        .eq("id", shareholderIdForModal!)
+        .single()
+      if (error) throw error
+
+      return row as Tables<"shareholders">
+    },
+    enabled: Boolean(shareholderIdForModal),
+    retry: false,
+  })
+
+  useEffect(() => {
+    if (!modalFetchError || !shareholderIdForModal) return
+    toast.error("주주 정보를 불러오지 못했습니다.")
+    setShareholderIdForModal(null)
+  }, [modalFetchError, shareholderIdForModal])
 
   const filteredHistory = useMemo(() => {
     if (!data?.history?.length) return []
@@ -289,8 +432,8 @@ export function ChangeHistoryPageContent() {
             }}>
             <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
           </div>
-        ) : error ? (
-          <EmptyMessage>{error}</EmptyMessage>
+        ) : errorMessage ? (
+          <EmptyMessage>{errorMessage}</EmptyMessage>
         ) : !data || data.history.length === 0 ? (
           <EmptyMessage>
             이 명부에 기록된 변경 이력이 없습니다. 주주 정보를 수정하면 여기에
@@ -340,12 +483,12 @@ export function ChangeHistoryPageContent() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>일시</Th>
-                    <Th>주주</Th>
-                    <Th>필드</Th>
-                    <Th>변경 전</Th>
-                    <Th>변경 후</Th>
-                    <Th>변경자</Th>
+                    <ThColDate>일시</ThColDate>
+                    <ThColShareholder>주주</ThColShareholder>
+                    <ThColField>필드</ThColField>
+                    <ThColBody>변경 전</ThColBody>
+                    <ThColBody>변경 후</ThColBody>
+                    <ThColChanger>변경자</ThColChanger>
                   </tr>
                 </thead>
                 <tbody>
@@ -365,15 +508,26 @@ export function ChangeHistoryPageContent() {
 
                     return (
                       <tr key={row.id}>
-                        <Td>{row.changed_at}</Td>
-                        <Td>
-                          {data.nameById[row.shareholder_id] ??
-                            row.shareholder_id}
-                        </Td>
-                        <Td>{FIELD_LABELS[row.field] ?? row.field}</Td>
-                        <Td>{row.old_value ?? "-"}</Td>
-                        <Td>{row.new_value ?? "-"}</Td>
-                        <Td>
+                        <TdColDate>
+                          {formatDateTimeKo(row.changed_at)}
+                        </TdColDate>
+                        <TdColShareholder>
+                          <ShareholderOpenButton
+                            type="button"
+                            title="주주 정보 편집"
+                            onClick={() =>
+                              setShareholderIdForModal(row.shareholder_id)
+                            }>
+                            {data.nameById[row.shareholder_id] ??
+                              row.shareholder_id}
+                          </ShareholderOpenButton>
+                        </TdColShareholder>
+                        <TdColField>
+                          {FIELD_LABELS[row.field] ?? row.field}
+                        </TdColField>
+                        <TdColBody>{row.old_value ?? "-"}</TdColBody>
+                        <TdColBody>{row.new_value ?? "-"}</TdColBody>
+                        <TdColChanger>
                           {usersHref ? (
                             <ChangerLink
                               href={usersHref}
@@ -383,7 +537,7 @@ export function ChangeHistoryPageContent() {
                           ) : (
                             changerLabel
                           )}
-                        </Td>
+                        </TdColChanger>
                       </tr>
                     )
                   })}
@@ -393,6 +547,21 @@ export function ChangeHistoryPageContent() {
           </>
         )}
       </TableWrapper>
+      {shareholderIdForModal && modalLoading ? (
+        <ModalLoadingOverlay>
+          <GlobalSpinner width={32} height={32} dotColor="#8536FF" />
+        </ModalLoadingOverlay>
+      ) : null}
+      {shareholderIdForModal && modalShareholder && session?.user?.id ? (
+        <EditShareholderModal
+          data={modalShareholder}
+          userId={session.user.id}
+          onClose={() => {
+            setShareholderIdForModal(null)
+            void refetchHistory()
+          }}
+        />
+      ) : null}
     </Container>
   )
 }

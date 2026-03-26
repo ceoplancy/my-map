@@ -950,7 +950,7 @@ export default function ShareholderList({ listId, listName }: Props) {
 
             <ExportButton type="button" onClick={handleExport}>
               <DownloadIcon />
-              .xlsx 내보내기
+              엑셀 내보내기
             </ExportButton>
           </FilterToolbar>
         </FilterWrap>
