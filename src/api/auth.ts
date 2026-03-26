@@ -12,8 +12,24 @@ import {
 import { QUERY_KEYS } from "@/constants/query-keys"
 import { ROUTES } from "@/constants/routes"
 import { getJsonWithBearerIfOk } from "@/lib/apiClient"
-import { fetchAuth } from "@/lib/auth/clientAuth"
+import { fetchAuth, type AuthSnapshot } from "@/lib/auth/clientAuth"
 import { reportError } from "@/lib/reportError"
+
+const LOGGED_OUT_AUTH_SNAPSHOT: AuthSnapshot = {
+  user: null,
+  session: null,
+}
+
+/**
+ * supabase.signOut() 직후에도 React Query에 이전 user/session이 남으면
+ * (invalidate refetch 전) 지도 페이지 등이 로그인 사용자로 오판 → /workspaces 로 보낼 수 있음.
+ */
+function applyLoggedOutClientState(queryClient: QueryClient) {
+  queryClient.setQueryData(QUERY_KEYS.auth, LOGGED_OUT_AUTH_SNAPSHOT)
+  queryClient.setQueryData<MyWorkspaceItem[]>(["myWorkspaces"], [])
+  queryClient.setQueryData(["adminStatus"], { isServiceAdmin: false })
+  queryClient.setQueryData(["mySignupStatus"], null)
+}
 
 function invalidateAuthCaches(
   queryClient: QueryClient,
@@ -25,6 +41,12 @@ function invalidateAuthCaches(
   if (options.includeSignupStatus) {
     void queryClient.invalidateQueries({ queryKey: ["mySignupStatus"] })
   }
+}
+
+/** 로그아웃 성공 시: 캐시 즉시 비움 + 서버와 재동기화 */
+function afterSignOutSuccess(queryClient: QueryClient) {
+  applyLoggedOutClientState(queryClient)
+  invalidateAuthCaches(queryClient, { includeSignupStatus: true })
 }
 
 // =========================================
@@ -84,7 +106,7 @@ export const usePostSignOut = () => {
   return useMutation({
     mutationFn: postSignOut,
     onSuccess: () => {
-      invalidateAuthCaches(queryClient, { includeSignupStatus: true })
+      afterSignOutSuccess(queryClient)
       toast.success("정상적으로 로그아웃 되었습니다.")
       router.replace(ROUTES.signIn)
     },

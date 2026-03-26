@@ -25,6 +25,7 @@ import type { Tables } from "@/types/db"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError } from "@/lib/reportError"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
+import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
 import { getCoordinateRanges } from "@/lib/utils"
 
 type ShareholderList = Tables<"shareholder_lists">
@@ -547,10 +548,13 @@ export const useUpdateShareholderList = () => {
         .update(rest)
         .eq("id", id)
         .select()
-        .single()
+        .maybeSingle()
       if (error) throw error
 
-      return data
+      return requireSupabaseRow(
+        data,
+        "주주명부를 수정할 수 없습니다. 로그인 상태와 권한을 확인해 주세요.",
+      )
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({
@@ -672,8 +676,12 @@ export const usePatchShareholder = () => {
           .from("shareholders")
           .select(field)
           .eq("id", id)
-          .single()
-        const raw = oldRow.data as Record<string, unknown> | null
+          .maybeSingle()
+        if (oldRow.error) throw oldRow.error
+        const raw = requireSupabaseRow(
+          oldRow.data as Record<string, unknown> | null,
+          "주주 정보를 찾을 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+        )
         const val = raw?.[field]
         const oldVal = toHistoryValue(val)
         const newStr = toHistoryValue(newVal)
@@ -705,10 +713,13 @@ export const usePatchShareholder = () => {
         .update(rest)
         .eq("id", id)
         .select()
-        .single()
+        .maybeSingle()
       if (error) throw error
 
-      return data
+      return requireSupabaseRow(
+        data,
+        "저장에 실패했습니다. 로그인 상태와 권한을 확인해 주세요.",
+      )
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["shareholders"] })

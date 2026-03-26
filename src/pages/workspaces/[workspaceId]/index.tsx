@@ -44,7 +44,7 @@ const WorkspaceMapPage = () => {
   const router = useRouter()
   const { workspaceId } = router.query as { workspaceId: string }
   const mapRef = useRef<kakao.maps.Map>(null)
-  const { user, isLoading } = useAuth()
+  const { user, session, isLoading } = useAuth()
   const { data: workspaces = [], isLoading: workspacesLoading } =
     useMyWorkspaces()
   const { data: signupStatus, isLoading: signupStatusLoading } =
@@ -77,7 +77,8 @@ const WorkspaceMapPage = () => {
       // 로그아웃 직후 workspaces가 []가 되면 resolvedWorkspace가 null이 되어
       // 무조건 /workspaces로 보내면 로그아웃이 깨진 것처럼 보임. 인증 로딩 중에는 대기.
       if (isLoading) return
-      if (!user) {
+      // 세션이 없으면 비로그인 (로그아웃 직후 user만 stale인 경우 방지 — auth.ts에서 캐시 즉시 비움)
+      if (!session) {
         router.replace(ROUTES.signIn)
 
         return
@@ -95,7 +96,7 @@ const WorkspaceMapPage = () => {
     setCurrentWorkspace,
     router,
     isLoading,
-    user,
+    session,
   ])
 
   const { resetFilters, ensureWorkspaceScope } = useFilterStore()
@@ -251,11 +252,11 @@ const WorkspaceMapPage = () => {
   }, [])
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !session) {
       toast.error("로그인이 필요합니다.")
       router.push(ROUTES.signIn)
     }
-  }, [isLoading, router, user])
+  }, [isLoading, router, session])
 
   if (pendingApproval) {
     return (

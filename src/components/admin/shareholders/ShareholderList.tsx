@@ -17,6 +17,7 @@ import {
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
 import { reportError } from "@/lib/reportError"
+import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
 import type { Tables } from "@/types/db"
 import {
   useShareholders,
@@ -492,10 +493,13 @@ export default function ShareholderList({ listId, listName }: Props) {
         .from("shareholder_lists")
         .select("workspace_id")
         .eq("id", listId)
-        .single()
+        .maybeSingle()
       if (error) throw error
 
-      return data
+      return requireSupabaseRow(
+        data,
+        "주주명부를 불러올 수 없습니다. 권한을 확인하거나 다시 로그인해 주세요.",
+      )
     },
     enabled: !!listId,
   })
