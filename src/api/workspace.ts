@@ -7,7 +7,11 @@ import {
 } from "@tanstack/react-query"
 import * as Sentry from "@sentry/nextjs"
 import { toast } from "react-toastify"
-import { getAccessToken } from "@/lib/auth/clientAuth"
+import {
+  fetchWithBearerRetry,
+  getAccessToken,
+  recoverAccessTokenAfterAuthFailure,
+} from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables } from "@/types/db"
 import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
@@ -625,7 +629,7 @@ const recordChangeHistoryViaApi = async (
   if (entries.length === 0) return
   const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
   const body = JSON.stringify({ entries })
-  const post = (token: string) =>
+  const res = await fetchWithBearerRetry(accessToken, (token) =>
     fetch(url, {
       method: "POST",
       headers: {
@@ -633,26 +637,16 @@ const recordChangeHistoryViaApi = async (
         Authorization: `Bearer ${token}`,
       },
       body,
-    })
-
-  let res = await post(accessToken)
-
-  // 만료 직전·Safari 등에서 Bearer가 거절되면 세션 갱신 후 1회 재시도
-  if (res.status === 401) {
-    const { error: refreshErr } = await supabase.auth.refreshSession()
-    if (!refreshErr) {
-      const next = await getAccessToken()
-      if (next) res = await post(next)
-    }
-  }
+    }),
+  )
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({ error: res.statusText }))
     const message = apiErrorMessageFromBody(
       errBody as { error?: unknown },
       res.statusText || "Change history failed",
     )
-    const toastMessage =
-      "변경 이력 기록에 실패했습니다. 주주 정보는 저장되었습니다."
+    const userMessage =
+      "변경 이력을 먼저 저장하지 못했습니다. 주주 정보 변경은 반영되지 않았습니다."
     const context = {
       shareholder_change_history_api: {
         shareholderId,
@@ -666,10 +660,9 @@ const recordChangeHistoryViaApi = async (
 
     /** 401/403 은 세션·권한 — Sentry 노이즈 제외 (감사 리포트 F·httpReporting 정책과 동일) */
     if (shouldReportSentryForHttpStatus(res.status)) {
-      reportError(new Error(message), { toastMessage, context })
-    } else {
-      toast.error(toastMessage)
+      reportError(new Error(message), { context, toastMessage: undefined })
     }
+    throw new Error(userMessage)
   }
 }
 
@@ -706,17 +699,23 @@ export const usePatchShareholder = () => {
         }
       }
       // 캐시된 session.access_token은 만료돼도 남을 수 있음 → 변경 이력 POST는 항상 getAccessToken(갱신 포함)
+      // 변경 이력이 필요하면 API 성공 후에만 shareholders update (원자적 UX)
       if (entries.length > 0) {
-        const tokenForHistory = await getAccessToken()
-        if (tokenForHistory) {
-          await recordChangeHistoryViaApi(id, tokenForHistory, entries)
-        } else {
+        let tokenForHistory = await getAccessToken()
+        if (!tokenForHistory) {
+          tokenForHistory = await recoverAccessTokenAfterAuthFailure()
+        }
+        if (!tokenForHistory) {
           logChangeHistoryClientSkip("no_access_token", {
             shareholderId: id,
             entryCount: entries.length,
             fields: entries.map((e) => e.field),
           })
+          throw new Error(
+            "인증 세션이 없어 변경 이력을 저장할 수 없습니다. 로그인 후 다시 시도해 주세요.",
+          )
         }
+        await recordChangeHistoryViaApi(id, tokenForHistory, entries)
       }
       const { data, error } = await supabase
         .from("shareholders")
@@ -738,8 +737,10 @@ export const usePatchShareholder = () => {
         queryKey: ["shareholderChangeHistory", variables.patch.id],
       })
     },
-    onError: () => {
-      toast.error("저장에 실패했습니다.")
+    onError: (e: unknown) => {
+      const msg =
+        e instanceof Error && e.message ? e.message : "저장에 실패했습니다."
+      toast.error(msg)
     },
   })
 }
@@ -883,21 +884,13 @@ async function fetchShareholderChangeHistoryForMap(
 ): Promise<ShareholderChangeHistoryForMapItem[]> {
   const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
   let token = await getAccessToken()
-  if (!token) return []
-  let res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (res.status === 401) {
-    const { error: refreshErr } = await supabase.auth.refreshSession()
-    if (!refreshErr) {
-      token = (await getAccessToken()) ?? ""
-      if (token) {
-        res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      }
-    }
+  if (!token) {
+    token = (await recoverAccessTokenAfterAuthFailure()) ?? ""
   }
+  if (!token) return []
+  const res = await fetchWithBearerRetry(token, (t) =>
+    fetch(url, { headers: { Authorization: `Bearer ${t}` } }),
+  )
   if (!res.ok) return []
   const json = (await res.json()) as {
     history?: ChangeHistoryRow[]

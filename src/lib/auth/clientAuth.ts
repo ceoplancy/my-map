@@ -66,6 +66,14 @@ export async function getAccessToken(): Promise<string | null> {
     return session.access_token
   }
 
+  return refreshSessionOrFallbackAccessToken()
+}
+
+/**
+ * `refreshSession` 후 실패 시 `getUser`로 세션을 유도하고 다시 `getSession`으로 토큰을 읽는다.
+ * `getAccessToken`의 만료 갱신 경로와 `recoverAccessTokenAfterAuthFailure`가 공유한다.
+ */
+async function refreshSessionOrFallbackAccessToken(): Promise<string | null> {
   const { data: refreshed, error: refreshErr } =
     await supabase.auth.refreshSession()
   if (!refreshErr && refreshed.session?.access_token) {
@@ -78,4 +86,47 @@ export async function getAccessToken(): Promise<string | null> {
   const { data: after } = await supabase.auth.getSession()
 
   return after.session?.access_token ?? null
+}
+
+/** API Route가 Bearer를 거절했을 때 재시도할지 판단 (토큰 만료·권한 등) */
+export function isLikelyAuthFailureStatus(status: number): boolean {
+  return status === 401 || status === 403
+}
+
+/**
+ * 서버가 401/403을 반환했거나 `getAccessToken()`이 null일 때,
+ * `refreshSession` 후 `getUser` 폴백으로 액세스 토큰을 다시 받는다.
+ */
+export async function recoverAccessTokenAfterAuthFailure(): Promise<
+  string | null
+> {
+  return refreshSessionOrFallbackAccessToken()
+}
+
+type FetchWithBearerRetryOptions = {
+  maxAuthRetries?: number
+}
+
+/**
+ * Bearer 요청 후 401/403이면 토큰 재발급·재시도한다.
+ * `execute`는 매 시도마다 새 Bearer 토큰 문자열로 호출된다.
+ *
+ * @param options.maxAuthRetries 인증 실패 후 추가 시도 횟수 (기본 1 → 요청 최대 2회)
+ */
+export async function fetchWithBearerRetry(
+  initialAccessToken: string,
+  execute: (_token: string) => Promise<Response>,
+  options?: FetchWithBearerRetryOptions,
+): Promise<Response> {
+  const maxAuthRetries = options?.maxAuthRetries ?? 1
+  let res = await execute(initialAccessToken)
+
+  for (let i = 0; i < maxAuthRetries; i++) {
+    if (!isLikelyAuthFailureStatus(res.status)) break
+    const next = await recoverAccessTokenAfterAuthFailure()
+    if (!next) break
+    res = await execute(next)
+  }
+
+  return res
 }
