@@ -1,17 +1,31 @@
 import type { MyWorkspaceItem } from "@/types/db"
 import supabase from "@/lib/supabase/supabaseClient"
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/router"
 import { toast } from "react-toastify"
 import {
   useQuery,
   useMutation,
   useQueryClient,
+  type QueryClient,
   type UseQueryResult,
 } from "@tanstack/react-query"
 import { QUERY_KEYS } from "@/constants/query-keys"
+import { ROUTES } from "@/constants/routes"
 import { getJsonWithBearerIfOk } from "@/lib/apiClient"
 import { fetchAuth } from "@/lib/auth/clientAuth"
 import { reportError } from "@/lib/reportError"
+
+function invalidateAuthCaches(
+  queryClient: QueryClient,
+  options: { includeSignupStatus: boolean },
+) {
+  void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.auth })
+  void queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
+  void queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
+  if (options.includeSignupStatus) {
+    void queryClient.invalidateQueries({ queryKey: ["mySignupStatus"] })
+  }
+}
 
 // =========================================
 // ============== post sign in
@@ -41,11 +55,9 @@ export const usePostSignIn = () => {
   return useMutation({
     mutationFn: (data: { email: string; password: string }) => postSignIn(data),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.auth })
-      void queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
-      void queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
+      invalidateAuthCaches(queryClient, { includeSignupStatus: false })
       toast.success("정상적으로 로그인 되었습니다.")
-      router.push("/workspaces")
+      router.push(ROUTES.workspaces)
     },
     onError: () => {
       toast.error("이메일 또는 비밀번호가 다릅니다.")
@@ -72,12 +84,9 @@ export const usePostSignOut = () => {
   return useMutation({
     mutationFn: postSignOut,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.auth })
-      void queryClient.invalidateQueries({ queryKey: ["myWorkspaces"] })
-      void queryClient.invalidateQueries({ queryKey: ["adminStatus"] })
-      void queryClient.invalidateQueries({ queryKey: ["mySignupStatus"] })
+      invalidateAuthCaches(queryClient, { includeSignupStatus: true })
       toast.success("정상적으로 로그아웃 되었습니다.")
-      router.push("/")
+      router.replace(ROUTES.signIn)
     },
     onError: () => {
       toast.error(

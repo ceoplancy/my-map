@@ -38,6 +38,7 @@ import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
 import { getMapStorageKeys } from "@/constants/map-storage"
+import { ROUTES } from "@/constants/routes"
 
 const WorkspaceMapPage = () => {
   const router = useRouter()
@@ -73,7 +74,15 @@ const WorkspaceMapPage = () => {
     if (!router.isReady || !workspaceId) return
     if (workspacesLoading) return
     if (!resolvedWorkspace) {
-      router.replace("/workspaces")
+      // 로그아웃 직후 workspaces가 []가 되면 resolvedWorkspace가 null이 되어
+      // 무조건 /workspaces로 보내면 로그아웃이 깨진 것처럼 보임. 인증 로딩 중에는 대기.
+      if (isLoading) return
+      if (!user) {
+        router.replace(ROUTES.signIn)
+
+        return
+      }
+      router.replace(ROUTES.workspaces)
 
       return
     }
@@ -85,6 +94,8 @@ const WorkspaceMapPage = () => {
     resolvedWorkspace,
     setCurrentWorkspace,
     router,
+    isLoading,
+    user,
   ])
 
   const { resetFilters, ensureWorkspaceScope } = useFilterStore()
@@ -242,7 +253,7 @@ const WorkspaceMapPage = () => {
   useEffect(() => {
     if (!isLoading && !user) {
       toast.error("로그인이 필요합니다.")
-      router.push("/sign-in")
+      router.push(ROUTES.signIn)
     }
   }, [isLoading, router, user])
 
@@ -367,7 +378,7 @@ const WorkspaceMapPage = () => {
               </MenuItem>
             )}
             <div style={{ flex: 1 }} />
-            <MenuItem onClick={() => router.push("/workspaces")}>
+            <MenuItem onClick={() => router.push(ROUTES.workspaces)}>
               <ListIcon />
               워크스페이스 목록
             </MenuItem>
