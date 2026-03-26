@@ -5,7 +5,6 @@ import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
 import { reportError } from "@/lib/reportError"
 import type { Tables } from "@/types/db"
-import { useSession } from "@/api/auth"
 import {
   usePatchShareholder,
   useShareholderChangeHistory,
@@ -265,7 +264,6 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
   const [formData, setFormData] = useState<Shareholder>(data)
   const patchShareholder = usePatchShareholder()
   const { data: changeHistory = [] } = useShareholderChangeHistory(data.id)
-  const session = useSession().data
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -284,7 +282,6 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           maker: formData.maker,
         },
         userId,
-        accessToken: session?.access_token ?? null,
       })
       toast.success("데이터가 성공적으로 수정되었습니다.")
       onClose()

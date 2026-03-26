@@ -680,9 +680,8 @@ export const usePatchShareholder = () => {
     mutationFn: async (input: {
       patch: Partial<Shareholder> & { id: string }
       userId: string
-      accessToken?: string | null
     }) => {
-      const { patch, userId: _userId, accessToken } = input
+      const { patch, userId: _userId } = input
       const { id, ...rest } = patch
       type ShareholderKey = keyof Omit<Shareholder, "id">
       const fields = Object.keys(rest) as ShareholderKey[]
@@ -706,19 +705,18 @@ export const usePatchShareholder = () => {
           entries.push({ field, old_value: oldVal, new_value: newStr })
         }
       }
-      // 호출부에서 session 캐시가 비어 있어도, 저장 직전 getSession()으로 토큰 보강 (변경 이력 누락 방지)
-      let tokenForHistory = accessToken ?? null
-      if (entries.length > 0 && !tokenForHistory) {
-        tokenForHistory = await getAccessToken()
-      }
-      if (entries.length > 0 && tokenForHistory) {
-        await recordChangeHistoryViaApi(id, tokenForHistory, entries)
-      } else if (entries.length > 0 && !tokenForHistory) {
-        logChangeHistoryClientSkip("no_access_token", {
-          shareholderId: id,
-          entryCount: entries.length,
-          fields: entries.map((e) => e.field),
-        })
+      // 캐시된 session.access_token은 만료돼도 남을 수 있음 → 변경 이력 POST는 항상 getAccessToken(갱신 포함)
+      if (entries.length > 0) {
+        const tokenForHistory = await getAccessToken()
+        if (tokenForHistory) {
+          await recordChangeHistoryViaApi(id, tokenForHistory, entries)
+        } else {
+          logChangeHistoryClientSkip("no_access_token", {
+            shareholderId: id,
+            entryCount: entries.length,
+            fields: entries.map((e) => e.field),
+          })
+        }
       }
       const { data, error } = await supabase
         .from("shareholders")

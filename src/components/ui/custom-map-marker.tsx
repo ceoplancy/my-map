@@ -195,7 +195,6 @@ const CustomMapMarker = ({
         {
           patch,
           userId,
-          accessToken: session?.access_token ?? null,
         },
         {
           onSuccess: () => options?.onSuccess?.(),
@@ -204,7 +203,7 @@ const CustomMapMarker = ({
         },
       )
     },
-    [isShareholderMarker, patchShareholder, userId, session?.access_token],
+    [isShareholderMarker, patchShareholder, userId],
   )
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
