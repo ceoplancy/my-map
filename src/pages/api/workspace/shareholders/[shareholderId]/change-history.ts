@@ -8,6 +8,7 @@ import {
   entriesPreviewForLog,
   logShareholderChangeHistory,
 } from "@/lib/server/shareholderChangeHistoryLog"
+import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
 
 /** Check user is member of shareholder's workspace; return workspaceId or null */
 async function getShareholderWorkspaceAndAuth(
@@ -122,7 +123,10 @@ export default withApiHandler(async (req, res) => {
         httpStatus: 500,
       })
 
-      return res.status(500).json({ error: historyError.message })
+      return res.status(500).json({
+        error: historyError.message,
+        code: historyError.code,
+      })
     }
 
     const rows = history ?? []
@@ -205,8 +209,10 @@ export default withApiHandler(async (req, res) => {
       shareholder_id: shareholderId,
       changed_by: user.id,
       field: String(e.field),
-      old_value: e.old_value ?? null,
-      new_value: e.new_value ?? null,
+      old_value:
+        e.old_value == null ? null : truncateChangeHistoryValue(e.old_value),
+      new_value:
+        e.new_value == null ? null : truncateChangeHistoryValue(e.new_value),
     }))
 
     const { error: insertError } = await admin
@@ -232,7 +238,10 @@ export default withApiHandler(async (req, res) => {
         httpStatus: 500,
       })
 
-      return res.status(500).json({ error: insertError.message })
+      return res.status(500).json({
+        error: insertError.message,
+        code: insertError.code,
+      })
     }
 
     logShareholderChangeHistory(req, {

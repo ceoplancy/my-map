@@ -12,6 +12,7 @@ import type { Tables } from "@/types/db"
 import { apiErrorMessageFromBody } from "@/lib/apiErrorMessage"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError } from "@/lib/reportError"
+import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
 import { getCoordinateRanges } from "@/lib/utils"
 
 type ShareholderList = Tables<"shareholder_lists">
@@ -21,14 +22,16 @@ function toHistoryValue(v: unknown): string | null {
   if (v === null || v === undefined) {
     return null
   }
+  let s: string
   if (typeof v === "string") {
-    return v
-  }
-  if (typeof v === "number" || typeof v === "boolean") {
-    return String(v)
+    s = v
+  } else if (typeof v === "number" || typeof v === "boolean") {
+    s = String(v)
+  } else {
+    s = JSON.stringify(v)
   }
 
-  return JSON.stringify(v)
+  return truncateChangeHistoryValue(s)
 }
 
 const getShareholderLists = async (workspaceId: string) => {
