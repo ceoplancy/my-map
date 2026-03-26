@@ -10,6 +10,14 @@ import {
 } from "@/lib/server/shareholderChangeHistoryLog"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
 
+/** 최근 이력만 조회 — 무제한 select + 다수 Auth Admin 호출 시 Vercel 10s 제한(504) 방지 */
+
+const CHANGE_HISTORY_ROW_LIMIT = 500
+
+/** `getUserById` 병렬 호출 상한 — 고유 변경자가 매우 많을 때 타임아웃 방지 */
+
+const MAX_CHANGED_BY_USER_LOOKUPS = 40
+
 /** Check user is member of shareholder's workspace; return workspaceId or null */
 async function getShareholderWorkspaceAndAuth(
   shareholderId: string,
@@ -97,6 +105,7 @@ export default withApiHandler(async (req, res) => {
       .select("*")
       .eq("shareholder_id", shareholderId)
       .order("changed_at", { ascending: false })
+      .limit(CHANGE_HISTORY_ROW_LIMIT)
 
     if (historyError) {
       logShareholderChangeHistory(req, {
@@ -134,7 +143,7 @@ export default withApiHandler(async (req, res) => {
 
     const changedByIds = [
       ...new Set(rows.map((r: { changed_by: string }) => r.changed_by)),
-    ]
+    ].slice(0, MAX_CHANGED_BY_USER_LOOKUPS)
     const admin = createSupabaseAdmin()
     const authUsers = await Promise.all(
       changedByIds.map((uid) => admin.auth.admin.getUserById(uid)),

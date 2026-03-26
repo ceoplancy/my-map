@@ -31,16 +31,6 @@ function finalizeClientSignOut(queryClient: QueryClient) {
   queryClient.removeQueries({ queryKey: QUERY_KEYS.mySignupStatus })
 }
 
-/** Supabase 세션과 동일한 스냅샷으로 auth 캐시 정렬(로그아웃 확인 등). */
-async function syncAuthSnapshotWithServer(queryClient: QueryClient) {
-  try {
-    const snapshot = await fetchAuth()
-    queryClient.setQueryData(QUERY_KEYS.auth, snapshot)
-  } catch {
-    queryClient.setQueryData(QUERY_KEYS.auth, LOGGED_OUT_AUTH_SNAPSHOT)
-  }
-}
-
 // =========================================
 // ============== post sign in / sign out (mutationFn only)
 // =========================================
@@ -192,26 +182,28 @@ export const useMySignupStatus = () => {
 }
 
 /**
- * 로그인 성공 직후: invalidate 대신 await fetchQuery로 user/session·의존 API가
- * 한 번씩 확정된 뒤에만 라우팅한다(워크스페이스 가드와 레이스 방지).
+ * 로그인 성공 직후: 캐시를 확정한 뒤에만 라우팅(워크스페이스 가드 레이스 방지).
+ * 순차 fetchQuery는 왕복 시간이 합산되어 느려지므로 병렬 처리한다.
  */
 async function syncSessionAfterSignIn(queryClient: QueryClient) {
-  await queryClient.fetchQuery({
-    queryKey: QUERY_KEYS.auth,
-    queryFn: fetchAuth,
-  })
-  await queryClient.fetchQuery({
-    queryKey: QUERY_KEYS.myWorkspaces,
-    queryFn: fetchMyWorkspaces,
-  })
-  await queryClient.fetchQuery({
-    queryKey: QUERY_KEYS.adminStatus,
-    queryFn: fetchAdminStatus,
-  })
-  await queryClient.fetchQuery({
-    queryKey: QUERY_KEYS.mySignupStatus,
-    queryFn: fetchMySignupStatus,
-  })
+  await Promise.all([
+    queryClient.fetchQuery({
+      queryKey: QUERY_KEYS.auth,
+      queryFn: fetchAuth,
+    }),
+    queryClient.fetchQuery({
+      queryKey: QUERY_KEYS.myWorkspaces,
+      queryFn: fetchMyWorkspaces,
+    }),
+    queryClient.fetchQuery({
+      queryKey: QUERY_KEYS.adminStatus,
+      queryFn: fetchAdminStatus,
+    }),
+    queryClient.fetchQuery({
+      queryKey: QUERY_KEYS.mySignupStatus,
+      queryFn: fetchMySignupStatus,
+    }),
+  ])
 }
 
 export const usePostSignIn = () => {
@@ -239,7 +231,6 @@ export const usePostSignOut = () => {
     mutationFn: postSignOut,
     onSuccess: async () => {
       finalizeClientSignOut(queryClient)
-      await syncAuthSnapshotWithServer(queryClient)
       toast.success("정상적으로 로그아웃 되었습니다.")
       await router.replace(ROUTES.signIn)
     },
