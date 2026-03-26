@@ -1,11 +1,15 @@
 import { createSupabaseAdmin } from "@/lib/supabase/supabaseServer"
 import type { AccountType } from "@/types/db"
-import { getAuthUserFromApiRequest, isServiceAdmin } from "@/lib/api-auth"
+import {
+  getAuthUserFromApiRequest,
+  isPlatformAdminMetadata,
+  isServiceAdmin,
+} from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 export default withApiHandler(async (req, res) => {
   const auth = await getAuthUserFromApiRequest(req, res)
-  if (!auth || !(await isServiceAdmin(auth.token))) {
+  if (!auth) {
     return res.status(401).json({ error: "Unauthorized" })
   }
   const { user } = auth
@@ -13,6 +17,9 @@ export default withApiHandler(async (req, res) => {
   const admin = createSupabaseAdmin()
 
   if (req.method === "GET") {
+    if (!(await isServiceAdmin(auth.token))) {
+      return res.status(401).json({ error: "Unauthorized" })
+    }
     const { data: workspaces } = await admin
       .from("workspaces")
       .select("id, name, account_type, created_at")
@@ -22,6 +29,11 @@ export default withApiHandler(async (req, res) => {
   }
 
   if (req.method === "POST") {
+    const canCreate =
+      (await isServiceAdmin(auth.token)) || isPlatformAdminMetadata(user)
+    if (!canCreate) {
+      return res.status(401).json({ error: "Unauthorized" })
+    }
     const body = req.body as { name?: string; account_type?: AccountType }
     const name = typeof body?.name === "string" ? body.name.trim() : ""
     const account_type = body?.account_type

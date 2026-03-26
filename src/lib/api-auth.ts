@@ -7,6 +7,8 @@ import {
 } from "@/lib/supabase/supabaseServer"
 import type { User } from "@supabase/supabase-js"
 
+export { isPlatformAdminMetadata } from "@/lib/auth/platformRole"
+
 /** 요청에서 Bearer 토큰 추출 */
 export function getBearerToken(req: NextApiRequest): string | null {
   const auth = req.headers.authorization
@@ -82,15 +84,16 @@ function createSupabaseServerClientFromApiCookies(
 }
 
 /**
- * Pages API: **쿠키 세션을 먼저** 검증한 뒤 Bearer로 폴백.
- * 미들웨어가 갱신한 쿠키가 최신인데, 클라이언트가 보내는 Authorization JWT가 아직 만료된 값일 수 있어
- * Bearer 우선이면 401이 난다.
+ * Pages API: 쿠키 세션과 Bearer를 모두 시도해 합치한다.
+ * - 미들웨어가 갱신한 쿠키가 최신인데 Authorization JWT가 만료된 경우 → 쿠키 우선(동일 user.id).
+ * - 로그인 직후 첫 요청에서 쿠키가 아직 이전 세션인데 Authorization은 새 JWT인 경우 → Bearer 우선(다른 user.id).
  */
 export async function getAuthUserFromApiRequest(
   req: NextApiRequest,
   res: NextApiResponse,
 ): Promise<{ user: User; token: string } | null> {
   const supabase = createSupabaseServerClientFromApiCookies(req, res)
+  let fromCookie: { user: User; token: string } | null = null
   if (supabase) {
     const {
       data: { user },
@@ -99,17 +102,26 @@ export async function getAuthUserFromApiRequest(
     if (!userErr && user) {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
-      if (token) return { user, token }
+      if (token) {
+        fromCookie = { user, token }
+      }
     }
   }
 
   const bearer = getBearerToken(req)
+  let fromBearer: { user: User; token: string } | null = null
   if (bearer) {
-    const fromBearer = await getAuthUser(bearer)
-    if (fromBearer) return fromBearer
+    fromBearer = await getAuthUser(bearer)
   }
 
-  return null
+  if (!fromCookie && !fromBearer) return null
+  if (!fromCookie) return fromBearer
+  if (!fromBearer) return fromCookie
+  if (fromCookie.user.id !== fromBearer.user.id) {
+    return fromBearer
+  }
+
+  return fromCookie
 }
 
 /** 통합 관리자(service_admin): workspace_id가 NULL인 멤버십이 있는지 확인 */

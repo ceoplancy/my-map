@@ -3,6 +3,8 @@ import { getAuthUserFromApiRequest } from "@/lib/api-auth"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 export default withApiHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store, must-revalidate")
+
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" })
   }

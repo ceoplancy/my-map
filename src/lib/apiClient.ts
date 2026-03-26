@@ -98,11 +98,23 @@ export function apiErrorMessageFromHttpResponse(
 
 /**
  * Bearer로 GET — 토큰 없음·비(非)2xx이면 `null`, 성공 시 `data` (본문이 `null`이면 그대로 `null`).
+ * - `accessTokenOverride`: 로그인 직후 등 `getSession()`과의 레이스를 피하기 위해 스냅샷 토큰을 넘길 수 있음.
+ * - 매 요청 `params._t` + `Cache-Control: no-cache`로 동일 URL에 대한 304·빈 본문 재사용을 막는다.
  */
-export async function getJsonWithBearerIfOk<T>(url: string): Promise<T | null> {
-  const token = await getAccessToken()
+export async function getJsonWithBearerIfOk<T>(
+  url: string,
+  accessTokenOverride?: string,
+): Promise<T | null> {
+  const token = accessTokenOverride ?? (await getAccessToken())
   if (!token) return null
-  const res = await apiClient.get<T>(url, { headers: bearerHeaders(token) })
+  const res = await apiClient.get<T>(url, {
+    headers: {
+      ...bearerHeaders(token),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    params: { _t: Date.now() },
+  })
   if (!isHttpOk(res.status)) return null
 
   return res.data as T | null

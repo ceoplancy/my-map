@@ -21,6 +21,23 @@ const LOGGED_OUT_AUTH_SNAPSHOT: AuthSnapshot = {
 }
 
 /**
+ * 로그인/로그아웃을 한 번에 하나만 실행한다.
+ * 로그아웃 요청이 끝나기 전에 로그인하면, 나중에 끝난 `signOut()`이 방금 만든 세션을 지우는
+ * 간헐적 버그가 난다(어떨 때는 되고 어떨 때는 안 됨).
+ */
+let authOperationChain = Promise.resolve()
+
+function enqueueAuthOperation<T>(fn: () => Promise<T>): Promise<T> {
+  const next = authOperationChain.then(() => fn())
+  authOperationChain = next.then(
+    () => undefined,
+    () => undefined,
+  )
+
+  return next
+}
+
+/**
  * 로그아웃 직후: auth 캐시를 비로그인으로 고정하고 의존 쿼리 캐시를 제거한다.
  * invalidate만 하면 refetch가 백그라운드에서 이전 세션으로 레이스할 수 있음.
  */
@@ -38,28 +55,30 @@ const isBenignSignInError = (error: { message?: string; code?: string }) =>
   error.message?.includes("Invalid login credentials") === true ||
   error.code === "invalid_credentials"
 
-const postSignIn = async (data: { email: string; password: string }) => {
-  const { error } = await supabase.auth.signInWithPassword({
-    email: data.email,
-    password: data.password,
+const postSignIn = async (data: { email: string; password: string }) =>
+  enqueueAuthOperation(async () => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    })
+
+    if (error) {
+      if (!isBenignSignInError(error)) {
+        reportError(error)
+      }
+      throw new Error(error.message)
+    }
   })
 
-  if (error) {
-    if (!isBenignSignInError(error)) {
+const postSignOut = async () =>
+  enqueueAuthOperation(async () => {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
       reportError(error)
+      throw new Error(error.message)
     }
-    throw new Error(error.message)
-  }
-}
-
-const postSignOut = async () => {
-  const { error } = await supabase.auth.signOut()
-
-  if (error) {
-    reportError(error)
-    throw new Error(error.message)
-  }
-}
+  })
 
 // =========================================
 // ============== Auth (단일 Query: user + session)
@@ -119,14 +138,28 @@ export const useSession = () => {
 /** @deprecated Use MyWorkspaceItem from @/types/db */
 export type WorkspaceItem = MyWorkspaceItem
 
-export const fetchMyWorkspaces = async (): Promise<MyWorkspaceItem[]> => {
-  const json = await getJsonWithBearerIfOk<unknown>("/api/me/workspaces")
+async function loadMyWorkspaces(
+  accessTokenOverride?: string,
+): Promise<MyWorkspaceItem[]> {
+  const json = await getJsonWithBearerIfOk<unknown>(
+    "/api/me/workspaces",
+    accessTokenOverride,
+  )
   if (json === null) return []
 
   return Array.isArray(json) ? (json as MyWorkspaceItem[]) : []
 }
 
-export type UseMyWorkspacesOptions = { enabled?: boolean }
+export async function fetchMyWorkspaces(): Promise<MyWorkspaceItem[]> {
+  return loadMyWorkspaces()
+}
+
+export type UseMyWorkspacesOptions = {
+  enabled?: boolean
+
+  /** 기본값은 QueryClient 전역. 워크스페이스 목록 페이지는 `always` 권장 */
+  refetchOnMount?: boolean | "always"
+}
 
 export const useMyWorkspaces = (options?: UseMyWorkspacesOptions) => {
   return useQuery({
@@ -134,15 +167,17 @@ export const useMyWorkspaces = (options?: UseMyWorkspacesOptions) => {
     queryFn: fetchMyWorkspaces,
     staleTime: 1000 * 60 * 2,
     enabled: options?.enabled ?? true,
+    refetchOnMount: options?.refetchOnMount,
   })
 }
 
 /** 통합 관리자(service_admin) 여부 — 통합 관리 메뉴/API 접근 권한 */
-export const fetchAdminStatus = async (): Promise<{
+async function loadAdminStatus(accessTokenOverride?: string): Promise<{
   isServiceAdmin: boolean
-}> => {
+}> {
   const json = await getJsonWithBearerIfOk<{ isServiceAdmin?: boolean }>(
     "/api/me/admin-status",
+    accessTokenOverride,
   )
   if (json === null) return { isServiceAdmin: false }
 
@@ -151,11 +186,25 @@ export const fetchAdminStatus = async (): Promise<{
   }
 }
 
-export const useAdminStatus = () => {
+export async function fetchAdminStatus(): Promise<{
+  isServiceAdmin: boolean
+}> {
+  return loadAdminStatus()
+}
+
+export type UseAdminStatusOptions = {
+  enabled?: boolean
+
+  refetchOnMount?: boolean | "always"
+}
+
+export const useAdminStatus = (options?: UseAdminStatusOptions) => {
   return useQuery({
     queryKey: QUERY_KEYS.adminStatus,
     queryFn: fetchAdminStatus,
     staleTime: 1000 * 60 * 2,
+    enabled: options?.enabled ?? true,
+    refetchOnMount: options?.refetchOnMount,
   })
 }
 
@@ -165,12 +214,19 @@ export type SignupStatus = {
   created_at: string
 } | null
 
-export const fetchMySignupStatus = async (): Promise<SignupStatus> => {
+async function loadMySignupStatus(
+  accessTokenOverride?: string,
+): Promise<SignupStatus> {
   const json = await getJsonWithBearerIfOk<SignupStatus>(
     "/api/me/signup-status",
+    accessTokenOverride,
   )
 
   return json ?? null
+}
+
+export async function fetchMySignupStatus(): Promise<SignupStatus> {
+  return loadMySignupStatus()
 }
 
 export const useMySignupStatus = () => {
@@ -183,25 +239,32 @@ export const useMySignupStatus = () => {
 
 /**
  * 로그인 성공 직후: 캐시를 확정한 뒤에만 라우팅(워크스페이스 가드 레이스 방지).
- * 순차 fetchQuery는 왕복 시간이 합산되어 느려지므로 병렬 처리한다.
+ * - `fetchAuth`로 세션 스냅샷을 확정한 뒤, 그 `access_token`을 그대로 `/api/me/*`에 넘긴다
+ *   (`getAccessToken()`과의 미세 레이스·304 캐시로 빈 목록이 캐시되는 것 방지).
  */
 async function syncSessionAfterSignIn(queryClient: QueryClient) {
+  const authSnapshot = await queryClient.fetchQuery({
+    queryKey: QUERY_KEYS.auth,
+    queryFn: fetchAuth,
+  })
+  const accessToken = authSnapshot.session?.access_token
+  if (!accessToken) {
+    throw new Error(
+      "로그인 직후 세션 토큰을 확인하지 못했습니다. 다시 시도해 주세요.",
+    )
+  }
   await Promise.all([
     queryClient.fetchQuery({
-      queryKey: QUERY_KEYS.auth,
-      queryFn: fetchAuth,
-    }),
-    queryClient.fetchQuery({
       queryKey: QUERY_KEYS.myWorkspaces,
-      queryFn: fetchMyWorkspaces,
+      queryFn: () => loadMyWorkspaces(accessToken),
     }),
     queryClient.fetchQuery({
       queryKey: QUERY_KEYS.adminStatus,
-      queryFn: fetchAdminStatus,
+      queryFn: () => loadAdminStatus(accessToken),
     }),
     queryClient.fetchQuery({
       queryKey: QUERY_KEYS.mySignupStatus,
-      queryFn: fetchMySignupStatus,
+      queryFn: () => loadMySignupStatus(accessToken),
     }),
   ])
 }
@@ -213,9 +276,21 @@ export const usePostSignIn = () => {
   return useMutation({
     mutationFn: (data: { email: string; password: string }) => postSignIn(data),
     onSuccess: async () => {
-      await syncSessionAfterSignIn(queryClient)
+      try {
+        await syncSessionAfterSignIn(queryClient)
+      } catch (e) {
+        reportError(e)
+        toast.error(
+          e instanceof Error
+            ? e.message
+            : "세션을 불러오지 못했습니다. 다시 로그인해 주세요.",
+        )
+
+        return
+      }
+      toast.dismiss()
       toast.success("정상적으로 로그인 되었습니다.")
-      await router.push(ROUTES.workspaces)
+      await router.replace(ROUTES.workspaces)
     },
     onError: () => {
       toast.error("이메일 또는 비밀번호가 다릅니다.")
@@ -231,6 +306,7 @@ export const usePostSignOut = () => {
     mutationFn: postSignOut,
     onSuccess: async () => {
       finalizeClientSignOut(queryClient)
+      toast.dismiss()
       toast.success("정상적으로 로그아웃 되었습니다.")
       await router.replace(ROUTES.signIn)
     },

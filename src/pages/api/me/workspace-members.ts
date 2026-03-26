@@ -23,6 +23,8 @@ const WORKSPACE_ROLES = [
 
 /** GET: workspace members. POST: add member by email (workspace admin only). */
 export default withApiHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store, must-revalidate")
+
   const auth = await getAuthUserFromApiRequest(req, res)
   if (!auth) return res.status(401).json({ error: "Unauthorized" })
   const { user, token } = auth
