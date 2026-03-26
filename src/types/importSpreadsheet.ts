@@ -6,6 +6,7 @@ import type { Json } from "./db"
  */
 export type ImportSpreadsheetRow = {
   id: number
+  shareholderId?: string | null
   address: string | null
   company: string | null
   history: Json | null

@@ -7,7 +7,8 @@ import { ExcelImportView } from "@/components/excel-import/ExcelImportView"
 import { useSpreadsheetImport } from "@/hooks/useSpreadsheetImport"
 import { useKakaoMaps } from "@/hooks/useKakaoMaps"
 import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
-import type { TablesInsert } from "@/types/db"
+import type { TablesInsert, TablesUpdate } from "@/types/db"
+import { parseSpreadsheetRow } from "@/lib/spreadsheetImport"
 
 import AdminLayout from "@/layouts/AdminLayout"
 import Link from "next/link"
@@ -42,6 +43,45 @@ function spreadsheetRowToShareholderInsert(
     image: row.image ?? null,
     history: row.history ?? null,
   }
+}
+
+/** 스프레드시트 덮어쓰기용 — shareholder_change_history 는 건드리지 않음 */
+function patchFromImportRow(
+  row: ImportSpreadsheetRow,
+): TablesUpdate<"shareholders"> {
+  return {
+    name: row.name ?? null,
+    address: row.address ?? null,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
+    latlngaddress: row.latlngaddress ?? null,
+    company: row.company ?? null,
+    status: row.status ?? null,
+    stocks: row.stocks ?? 0,
+    memo: row.memo ?? null,
+    maker: row.maker ?? null,
+    image: row.image ?? null,
+    history: row.history ?? null,
+  }
+}
+
+async function fetchShareholderIdsForList(
+  listId: string,
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("shareholders")
+    .select("id")
+    .eq("list_id", listId)
+  if (error) throw error
+
+  return new Set((data ?? []).map((r) => r.id))
+}
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+
+  return out
 }
 
 const Container = styled.div`
@@ -256,8 +296,11 @@ export function ExcelImportPageContent() {
       const workbook = XLSX.read(spreadsheetFile, { type: "buffer" })
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const data = XLSX.utils.sheet_to_json(worksheet)
+      const parsedRows = data.map((raw, i) =>
+        parseSpreadsheetRow(raw as Record<string, unknown>, i),
+      )
 
-      const totalRows = data.length
+      const totalRows = parsedRows.length
 
       setProgress({ current: 0, total: totalRows })
 
@@ -268,10 +311,7 @@ export function ExcelImportPageContent() {
       let processedRows = 0
 
       for (let i = 0; i < totalBatches; i++) {
-        const batch = data.slice(
-          i * BATCH_SIZE,
-          (i + 1) * BATCH_SIZE,
-        ) as ImportSpreadsheetRow[]
+        const batch = parsedRows.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE)
         const batchResults = await processBatch(batch, geocoder)
         allResults = [...allResults, ...batchResults]
 
@@ -284,23 +324,50 @@ export function ExcelImportPageContent() {
       }
 
       if (allResults.length > 0) {
-        const toInsert = allResults.map((row) =>
-          spreadsheetRowToShareholderInsert(row, listId),
-        )
-        const { error } = await supabase
-          .from("shareholders")
-          .insert(toInsert)
-          .select()
+        const existingIds = await fetchShareholderIdsForList(listId)
+        const toInsert: ShareholderInsert[] = []
+        const toUpdate: { id: string; patch: TablesUpdate<"shareholders"> }[] =
+          []
 
-        if (error) {
-          reportError(error, {
-            toastMessage: `데이터 업로드 중 오류가 발생했습니다. ${error.message}`,
-          })
-          throw error
+        for (const row of allResults) {
+          const sid = row.shareholderId?.trim()
+          if (sid && existingIds.has(sid)) {
+            toUpdate.push({ id: sid, patch: patchFromImportRow(row) })
+          } else {
+            toInsert.push(spreadsheetRowToShareholderInsert(row, listId))
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { error } = await supabase
+            .from("shareholders")
+            .insert(toInsert)
+            .select()
+
+          if (error) {
+            reportError(error, {
+              toastMessage: `데이터 업로드 중 오류가 발생했습니다. ${error.message}`,
+            })
+            throw error
+          }
+        }
+
+        for (const group of chunkArray(toUpdate, 50)) {
+          await Promise.all(
+            group.map(async ({ id, patch }) => {
+              const { error } = await supabase
+                .from("shareholders")
+                .update(patch)
+                .eq("id", id)
+                .eq("list_id", listId)
+
+              if (error) throw error
+            }),
+          )
         }
 
         toast.success(
-          `${allResults.length}개의 데이터가 성공적으로 업로드되었습니다.`,
+          `신규 ${toInsert.length}건, 갱신 ${toUpdate.length}건을 반영했습니다. (파일 가져오기는 변경 이력에 기록되지 않습니다)`,
         )
       }
 
@@ -335,12 +402,26 @@ export function ExcelImportPageContent() {
       const result = await handleGeocoding(geocoder, editedData)
 
       if (result.success && result.data) {
-        const row = spreadsheetRowToShareholderInsert(result.data, listId)
-        const { error } = await supabase
-          .from("shareholders")
-          .insert([row])
-          .select()
-        if (error) throw error
+        const row = result.data
+        const existingIds = await fetchShareholderIdsForList(listId)
+        const sid = row.shareholderId?.trim()
+
+        if (sid && existingIds.has(sid)) {
+          const { error } = await supabase
+            .from("shareholders")
+            .update(patchFromImportRow(row))
+            .eq("id", sid)
+            .eq("list_id", listId)
+            .select()
+          if (error) throw error
+        } else {
+          const insertRow = spreadsheetRowToShareholderInsert(row, listId)
+          const { error } = await supabase
+            .from("shareholders")
+            .insert([insertRow])
+            .select()
+          if (error) throw error
+        }
 
         setFailData(
           failData.filter(
@@ -387,6 +468,7 @@ export function ExcelImportPageContent() {
       setProgress({ current: 0, total: totalItems })
 
       const successIndices = new Set<number>()
+      const existingIds = await fetchShareholderIdsForList(listId)
 
       for (let i = 0; i < totalItems; i++) {
         setProgress({ current: i + 1, total: totalItems })
@@ -395,12 +477,25 @@ export function ExcelImportPageContent() {
         const result = await handleGeocoding(geocoder, failData[i])
 
         if (result.success && result.data) {
-          const row = spreadsheetRowToShareholderInsert(result.data, listId)
-          const { error } = await supabase
-            .from("shareholders")
-            .insert([row])
-            .select()
-          if (!error) successIndices.add(i)
+          const row = result.data
+          const sid = row.shareholderId?.trim()
+
+          let res
+          if (sid && existingIds.has(sid)) {
+            res = await supabase
+              .from("shareholders")
+              .update(patchFromImportRow(row))
+              .eq("id", sid)
+              .eq("list_id", listId)
+              .select()
+          } else {
+            const insertRow = spreadsheetRowToShareholderInsert(row, listId)
+            res = await supabase
+              .from("shareholders")
+              .insert([insertRow])
+              .select()
+          }
+          if (!res.error) successIndices.add(i)
 
           await new Promise((r) => setTimeout(r, 1000))
         }

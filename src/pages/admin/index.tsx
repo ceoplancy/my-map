@@ -395,6 +395,7 @@ export function WorkspaceDashboardBody() {
       return
     }
     const rows = (shareholders as Tables<"shareholders">[]).map((s) => ({
+      주주ID: s.id,
       이름: s.name ?? "",
       상태: s.status ?? "",
       주식수: s.stocks ?? 0,
@@ -531,7 +532,7 @@ export function WorkspaceDashboardBody() {
                 />
               </FilterGroup>
               <ExportButton onClick={handleExportExcel}>
-                .xlsx 내보내기 ({shareholders.length}건)
+                엑셀 내보내기 ({shareholders.length}건)
               </ExportButton>
             </FilterRow>
           </ContentCard>

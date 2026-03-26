@@ -248,6 +248,7 @@ interface Props {
 }
 
 export const FIELD_LABELS: Record<string, string> = {
+  shareholderId: "주주ID(재업로드 시 갱신)",
   name: "이름",
   company: "회사명(구분1)",
   status: "상태",

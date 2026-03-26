@@ -1,7 +1,7 @@
-import { useGetUsers } from "@/api/supabase"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import EditShareholderModal from "./EditShareholderModal"
 import AddShareholderModal from "./AddShareholderModal"
 import {
@@ -22,6 +22,7 @@ import {
   useShareholders,
   useDeleteShareholder,
   useChangesForList,
+  useWorkspaceMembersWithUsers,
   type LatestChange,
   type ChangeEntry,
 } from "@/api/workspace"
@@ -30,8 +31,23 @@ import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
 import * as XLSX from "xlsx"
 import { removeTags } from "@/lib/utils"
+import supabase from "@/lib/supabase/supabaseClient"
+import { useGetUsers } from "@/api/supabase"
 
 type Shareholder = Tables<"shareholders">
+
+const EMPTY_CELL = "—"
+
+function formatModifiedAtDisplay(iso: string): string {
+  if (!iso || iso === "-" || iso === EMPTY_CELL) return EMPTY_CELL
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(t))
+}
 
 /** date input (YYYY-MM-DD) → 로컬 자정 ms */
 function parseLocalDateStartMs(s: string): number | null {
@@ -278,11 +294,26 @@ const PageButton = styled.button<{ isActive?: boolean }>`
 
 const ITEMS_PER_PAGE = 10
 
-const FilterContainer = styled.div`
+const FilterWrap = styled.div`
   display: flex;
-  gap: 1.5rem;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const FilterGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 1rem 1.25rem;
+  align-items: end;
+`
+
+const FilterToolbar = styled.div`
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid ${COLORS.gray[100]};
 `
 
 const StocksRangeContainer = styled.div`
@@ -357,9 +388,14 @@ const Label = styled.label`
 
 const FilterSelect = styled(Select)`
   width: 100%;
+  min-width: 0;
   &:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
+`
+
+const ModifierSelect = styled(FilterSelect)`
+  min-width: 12rem;
 `
 
 type SortField = keyof Shareholder | "history_modifier" | "history_modified_at"
@@ -431,7 +467,26 @@ export default function ShareholderList({ listId, listName }: Props) {
     isPending: shareholdersPending,
     refetch,
   } = useShareholders({ listId })
+
+  const { data: listMeta } = useQuery({
+    queryKey: ["shareholderListWorkspace", listId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shareholder_lists")
+        .select("workspace_id")
+        .eq("id", listId)
+        .single()
+      if (error) throw error
+
+      return data
+    },
+    enabled: !!listId,
+  })
+  const workspaceId = listMeta?.workspace_id ?? null
+
+  const { data: workspaceMembers } = useWorkspaceMembersWithUsers(workspaceId)
   const { data: usersData } = useGetUsers(1, 100)
+
   const deleteShareholderMutation = useDeleteShareholder()
   const { data: changesData } = useChangesForList(listId)
   const latestChanges = useMemo(
@@ -443,19 +498,53 @@ export default function ShareholderList({ listId, listName }: Props) {
     [changesData],
   )
 
+  /** 표시명: 워크스페이스 멤버 우선, 없으면 플랫폼 사용자 목록(보조) */
   const usersMap = useMemo(() => {
     const m: Record<string, string> = {}
+    for (const mem of workspaceMembers ?? []) {
+      m[mem.user_id] = mem.name?.trim() || mem.email || mem.user_id
+    }
     for (const u of usersData?.users ?? []) {
-      m[u.id] = u.user_metadata?.name || u.email || u.id
+      if (!m[u.id]) {
+        const name = u.user_metadata?.name
+        m[u.id] =
+          (typeof name === "string" ? name.trim() : "") || u.email || u.id
+      }
     }
 
     return m
-  }, [usersData])
+  }, [workspaceMembers, usersData])
+
+  /** 최종 수정자 필터 옵션 = 명부에 실제로 등장하는 latest changed_by 만 (열과 동일 기준) */
+  const latestModifierIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const sid of Object.keys(latestChanges)) {
+      const uid = latestChanges[sid]?.changed_by
+      if (uid) ids.add(uid)
+    }
+
+    return [...ids].sort((a, b) =>
+      (usersMap[a] ?? a).localeCompare(usersMap[b] ?? b, "ko"),
+    )
+  }, [latestChanges, usersMap])
+
+  useEffect(() => {
+    if (!filters.modifier) return
+    if (changesData === undefined) return
+    if (latestModifierIds.length === 0) {
+      setFilters((prev) => ({ ...prev, modifier: "" }))
+
+      return
+    }
+    if (!latestModifierIds.includes(filters.modifier)) {
+      setFilters((prev) => ({ ...prev, modifier: "" }))
+    }
+  }, [filters.modifier, latestModifierIds, changesData])
 
   const getLatestModifier = useCallback(
     (shareholderId: string) => {
       const entry = latestChanges[shareholderId]
-      if (!entry) return "-"
+      if (!entry) return EMPTY_CELL
 
       return usersMap[entry.changed_by] ?? entry.changed_by
     },
@@ -465,7 +554,7 @@ export default function ShareholderList({ listId, listName }: Props) {
   const getLatestModifiedDate = useCallback(
     (shareholderId: string) => {
       const entry = latestChanges[shareholderId]
-      if (!entry) return "-"
+      if (!entry) return EMPTY_CELL
 
       return entry.changed_at
     },
@@ -532,11 +621,10 @@ export default function ShareholderList({ listId, listName }: Props) {
         !filters.stocksMax.trim() ||
         (!Number.isNaN(maxN) && item.stocks <= maxN)
 
+      /** 최종 수정자 열과 동일: shareholder_change_history 의 "최신 1건" changed_by 만 비교 */
       const matchesModifier =
         filters.modifier === "" ||
-        latestChanges[item.id]?.changed_by === filters.modifier ||
-        (allChanges[item.id]?.some((e) => e.changed_by === filters.modifier) ??
-          false)
+        latestChanges[item.id]?.changed_by === filters.modifier
 
       const hasModifiedRange =
         Boolean(filters.modifiedFrom.trim()) ||
@@ -567,13 +655,7 @@ export default function ShareholderList({ listId, listName }: Props) {
         matchesModifiedRange
       )
     })
-  }, [
-    shareholdersData,
-    filters,
-    latestChanges,
-    allChanges,
-    getComparableModifiedTimeMs,
-  ])
+  }, [shareholdersData, filters, latestChanges, getComparableModifiedTimeMs])
 
   const sortedData = useMemo(() => {
     return [...filteredData].sort((a, b) => {
@@ -583,9 +665,9 @@ export default function ShareholderList({ listId, listName }: Props) {
         const aModifier = getLatestModifier(a.id)
         const bModifier = getLatestModifier(b.id)
 
-        if (aModifier === "-" && bModifier !== "-") return 1
-        if (bModifier === "-" && aModifier !== "-") return -1
-        if (aModifier === "-" && bModifier === "-") return 0
+        if (aModifier === EMPTY_CELL && bModifier !== EMPTY_CELL) return 1
+        if (bModifier === EMPTY_CELL && aModifier !== EMPTY_CELL) return -1
+        if (aModifier === EMPTY_CELL && bModifier === EMPTY_CELL) return 0
 
         const comparison =
           aModifier < bModifier ? -1 : aModifier > bModifier ? 1 : 0
@@ -597,9 +679,9 @@ export default function ShareholderList({ listId, listName }: Props) {
         const aDate = getLatestModifiedDate(a.id)
         const bDate = getLatestModifiedDate(b.id)
 
-        if (aDate === "-" && bDate !== "-") return 1
-        if (bDate === "-" && aDate !== "-") return -1
-        if (aDate === "-" && bDate === "-") return 0
+        if (aDate === EMPTY_CELL && bDate !== EMPTY_CELL) return 1
+        if (bDate === EMPTY_CELL && aDate !== EMPTY_CELL) return -1
+        if (aDate === EMPTY_CELL && bDate === EMPTY_CELL) return 0
 
         const comparison = aDate < bDate ? -1 : aDate > bDate ? 1 : 0
 
@@ -702,6 +784,7 @@ export default function ShareholderList({ listId, listName }: Props) {
 
   const handleExport = () => {
     const exportData = sortedData.map((item: Shareholder) => ({
+      주주ID: item.id,
       이름: item.name ?? "",
       회사명: item.company ?? "",
       주소: item.address ?? "",
@@ -709,12 +792,13 @@ export default function ShareholderList({ listId, listName }: Props) {
       주식수: item.stocks ?? 0,
       메모: item.memo ?? "",
       최종수정자: getLatestModifier(item.id),
-      최종수정일: getLatestModifiedDate(item.id),
+      최종수정일: formatModifiedAtDisplay(getLatestModifiedDate(item.id)),
       변경이력: formatHistoryForExport(item.id),
     }))
 
     const ws = XLSX.utils.json_to_sheet(exportData)
     ws["!cols"] = [
+      { wch: 38 },
       { wch: 12 },
       { wch: 15 },
       { wch: 40 },
@@ -768,102 +852,108 @@ export default function ShareholderList({ listId, listName }: Props) {
             />
           </SearchInputWrapper>
         </FilterHeader>
-        <FilterContainer>
-          <FormGroup>
-            <Label>상태</Label>
-            <FilterSelect
-              value={filters.status}
-              onChange={(e) => handleFilterChange("status", e.target.value)}>
-              <option value="">모든 상태</option>
-              <option value="미방문">미방문</option>
-              <option value="완료">완료</option>
-              <option value="보류">보류</option>
-              <option value="실패">실패</option>
-            </FilterSelect>
-          </FormGroup>
+        <FilterWrap>
+          <FilterGrid>
+            <FormGroup>
+              <Label>상태</Label>
+              <FilterSelect
+                value={filters.status}
+                onChange={(e) => handleFilterChange("status", e.target.value)}>
+                <option value="">모든 상태</option>
+                <option value="미방문">미방문</option>
+                <option value="완료">완료</option>
+                <option value="보류">보류</option>
+                <option value="실패">실패</option>
+              </FilterSelect>
+            </FormGroup>
 
-          <FormGroup>
-            <Label>주식수 범위</Label>
-            <StocksRangeContainer>
-              <StocksInput
-                type="number"
-                placeholder="최소"
-                value={filters.stocksMin}
-                onChange={(e) =>
-                  handleFilterChange("stocksMin", e.target.value)
-                }
-              />
-              <StocksSeparator>~</StocksSeparator>
-              <StocksInput
-                type="number"
-                placeholder="최대"
-                value={filters.stocksMax}
-                onChange={(e) =>
-                  handleFilterChange("stocksMax", e.target.value)
-                }
-              />
-            </StocksRangeContainer>
-          </FormGroup>
+            <FormGroup>
+              <Label>주식수 범위</Label>
+              <StocksRangeContainer>
+                <StocksInput
+                  type="number"
+                  placeholder="최소"
+                  value={filters.stocksMin}
+                  onChange={(e) =>
+                    handleFilterChange("stocksMin", e.target.value)
+                  }
+                />
+                <StocksSeparator>~</StocksSeparator>
+                <StocksInput
+                  type="number"
+                  placeholder="최대"
+                  value={filters.stocksMax}
+                  onChange={(e) =>
+                    handleFilterChange("stocksMax", e.target.value)
+                  }
+                />
+              </StocksRangeContainer>
+            </FormGroup>
 
-          <FormGroup>
-            <Label>수정자</Label>
-            <FilterSelect
-              value={filters.modifier}
-              onChange={(e) => handleFilterChange("modifier", e.target.value)}>
-              <option value="">모든 수정자</option>
-              {usersData?.users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.user_metadata?.name || user.email}
-                </option>
-              ))}
-            </FilterSelect>
-          </FormGroup>
+            <FormGroup>
+              <Label>최종 수정자</Label>
+              <ModifierSelect
+                value={filters.modifier}
+                onChange={(e) => handleFilterChange("modifier", e.target.value)}
+                title="표시 열과 동일: 변경 이력 기준 최신 수정자만">
+                <option value="">모든 최종 수정자</option>
+                {latestModifierIds.map((uid) => (
+                  <option key={uid} value={uid}>
+                    {usersMap[uid] ?? uid}
+                  </option>
+                ))}
+              </ModifierSelect>
+            </FormGroup>
 
-          <FormGroup>
-            <Label>최종 수정일</Label>
-            <StocksRangeContainer>
-              <StocksInput
-                type="date"
-                aria-label="최종 수정일 시작"
-                value={filters.modifiedFrom}
-                onChange={(e) =>
-                  handleFilterChange("modifiedFrom", e.target.value)
-                }
-              />
-              <StocksSeparator>~</StocksSeparator>
-              <StocksInput
-                type="date"
-                aria-label="최종 수정일 끝"
-                value={filters.modifiedTo}
-                onChange={(e) =>
-                  handleFilterChange("modifiedTo", e.target.value)
-                }
-              />
-            </StocksRangeContainer>
-          </FormGroup>
+            <FormGroup>
+              <Label>최종 수정일</Label>
+              <StocksRangeContainer>
+                <StocksInput
+                  type="date"
+                  aria-label="최종 수정일 시작"
+                  value={filters.modifiedFrom}
+                  onChange={(e) =>
+                    handleFilterChange("modifiedFrom", e.target.value)
+                  }
+                />
+                <StocksSeparator>~</StocksSeparator>
+                <StocksInput
+                  type="date"
+                  aria-label="최종 수정일 끝"
+                  value={filters.modifiedTo}
+                  onChange={(e) =>
+                    handleFilterChange("modifiedTo", e.target.value)
+                  }
+                />
+              </StocksRangeContainer>
+            </FormGroup>
+          </FilterGrid>
 
-          <ClearFiltersButton
-            onClick={() => {
-              setFilters({
-                search: "",
-                status: "",
-                stocksMin: "",
-                stocksMax: "",
-                modifier: "",
-                modifiedFrom: "",
-                modifiedTo: "",
-              })
-              setCurrentPage(1)
-            }}>
-            <ClearIcon />
-            필터 초기화
-          </ClearFiltersButton>
+          <FilterToolbar>
+            <ClearFiltersButton
+              type="button"
+              onClick={() => {
+                setFilters({
+                  search: "",
+                  status: "",
+                  stocksMin: "",
+                  stocksMax: "",
+                  modifier: "",
+                  modifiedFrom: "",
+                  modifiedTo: "",
+                })
+                setCurrentPage(1)
+              }}>
+              <ClearIcon />
+              필터 초기화
+            </ClearFiltersButton>
 
-          <ExportButton onClick={handleExport}>
-            <DownloadIcon />
-            .xlsx 내보내기
-          </ExportButton>
-        </FilterContainer>
+            <ExportButton type="button" onClick={handleExport}>
+              <DownloadIcon />
+              .xlsx 내보내기
+            </ExportButton>
+          </FilterToolbar>
+        </FilterWrap>
       </FilterSection>
 
       <TableWrapper>
@@ -943,7 +1033,9 @@ export default function ShareholderList({ listId, listName }: Props) {
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
                 <Td>{getLatestModifier(item.id)}</Td>
-                <Td>{getLatestModifiedDate(item.id)}</Td>
+                <Td>
+                  {formatModifiedAtDisplay(getLatestModifiedDate(item.id))}
+                </Td>
                 <Td>
                   <ActionButton
                     className="edit"

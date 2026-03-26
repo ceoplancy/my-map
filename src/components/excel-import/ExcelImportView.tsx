@@ -334,8 +334,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         case "latlngaddress":
           initialValues[field] = rowData[field] || ""
           break
+        case "shareholderId":
+          initialValues[field] = rowData.shareholderId ?? null
+          break
         default:
-          initialValues[field] = rowData[field]
           break
       }
     })
@@ -459,6 +461,17 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         <Typography variant="body1" color="text.secondary" paragraph>
           .xlsx/.xls 파일을 업로드하여 주소 데이터를 위도/경도 좌표로
           변환합니다.
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          paragraph
+          sx={{ mt: -1 }}>
+          명부에서 내보낸 파일의 <strong>주주ID</strong> 열이 있으면 해당 행은
+          같은 주주로 인식해 필드만 덮어씁니다. 이 경로는{" "}
+          <strong>
+            변경 이력(shareholder_change_history)에 기록되지 않습니다.
+          </strong>
         </Typography>
 
         <form onSubmit={onSubmit}>
