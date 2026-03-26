@@ -42,10 +42,25 @@ export async function fetchAuth(): Promise<AuthSnapshot> {
   }
 }
 
-/** Bearer / fetch용 — 토큰만 필요할 때 (mutation, 비 React 코드) */
+/**
+ * Bearer / fetch용 — API Route에 넣을 액세스 토큰.
+ * `getSession()`만 쓰면 만료 직전·만료 토큰이 그대로 나가 서버에서 `auth_invalid_token`이 날 수 있어,
+ * 만료 임박(60초 이내)이면 `refreshSession` 후 토큰을 반환합니다.
+ */
 export async function getAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.getSession()
   if (error) throw new Error(error.message)
 
-  return data.session?.access_token ?? null
+  let session = data.session
+  if (!session?.access_token) return null
+
+  const expMs = session.expires_at ? session.expires_at * 1000 : 0
+  const refreshBufferMs = 60_000
+  if (!session.expires_at || expMs < Date.now() + refreshBufferMs) {
+    const { data: ref, error: refErr } = await supabase.auth.refreshSession()
+    if (refErr) return null
+    session = ref.session ?? session
+  }
+
+  return session?.access_token ?? null
 }
