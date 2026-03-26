@@ -632,6 +632,7 @@ const recordChangeHistoryViaApi = async (
   const res = await fetchWithBearerRetry(accessToken, (token) =>
     fetch(url, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -853,7 +854,10 @@ async function fetchShareholderChangeHistoryApiJson(
   }
   if (!token) return null
   const res = await fetchWithBearerRetry(token, (t) =>
-    fetch(url, { headers: { Authorization: `Bearer ${t}` } }),
+    fetch(url, {
+      credentials: "include",
+      headers: { Authorization: `Bearer ${t}` },
+    }),
   )
   if (!res.ok) return null
   const json = (await res.json()) as {

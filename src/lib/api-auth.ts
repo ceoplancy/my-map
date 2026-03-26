@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import type { NextApiRequest, NextApiResponse } from "next"
-import { serialize } from "cookie"
+import { parse, serialize } from "cookie"
 import {
   createSupabaseAdmin,
   createSupabaseAnon,
@@ -32,7 +32,33 @@ export async function getAuthUser(
   return { user, token }
 }
 
-/** Pages API 전용 — `req.cookies` + `Set-Cookie`로 미들웨어와 동일한 세션을 읽는다. */
+/**
+ * Supabase SSR은 세션을 여러 청크 쿠키로 나눕니다. Next `req.cookies`만 쓰면 일부가 빠질 수 있어
+ * 원시 `Cookie` 헤더를 파싱해 전달한다.
+ */
+function getAllCookiePairsFromApiRequest(req: NextApiRequest): {
+  name: string
+  value: string
+}[] {
+  const raw = req.headers.cookie
+  if (raw && typeof raw === "string") {
+    const parsed = parse(raw)
+
+    return Object.entries(parsed).map(([name, value]) => ({
+      name,
+      value: value ?? "",
+    }))
+  }
+
+  const c = req.cookies ?? {}
+
+  return Object.entries(c).map(([name, value]) => ({
+    name,
+    value: value ?? "",
+  }))
+}
+
+/** Pages API 전용 — `Cookie` + `Set-Cookie`로 미들웨어·브라우저와 동일한 세션을 읽는다. */
 function createSupabaseServerClientFromApiCookies(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -44,12 +70,7 @@ function createSupabaseServerClientFromApiCookies(
   return createServerClient(url, anonKey, {
     cookies: {
       getAll() {
-        const c = req.cookies ?? {}
-
-        return Object.entries(c).map(([name, value]) => ({
-          name,
-          value: value ?? "",
-        }))
+        return getAllCookiePairsFromApiRequest(req)
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
@@ -61,33 +82,34 @@ function createSupabaseServerClientFromApiCookies(
 }
 
 /**
- * Pages API: 클라이언트가 보낸 Bearer와 동일한 쿠키 세션(미들웨어·`createBrowserClient`)을 모두 허용.
- * 모바일 Safari 등에서 Bearer가 비어 있거나 만료 직후 쿠키만 최신인 경우 401을 줄이기 위함.
+ * Pages API: **쿠키 세션을 먼저** 검증한 뒤 Bearer로 폴백.
+ * 미들웨어가 갱신한 쿠키가 최신인데, 클라이언트가 보내는 Authorization JWT가 아직 만료된 값일 수 있어
+ * Bearer 우선이면 401이 난다.
  */
 export async function getAuthUserFromApiRequest(
   req: NextApiRequest,
   res: NextApiResponse,
 ): Promise<{ user: User; token: string } | null> {
+  const supabase = createSupabaseServerClientFromApiCookies(req, res)
+  if (supabase) {
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser()
+    if (!userErr && user) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (token) return { user, token }
+    }
+  }
+
   const bearer = getBearerToken(req)
   if (bearer) {
     const fromBearer = await getAuthUser(bearer)
     if (fromBearer) return fromBearer
   }
 
-  const supabase = createSupabaseServerClientFromApiCookies(req, res)
-  if (!supabase) return null
-
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser()
-  if (userErr || !user) return null
-
-  const { data: sessionData } = await supabase.auth.getSession()
-  const token = sessionData.session?.access_token
-  if (!token) return null
-
-  return { user, token }
+  return null
 }
 
 /** 통합 관리자(service_admin): workspace_id가 NULL인 멤버십이 있는지 확인 */
