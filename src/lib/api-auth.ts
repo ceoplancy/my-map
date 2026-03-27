@@ -5,9 +5,11 @@ import {
   createSupabaseAdmin,
   createSupabaseAnon,
 } from "@/lib/supabase/supabaseServer"
-import type { User } from "@supabase/supabase-js"
+import type { Session, User } from "@supabase/supabase-js"
 
 export { isPlatformAdminMetadata } from "@/lib/auth/platformRole"
+
+type AuthUserWithToken = { user: User; token: string }
 
 /** 요청에서 Bearer 토큰 추출 */
 export function getBearerToken(req: NextApiRequest): string | null {
@@ -22,7 +24,7 @@ export function getBearerToken(req: NextApiRequest): string | null {
  */
 export async function getAuthUser(
   token: string,
-): Promise<{ user: User; token: string } | null> {
+): Promise<AuthUserWithToken | null> {
   const client = createSupabaseAnon()
   const {
     data: { user },
@@ -83,6 +85,59 @@ function createSupabaseServerClientFromApiCookies(
   })
 }
 
+type CookieSupabaseClient = NonNullable<
+  ReturnType<typeof createSupabaseServerClientFromApiCookies>
+>
+
+function authFromRefreshedSession(
+  session: Session | null,
+): AuthUserWithToken | null {
+  if (!session?.user || !session.access_token) return null
+
+  return { user: session.user, token: session.access_token }
+}
+
+/** `getUser()`로 확정된 사용자에 대해 세션 토큰 확보 (없으면 refresh 1회). */
+async function accessTokenForResolvedUser(
+  supabase: CookieSupabaseClient,
+  user: User,
+): Promise<AuthUserWithToken | null> {
+  let token = (await supabase.auth.getSession()).data.session?.access_token
+  if (!token) {
+    const { data: refreshed, error: refreshErr } =
+      await supabase.auth.refreshSession()
+    if (!refreshErr && refreshed.session?.access_token) {
+      token = refreshed.session.access_token
+    }
+  }
+
+  return token ? { user, token } : null
+}
+
+/**
+ * 쿠키 기반 SSR 클라이언트에서 user + access_token 확보.
+ * - `getUser()` 직후 `getSession()`에 토큰이 비는 경우(SSR/모바일·청크 쿠키) → `refreshSession` 1회.
+ * - `getUser()` 실패 시에도 리프레시 토큰이 유효하면 `refreshSession`으로 복구 (동시 요청 레이스 등).
+ */
+async function getAuthUserAndTokenFromCookieClient(
+  supabase: CookieSupabaseClient,
+): Promise<AuthUserWithToken | null> {
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser()
+
+  if (!userErr && user) {
+    return accessTokenForResolvedUser(supabase, user)
+  }
+
+  const { data: refreshed, error: refreshErr } =
+    await supabase.auth.refreshSession()
+  if (refreshErr) return null
+
+  return authFromRefreshedSession(refreshed.session ?? null)
+}
+
 /**
  * Pages API: 쿠키 세션과 Bearer를 모두 시도해 합치한다.
  * - 미들웨어가 갱신한 쿠키가 최신인데 Authorization JWT가 만료된 경우 → 쿠키 우선(동일 user.id).
@@ -91,25 +146,15 @@ function createSupabaseServerClientFromApiCookies(
 export async function getAuthUserFromApiRequest(
   req: NextApiRequest,
   res: NextApiResponse,
-): Promise<{ user: User; token: string } | null> {
+): Promise<AuthUserWithToken | null> {
   const supabase = createSupabaseServerClientFromApiCookies(req, res)
-  let fromCookie: { user: User; token: string } | null = null
+  let fromCookie: AuthUserWithToken | null = null
   if (supabase) {
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser()
-    if (!userErr && user) {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData.session?.access_token
-      if (token) {
-        fromCookie = { user, token }
-      }
-    }
+    fromCookie = await getAuthUserAndTokenFromCookieClient(supabase)
   }
 
   const bearer = getBearerToken(req)
-  let fromBearer: { user: User; token: string } | null = null
+  let fromBearer: AuthUserWithToken | null = null
   if (bearer) {
     fromBearer = await getAuthUser(bearer)
   }

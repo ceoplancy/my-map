@@ -142,6 +142,30 @@ type AxiosWithBearerRetryOptions = {
   maxAuthRetries?: number
 }
 
+/** 리프레시 토큰이 동시 요청에서 한 번에 소모될 때 클라이언트 재시도 간격 (ms) */
+const BEARER_RETRY_RACE_DELAY_MS = 200
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+/**
+ * 401일 때 첫 `recover`가 실패하면 짧게 대기 후 한 번 더 시도 (Safari·병렬 요청 레이스 완화).
+ */
+async function recoverAccessTokenAfterAuthFailureWithRaceDelay(
+  httpStatus: number,
+): Promise<string | null> {
+  let token = await recoverAccessTokenAfterAuthFailure()
+  if (!token && httpStatus === 401) {
+    await delay(BEARER_RETRY_RACE_DELAY_MS)
+    token = await recoverAccessTokenAfterAuthFailure()
+  }
+
+  return token
+}
+
 /**
  * Bearer 요청 후 401/403이면 토큰 재발급·재시도 (`fetchWithBearerRetry` 대체).
  */
@@ -157,7 +181,9 @@ export async function axiosWithBearerRetry(
     if (!isLikelyAuthFailureStatus(res.status)) {
       break
     }
-    const next = await recoverAccessTokenAfterAuthFailure()
+    const next = await recoverAccessTokenAfterAuthFailureWithRaceDelay(
+      res.status,
+    )
     if (!next) {
       break
     }
