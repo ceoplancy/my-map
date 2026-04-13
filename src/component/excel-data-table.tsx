@@ -7,6 +7,7 @@ import { nanoid } from "nanoid"
 import { useState } from "react"
 import ModalComponent from "./modal"
 import { normalizeExcelHistoryJson } from "@/lib/excelHistory"
+import { getStatusBadgeColors } from "@/lib/shareholderStatus"
 import type { HistoryChange, HistoryItem } from "@/types/excelHistory"
 
 export type { HistoryChange, HistoryItem }
@@ -53,7 +54,11 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
           <TableRow>
             <TableHeader>상태</TableHeader>
             <TableCell>
-              <StatusBadge status={data.status}>{data.status}</StatusBadge>
+              <StatusBadge
+                $bg={getStatusBadgeColors(data.status).bg}
+                $fg={getStatusBadgeColors(data.status).fg}>
+                {data.status}
+              </StatusBadge>
             </TableCell>
           </TableRow>
           <TableRow>
@@ -61,8 +66,16 @@ const ExcelDataTable = ({ data }: { data: Excel }) => {
             <TableCell>{data.company}</TableCell>
           </TableRow>
           <TableRow>
+            <TableHeader>휴대폰</TableHeader>
+            <TableCell>{data.phone || "-"}</TableCell>
+          </TableRow>
+          <TableRow>
             <TableHeader>메모</TableHeader>
             <TableCell>{data.memo}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableHeader>특이사항</TableHeader>
+            <TableCell>{data.special_notes || "-"}</TableCell>
           </TableRow>
           <TableRow>
             <TableHeader>변경이력</TableHeader>
@@ -206,7 +219,7 @@ const CopyIcon = styled.div`
   }
 `
 
-const StatusBadge = styled.span<{ status: string | null }>`
+const StatusBadge = styled.span<{ $bg: string; $fg: string }>`
   display: inline-block;
   padding: 4px 12px;
   border-radius: 16px;
@@ -218,32 +231,8 @@ const StatusBadge = styled.span<{ status: string | null }>`
     font-size: 14px;
   }
 
-  background: ${({ status }) => {
-    switch (status) {
-      case "완료":
-        return COLORS.green[50]
-      case "미방문":
-        return COLORS.blue[50]
-      case "보류":
-        return COLORS.yellow[50]
-      case "실패":
-        return COLORS.red[50]
-      default:
-        return COLORS.gray[50]
-    }
-  }};
-  color: ${({ status }) => {
-    switch (status) {
-      case "완료":
-        return COLORS.green[700]
-      case "진행중":
-        return COLORS.blue[700]
-      case "보류":
-        return COLORS.yellow[700]
-      default:
-        return COLORS.gray[700]
-    }
-  }};
+  background: ${({ $bg }) => $bg};
+  color: ${({ $fg }) => $fg};
 `
 
 const HistoryEmptyText = styled.span`
@@ -420,15 +409,47 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
             </ChangeContent>
           </ChangeItem>
         )}
+        {history.changes?.phone && (
+          <ChangeItem>
+            <FieldName>휴대폰</FieldName>
+            <ChangeContent>
+              <ChangeText>
+                {history.changes.phone.original || "(없음)"}
+              </ChangeText>
+              <ArrowIcon>→</ArrowIcon>
+              <ChangeText highlight>
+                {history.changes.phone.modified || "(없음)"}
+              </ChangeText>
+            </ChangeContent>
+          </ChangeItem>
+        )}
+        {history.changes?.special_notes && (
+          <ChangeItem>
+            <FieldName>특이사항</FieldName>
+            <ChangeContent>
+              <ChangeText>
+                {history.changes.special_notes.original || "(없음)"}
+              </ChangeText>
+              <ArrowIcon>→</ArrowIcon>
+              <ChangeText highlight>
+                {history.changes.special_notes.modified || "(없음)"}
+              </ChangeText>
+            </ChangeContent>
+          </ChangeItem>
+        )}
         {history.changes?.status && (
           <ChangeItem>
             <FieldName>상태</FieldName>
             <ChangeContent>
-              <StatusBadge status={history.changes.status.original}>
+              <StatusBadge
+                $bg={getStatusBadgeColors(history.changes.status.original).bg}
+                $fg={getStatusBadgeColors(history.changes.status.original).fg}>
                 {history.changes.status.original}
               </StatusBadge>
               <ArrowIcon>→</ArrowIcon>
-              <StatusBadge status={history.changes.status.modified}>
+              <StatusBadge
+                $bg={getStatusBadgeColors(history.changes.status.modified).bg}
+                $fg={getStatusBadgeColors(history.changes.status.modified).fg}>
                 {history.changes.status.modified}
               </StatusBadge>
             </ChangeContent>

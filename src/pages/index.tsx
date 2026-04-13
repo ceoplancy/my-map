@@ -59,7 +59,14 @@ const Home = () => {
     return savedLevel ? parseInt(savedLevel) : 6
   })
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
-  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+  const {
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    rosterStockMin,
+    rosterStockMax,
+  } = useFilterStore()
   const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>(
     () => {
       if (typeof window === "undefined") {
@@ -79,20 +86,50 @@ const Home = () => {
     ne: { lat: 0, lng: 0 },
   })
 
+  const mapFilterParams = useMemo((): import("@/types").FilterParams => {
+    let rMin: number | null = null
+    let rMax: number | null = null
+    if (companyFilter.length === 1) {
+      if (rosterStockMin.trim() !== "") {
+        const n = Number(rosterStockMin)
+        rMin = Number.isNaN(n) ? null : n
+      }
+      if (rosterStockMax.trim() !== "") {
+        const n = Number(rosterStockMax)
+        rMax = Number.isNaN(n) ? null : n
+      }
+    }
+
+    return {
+      status: statusFilter,
+      company: companyFilter,
+      stocks,
+      rosterStockMin: companyFilter.length === 1 ? rMin : null,
+      rosterStockMax: companyFilter.length === 1 ? rMax : null,
+      lat: currCenter.lat,
+      lng: currCenter.lng,
+      bounds: mapBounds,
+      city: cityFilter,
+      userMetadata: user?.user.user_metadata,
+    }
+  }, [
+    statusFilter,
+    companyFilter,
+    stocks,
+    rosterStockMin,
+    rosterStockMax,
+    currCenter.lat,
+    currCenter.lng,
+    mapBounds,
+    cityFilter,
+    user?.user.user_metadata,
+  ])
+
   const {
     data: excelData,
     refetch: excelDataRefetch,
     isLoading: excelIsLoading,
-  } = useGetExcel(mapLevel, {
-    status: statusFilter,
-    company: companyFilter,
-    stocks,
-    lat: currCenter.lat,
-    lng: currCenter.lng,
-    bounds: mapBounds,
-    city: cityFilter,
-    userMetadata: user?.user.user_metadata,
-  })
+  } = useGetExcel(mapLevel, mapFilterParams)
 
   const debouncedMapUpdate = useMemo(
     () =>
@@ -125,13 +162,24 @@ const Home = () => {
   const [openMarkerIds, setOpenMarkerIds] = useState<number[]>([])
   const [, setMapMoveSeq] = useState(0)
 
+  /** 검색으로 이동했을 때 뷰포트 밖이면 excelData에 없을 수 있어 임시로 패널 데이터 유지 */
+  const [focusRowOverride, setFocusRowOverride] = useState<Excel | null>(null)
+
   const openMarkers = useMemo(() => {
     if (!excelData) return []
 
     return openMarkerIds
-      .map((id) => excelData.find((e: Excel) => e.id === id))
+      .map((id) => {
+        const fromData = excelData.find((e: Excel) => e.id === id)
+        if (fromData) return fromData
+        if (focusRowOverride && focusRowOverride.id === id) {
+          return focusRowOverride
+        }
+
+        return null
+      })
       .filter((m): m is Excel => m != null)
-  }, [openMarkerIds, excelData])
+  }, [openMarkerIds, excelData, focusRowOverride])
 
   const getYAnchor = (lat: number, lng: number) => {
     const map = mapRef.current
@@ -155,7 +203,34 @@ const Home = () => {
 
   const handleCloseInfoPanel = useCallback((markerId: number) => {
     setOpenMarkerIds((prev) => prev.filter((id) => id !== markerId))
+    setFocusRowOverride((f) => (f?.id === markerId ? null : f))
   }, [])
+
+  const handleNavigateToShareholder = useCallback(
+    (row: Excel) => {
+      if (row.lat == null || row.lng == null) {
+        toast.error("좌표가 없어 지도로 이동할 수 없습니다.")
+
+        return
+      }
+      const map = mapRef.current
+      const pos = new kakao.maps.LatLng(row.lat, row.lng)
+      if (map) {
+        map.setCenter(pos)
+        map.setLevel(3)
+      }
+      const c = { lat: row.lat, lng: row.lng }
+      setCurrCenter(c)
+      localStorage.setItem(STORAGE_KEY.position, JSON.stringify(c))
+      localStorage.setItem(STORAGE_KEY.level, "3")
+      setMapLevel(3)
+      setFocusRowOverride(row)
+      setOpenMarkerIds([row.id])
+      void excelDataRefetch()
+      setIsFilterModalOpen(false)
+    },
+    [excelDataRefetch],
+  )
 
   const handleZoomStart = useCallback(() => {
     setOpenMarkerIds([])
@@ -332,6 +407,7 @@ const Home = () => {
             <FilterModalChildren
               handleClose={() => setIsFilterModalOpen(false)}
               handleApplyFilters={handleApplyFilters}
+              onNavigateToShareholder={handleNavigateToShareholder}
             />
           </Modal>
         </Map>

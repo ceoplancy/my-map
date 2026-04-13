@@ -7,11 +7,13 @@ import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
 import ExcelDataTable from "../excel-data-table"
+import ShareholderStatusSelect from "@/components/shareholder/ShareholderStatusSelect"
 import { toast } from "react-toastify"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
 import {
   buildHistoryChanges,
+  getHistoryMergeLossInfo,
   mergeHistoryWithNewEntry,
   normalizeStatusForHistory,
 } from "@/lib/excelHistory"
@@ -42,6 +44,8 @@ const MakerPatchModalChildren = ({
       name: makerData?.name ?? "",
       status: makerData?.status ?? "미방문",
       memo: makerData?.memo ?? "",
+      phone: makerData?.phone ?? "",
+      special_notes: makerData?.special_notes ?? "",
       stocks: makerData?.stocks ?? 0,
       image: makerData?.image ?? "",
       history: makerData?.history ?? [],
@@ -51,10 +55,22 @@ const MakerPatchModalChildren = ({
 
       const status = normalizeStatusForHistory(values.status)
       const memoNext = values.memo ?? ""
+      const phoneNext = values.phone ?? ""
+      const notesNext = values.special_notes ?? ""
 
       const changes = buildHistoryChanges(
-        { status: makerData.status, memo: makerData.memo },
-        { status, memo: memoNext },
+        {
+          status: makerData.status,
+          memo: makerData.memo,
+          phone: makerData.phone,
+          special_notes: makerData.special_notes,
+        },
+        {
+          status,
+          memo: memoNext,
+          phone: phoneNext,
+          special_notes: notesNext,
+        },
       )
 
       if (Object.keys(changes).length === 0) {
@@ -80,12 +96,33 @@ const MakerPatchModalChildren = ({
         ...(user?.user?.id ? { user_id: user.user.id } : {}),
       }
 
+      const loss = getHistoryMergeLossInfo(makerData.history)
+      if (loss.losesNonArrayShape || loss.droppedEntryCount > 0) {
+        const lines: string[] = []
+        if (loss.losesNonArrayShape) {
+          lines.push(
+            "변경이력이 표준 형식(배열)이 아니어서, 저장 시 기존 이력이 유지되지 않을 수 있습니다.",
+          )
+        }
+        if (loss.droppedEntryCount > 0) {
+          lines.push(
+            `예전 형식의 변경이력 ${loss.droppedEntryCount}건은 이번 저장 후 목록에 남지 않습니다.`,
+          )
+        }
+        const ok = window.confirm(`${lines.join("\n\n")}\n\n그래도 저장할까요?`)
+        if (!ok) {
+          return
+        }
+      }
+
       const history = mergeHistoryWithNewEntry(makerData.history, entry)
 
       const patchData = {
         ...values,
         status,
         memo: memoNext,
+        phone: phoneNext,
+        special_notes: notesNext,
         history,
       } as Excel
 
@@ -118,6 +155,8 @@ const MakerPatchModalChildren = ({
         name: makerData.name ?? "",
         status: makerData.status ?? "미방문",
         memo: makerData.memo ?? "",
+        phone: makerData.phone ?? "",
+        special_notes: makerData.special_notes ?? "",
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
         history: makerData.history ?? [],
@@ -143,18 +182,27 @@ const MakerPatchModalChildren = ({
 
           <Section>
             <SectionTitle>상태 변경</SectionTitle>
-            <SelectWrapper>
-              <StyledSelect
-                name="status"
-                value={formik.values.status || "미방문"}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}>
-                <option value="미방문">미방문</option>
-                <option value="완료">완료</option>
-                <option value="보류">보류</option>
-                <option value="실패">실패</option>
-              </StyledSelect>
-            </SelectWrapper>
+            <ShareholderStatusSelect
+              idPrefix="map-patch-status"
+              value={formik.values.status || "미방문"}
+              onChange={(next) => {
+                void formik.setFieldValue("status", next)
+              }}
+            />
+          </Section>
+
+          <Section>
+            <SectionTitle>휴대폰</SectionTitle>
+            <StyledInput
+              type="tel"
+              name="phone"
+              inputMode="tel"
+              autoComplete="tel"
+              value={formik.values.phone ?? ""}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="010-0000-0000"
+            />
           </Section>
 
           <Section>
@@ -165,6 +213,17 @@ const MakerPatchModalChildren = ({
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               placeholder="메모를 입력하세요..."
+            />
+          </Section>
+
+          <Section>
+            <SectionTitle>특이사항</SectionTitle>
+            <StyledTextarea
+              name="special_notes"
+              value={removeTags(formik.values.special_notes ?? "")}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="특이사항을 입력하세요..."
             />
           </Section>
 
@@ -288,26 +347,13 @@ const SectionTitle = styled.h3`
   margin-bottom: 12px;
 `
 
-const SelectWrapper = styled.div`
-  position: relative;
-`
-
-const StyledSelect = styled.select`
+const StyledInput = styled.input`
   width: 100%;
   padding: 12px 16px;
   font-size: 14px;
   border: 1px solid ${COLORS.gray[200]};
   border-radius: 8px;
-  background: white;
-  color: ${COLORS.gray[900]};
-  cursor: pointer;
   transition: all 0.2s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem;
-  min-height: 48px;
 
   &:hover {
     border-color: ${COLORS.blue[300]};
@@ -317,11 +363,6 @@ const StyledSelect = styled.select`
     outline: none;
     border-color: ${COLORS.blue[500]};
     box-shadow: 0 0 0 3px ${COLORS.blue[100]};
-  }
-
-  @media (max-width: 768px) {
-    padding: 10px 14px;
-    font-size: 13px;
   }
 `
 

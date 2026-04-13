@@ -1,4 +1,4 @@
-import { ChangeEventHandler, FormEvent, useState } from "react"
+import { ChangeEventHandler, FormEvent, useEffect, useState } from "react"
 import * as XLSX from "xlsx"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
@@ -6,15 +6,19 @@ import { ExcelImportView } from "@/components/excel-import/ExcelImportView"
 import { useExcelImport } from "@/hooks/useExcelImport"
 import { useKakaoMaps } from "@/hooks/useKakaoMaps"
 import { Excel } from "@/types/excel"
+import {
+  coerceSheetRowToExcel,
+  createDeferredFailure,
+  DeferredFailure,
+  geocodeExcelRow,
+  loadPreserveQueuePref,
+  mergeDeferredLists,
+  savePreserveQueuePref,
+} from "@/lib/excelImportDeferred"
 
 import AdminLayout from "@/layouts/AdminLayout"
 import styled from "@emotion/styled"
 import * as Sentry from "@sentry/nextjs"
-
-interface GeocodingResult {
-  success: boolean
-  data?: Excel
-}
 
 const Container = styled.div`
   display: flex;
@@ -54,7 +58,6 @@ const ExcelImport = () => {
     failData,
     setFailData,
     failCount,
-    setFailCount,
     excelFile,
     setExcelFile,
     fileName,
@@ -67,7 +70,20 @@ const ExcelImport = () => {
 
   const { waitForKakaoMaps } = useKakaoMaps()
 
-  const [_processingItem, setProcessingItem] = useState<number | null>(null)
+  const [preserveQueueBeforeUpload, setPreserveQueueBeforeUpload] =
+    useState(true)
+
+  useEffect(() => {
+    const pref = loadPreserveQueuePref()
+    if (pref !== null) {
+      setPreserveQueueBeforeUpload(pref)
+    }
+  }, [])
+
+  const handlePreserveQueueChange = (next: boolean) => {
+    setPreserveQueueBeforeUpload(next)
+    savePreserveQueuePref(next)
+  }
 
   const handleFile: ChangeEventHandler<HTMLInputElement> = (e) => {
     const fileTypes = [
@@ -94,7 +110,7 @@ const ExcelImport = () => {
     setFileName(selectedFile.name)
     const reader = new FileReader()
     reader.readAsArrayBuffer(selectedFile)
-    reader.onload = (e) => setExcelFile(e.target?.result as ArrayBuffer)
+    reader.onload = (ev) => setExcelFile(ev.target?.result as ArrayBuffer)
   }
 
   const clearFileName = (): void => {
@@ -102,9 +118,10 @@ const ExcelImport = () => {
     setExcelFile(null)
   }
 
-  const handleExport = (): void => {
+  const handleExport = (data: DeferredFailure[]): void => {
+    const rows = data.map((d) => d.excel)
     const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.aoa_to_sheet(convertToExportArray(failData))
+    const ws = XLSX.utils.aoa_to_sheet(convertToExportArray(rows))
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1")
 
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
@@ -113,19 +130,21 @@ const ExcelImport = () => {
     downloadFile(blob, "주소변환실패현황.xlsx")
   }
 
-  const downloadFile = (blob: Blob, fileName: string): void => {
+  const downloadFile = (blob: Blob, downloadName: string): void => {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.style.display = "none"
     a.href = url
-    a.download = fileName
+    a.download = downloadName
     document.body.appendChild(a)
     a.click()
     window.URL.revokeObjectURL(url)
     document.body.removeChild(a)
   }
 
-  const convertToExportArray = (arr: any[]): any[][] => {
+  const convertToExportArray = (
+    arr: Record<string, unknown>[],
+  ): unknown[][] => {
     if (!arr.length) return []
 
     const headers = Object.keys(arr[0])
@@ -136,48 +155,6 @@ const ExcelImport = () => {
     ]
   }
 
-  const handleGeocoding = async (
-    geocoder: any,
-    excel: Excel,
-  ): Promise<GeocodingResult> => {
-    return new Promise((resolve) => {
-      geocoder.addressSearch(excel.address, (result: any[], status: string) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          resolve({
-            success: true,
-            data: {
-              ...excel,
-              lat: result[0].y.toString(),
-              lng: result[0].x.toString(),
-              stocks: excel.stocks || 0,
-            },
-          })
-        } else {
-          setFailData((prev) => [...prev, excel])
-          setFailCount((prev) => prev + 1)
-          resolve({ success: false })
-        }
-      })
-    })
-  }
-
-  const processBatch = async (
-    excels: Excel[],
-    geocoder: any,
-  ): Promise<Excel[]> => {
-    const results = await Promise.all(
-      excels.map(async (excel) => {
-        const result = await handleGeocoding(geocoder, excel)
-
-        return result
-      }),
-    )
-
-    return results
-      .filter((r): r is Required<GeocodingResult> => r.success && !!r.data)
-      .map((r) => r.data)
-  }
-
   const handleFileSubmit = async (
     e: FormEvent<HTMLFormElement>,
   ): Promise<void> => {
@@ -185,38 +162,52 @@ const ExcelImport = () => {
     if (!excelFile) return
 
     setLoading(true)
-    setFailData([])
-    setFailCount(0)
+
+    if (!preserveQueueBeforeUpload) {
+      setFailData([])
+    }
 
     try {
       await waitForKakaoMaps()
 
       const workbook = XLSX.read(excelFile, { type: "buffer" })
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-      const data = XLSX.utils.sheet_to_json(worksheet)
+      const rawRows =
+        XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet)
+      const rows = rawRows.map(coerceSheetRowToExcel)
 
-      const totalRows = data.length
+      const totalRows = rows.length
 
       setProgress({ current: 0, total: totalRows })
 
       const geocoder = new window.kakao.maps.services.Geocoder()
       const totalBatches = Math.ceil(totalRows / BATCH_SIZE)
 
-      let allResults: Excel[] = []
+      const allResults: Excel[] = []
+      const newRunFailures: DeferredFailure[] = []
       let processedRows = 0
 
-      for (let i = 0; i < totalBatches; i++) {
-        const batch = data.slice(
-          i * BATCH_SIZE,
-          (i + 1) * BATCH_SIZE,
-        ) as Excel[]
-        const batchResults = await processBatch(batch, geocoder)
-        allResults = [...allResults, ...batchResults]
+      for (let b = 0; b < totalBatches; b++) {
+        const batch = rows.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE)
 
-        processedRows += batch.length
-        setProgress((prev) => ({ ...prev, current: processedRows }))
+        for (const row of batch) {
+          const result = await geocodeExcelRow(geocoder, row)
+          if (result.success && result.data) {
+            allResults.push(result.data)
+          } else {
+            newRunFailures.push(
+              createDeferredFailure(
+                row,
+                result.failReason ?? "geocode",
+                fileName || null,
+              ),
+            )
+          }
+          processedRows += 1
+          setProgress({ current: processedRows, total: totalRows })
+        }
 
-        if (i < totalBatches - 1) {
+        if (b < totalBatches - 1) {
           await new Promise((r) => setTimeout(r, 3000))
         }
       }
@@ -237,15 +228,27 @@ const ExcelImport = () => {
         }
 
         toast.success(
-          `${data.length}개의 데이터가 성공적으로 업로드되었습니다.`,
+          `${allResults.length}건이 좌표 변환 후 저장되었습니다. (파일 ${totalRows}행 기준)`,
+        )
+      } else if (totalRows > 0) {
+        toast.warning(
+          "이번 파일에서 저장된 행이 없습니다. 실패 보관함에서 주소를 손볼 수 있습니다.",
         )
       }
 
-      if (allResults.length !== totalRows) {
+      if (newRunFailures.length > 0) {
         toast.warning(
-          "일부 주소 변환에 실패했습니다. 실패한 주소는 아래 목록에서 확인할 수 있습니다.",
+          `주소 변환에 실패한 ${newRunFailures.length}건은 실패 보관함에 모였습니다.`,
         )
       }
+
+      setFailData((prev) =>
+        mergeDeferredLists(
+          prev,
+          newRunFailures,
+          preserveQueueBeforeUpload ? "append" : "replace",
+        ),
+      )
     } catch (error) {
       Sentry.captureException(error)
       Sentry.captureMessage("(don't know why) 주소 변환에 실패했습니다.")
@@ -255,33 +258,51 @@ const ExcelImport = () => {
     }
   }
 
-  // 실패 데이터 수정 및 재변환 함수
-  const handleEditFailedData = async (editedData: Excel): Promise<void> => {
+  const handleEditFailedData = async (
+    deferredId: string,
+    editedData: Excel,
+  ): Promise<void> => {
     setLoading(true)
     try {
       await waitForKakaoMaps()
       const geocoder = new window.kakao.maps.services.Geocoder()
 
-      const result = await handleGeocoding(geocoder, editedData)
+      const result = await geocodeExcelRow(geocoder, editedData)
 
       if (result.success && result.data) {
-        // 성공한 경우 DB에 저장
-        await supabase.from("excel").insert([result.data]).select()
+        const { error } = await supabase
+          .from("excel")
+          .insert([result.data])
+          .select()
 
-        // 실패 데이터 목록에서 제거
-        setFailData(
-          failData.filter(
-            (item) => item.latlngaddress !== editedData.latlngaddress,
-          ),
-        )
-        setFailCount((prev) => prev - 1)
+        if (error) {
+          Sentry.captureException(error)
+          Sentry.captureMessage("실패 행 재업로드(insert)에 실패했습니다.")
+          toast.error(`저장에 실패했습니다. ${error.message}`)
+          setFailData((prev) =>
+            prev.map((f) =>
+              f.id === deferredId
+                ? { ...f, excel: editedData, reason: "db" }
+                : f,
+            ),
+          )
+
+          return
+        }
+
+        setFailData((prev) => prev.filter((item) => item.id !== deferredId))
 
         toast.success("데이터가 성공적으로 변환되어 업로드되었습니다.")
       } else {
-        // 여전히 실패한 경우 실패 데이터 업데이트
-        setFailData(
-          failData.map((item) =>
-            item.latlngaddress === editedData.latlngaddress ? editedData : item,
+        setFailData((prev) =>
+          prev.map((f) =>
+            f.id === deferredId
+              ? {
+                  ...f,
+                  excel: editedData,
+                  reason: result.failReason ?? "geocode",
+                }
+              : f,
           ),
         )
 
@@ -298,7 +319,6 @@ const ExcelImport = () => {
     }
   }
 
-  // 모든 실패 데이터 재시도 함수
   const handleRetryAllFailedData = async (): Promise<void> => {
     if (failData.length === 0) return
 
@@ -307,36 +327,52 @@ const ExcelImport = () => {
       await waitForKakaoMaps()
       const geocoder = new window.kakao.maps.services.Geocoder()
 
-      const totalItems = failData.length
+      const snapshot = [...failData]
+      const totalItems = snapshot.length
       setProgress({ current: 0, total: totalItems })
 
       let successCount = 0
-      let newFailData = [...failData]
+      const stillFailed: DeferredFailure[] = []
 
       for (let i = 0; i < totalItems; i++) {
+        const item = snapshot[i]
         setProgress({ current: i + 1, total: totalItems })
-        setProcessingItem(i)
 
-        const result = await handleGeocoding(geocoder, failData[i])
+        const result = await geocodeExcelRow(geocoder, item.excel)
 
         if (result.success && result.data) {
-          // 성공한 경우 DB에 저장
-          await supabase.from("excel").insert([result.data]).select()
+          const { error } = await supabase
+            .from("excel")
+            .insert([result.data])
+            .select()
 
-          // 성공 항목 표시
-          newFailData = newFailData.filter(
-            (_, index) => index !== i - successCount,
-          )
-          successCount++
-
-          // 다음 요청 전 잠시 대기
-          await new Promise((r) => setTimeout(r, 1000))
+          if (!error) {
+            successCount += 1
+          } else {
+            Sentry.captureException(error)
+            stillFailed.push({
+              ...item,
+              excel: result.data,
+              reason: "db",
+            })
+          }
+        } else {
+          stillFailed.push({
+            ...item,
+            reason: result.failReason ?? "geocode",
+          })
         }
+
+        await new Promise((r) => setTimeout(r, 500))
       }
 
-      // 실패 데이터 업데이트
-      setFailData(newFailData)
-      setFailCount(newFailData.length)
+      const snapIds = new Set(snapshot.map((s) => s.id))
+
+      setFailData((prev) => {
+        const untouched = prev.filter((p) => !snapIds.has(p.id))
+
+        return mergeDeferredLists(untouched, stillFailed, "append")
+      })
 
       if (successCount > 0) {
         toast.success(
@@ -344,9 +380,9 @@ const ExcelImport = () => {
         )
       }
 
-      if (newFailData.length > 0) {
+      if (stillFailed.length > 0) {
         toast.warning(
-          `${newFailData.length}개의 데이터는 여전히 변환에 실패했습니다.`,
+          `${stillFailed.length}개의 데이터는 여전히 변환 또는 저장에 실패했습니다.`,
         )
       }
     } catch (error) {
@@ -357,11 +393,25 @@ const ExcelImport = () => {
       )
     } finally {
       setLoading(false)
-      setProcessingItem(null)
     }
   }
 
-  // 드래그 앤 드롭 핸들러
+  const handleRemoveDeferred = (deferredId: string) => {
+    setFailData((prev) => prev.filter((f) => f.id !== deferredId))
+    toast.info("보관함에서 제거했습니다.")
+  }
+
+  const handleClearDeferredQueue = () => {
+    if (failData.length === 0) return
+    if (
+      !confirm("실패 보관함을 모두 비울까요? 이 작업은 되돌릴 수 없습니다.")
+    ) {
+      return
+    }
+    setFailData([])
+    toast.info("실패 보관함을 비웠습니다.")
+  }
+
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -384,7 +434,7 @@ const ExcelImport = () => {
       setFileName(file.name)
       const reader = new FileReader()
       reader.readAsArrayBuffer(file)
-      reader.onload = (e) => setExcelFile(e.target?.result as ArrayBuffer)
+      reader.onload = (ev) => setExcelFile(ev.target?.result as ArrayBuffer)
     }
   }
 
@@ -410,6 +460,10 @@ const ExcelImport = () => {
           failData={failData}
           loading={loading}
           progress={progress}
+          preserveQueueBeforeUpload={preserveQueueBeforeUpload}
+          onPreserveQueueChange={handlePreserveQueueChange}
+          onClearDeferredQueue={handleClearDeferredQueue}
+          onRemoveDeferred={handleRemoveDeferred}
           onFileChange={handleFile}
           onClearFileName={clearFileName}
           onSubmit={handleFileSubmit}

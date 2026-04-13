@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary"
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
 import * as Sentry from "@sentry/nextjs"
+import { getPublicSiteUrl } from "@/lib/siteUrl"
 
 declare global {
   interface Window {
@@ -45,6 +46,7 @@ const queryClientOptions = {
 const App = ({ Component, pageProps }: AppProps) => {
   const [queryClient] = useState(() => new QueryClient(queryClientOptions))
   const [mapLoaded, setMapLoaded] = useState(false)
+  const siteUrl = getPublicSiteUrl()
 
   // 카카오맵 로딩 로직 분리 및 에러 처리 개선
   const initializeKakaoMap = useCallback(() => {
@@ -89,8 +91,9 @@ const App = ({ Component, pageProps }: AppProps) => {
           content="주주 관리와 의결권 위임장 수집을 위한 올인원 서비스"
         />
         <meta property="og:type" content="website" />
-        {/* <meta property="og:url" content="https://antre.co.kr" /> */}
-        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:url" content={`${siteUrl}/`} />
+        <link rel="canonical" href={`${siteUrl}/`} />
+        <meta property="og:image" content={`${siteUrl}/og-image.png`} />
 
         {/* Viewport */}
         <meta

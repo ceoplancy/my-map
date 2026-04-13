@@ -1,20 +1,56 @@
 import styled from "@emotion/styled"
+import { useMemo } from "react"
 import { COLORS } from "@/styles/global-style"
 import { useFilteredStats } from "@/hooks/useFilteredStats"
 import { useGetUserData } from "@/api/auth"
 import { useFilterStore } from "@/store/filterState"
+import type { FilterParams } from "@/types"
 
 const StatsCard = () => {
   const { data: user } = useGetUserData()
-  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+  const {
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    rosterStockMin,
+    rosterStockMax,
+  } = useFilterStore()
 
-  const { data: stats, isLoading } = useFilteredStats({
-    status: statusFilter,
-    company: companyFilter,
-    city: cityFilter,
-    stocks: stocks,
-    userMetadata: user?.user.user_metadata,
-  })
+  const statsParams = useMemo((): FilterParams => {
+    let rMin: number | null = null
+    let rMax: number | null = null
+    if (companyFilter.length === 1) {
+      if (rosterStockMin.trim() !== "") {
+        const n = Number(rosterStockMin)
+        rMin = Number.isNaN(n) ? null : n
+      }
+      if (rosterStockMax.trim() !== "") {
+        const n = Number(rosterStockMax)
+        rMax = Number.isNaN(n) ? null : n
+      }
+    }
+
+    return {
+      status: statusFilter,
+      company: companyFilter,
+      city: cityFilter,
+      stocks,
+      rosterStockMin: companyFilter.length === 1 ? rMin : null,
+      rosterStockMax: companyFilter.length === 1 ? rMax : null,
+      userMetadata: user?.user.user_metadata,
+    }
+  }, [
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    rosterStockMin,
+    rosterStockMax,
+    user?.user.user_metadata,
+  ])
+
+  const { data: stats, isLoading } = useFilteredStats(statsParams)
 
   return (
     <Container>
@@ -35,7 +71,7 @@ const StatsCard = () => {
         </StatValue>
       </StatItem>
       <StatItem>
-        <StatLabel>완료 주주 수</StatLabel>
+        <StatLabel>의결권 위임 완료 주주 수</StatLabel>
         <StatValue>
           {isLoading
             ? "-"
@@ -43,7 +79,7 @@ const StatsCard = () => {
         </StatValue>
       </StatItem>
       <StatItem>
-        <StatLabel>완료 주식 수</StatLabel>
+        <StatLabel>의결권 위임 완료 주식 수</StatLabel>
         <StatValue>
           {isLoading ? "-" : `${stats?.completedStocks.toLocaleString()}주`}
         </StatValue>

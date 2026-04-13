@@ -43,6 +43,19 @@ export const stocksFilterState = atom<StockRange[]>({
   effects_UNSTABLE: [persistAtom],
 })
 
+/** 주주명부(회사)가 1개 선택된 경우에만 지도 쿼리에 사용 (주식수 숫자 구간) */
+export const rosterStockMinState = atom<string>({
+  key: "roster-stock-min-state",
+  default: "",
+  effects_UNSTABLE: [persistAtom],
+})
+
+export const rosterStockMaxState = atom<string>({
+  key: "roster-stock-max-state",
+  default: "",
+  effects_UNSTABLE: [persistAtom],
+})
+
 // 편의를 위한 커스텀 훅
 
 export const useFilterStore = () => {
@@ -51,12 +64,18 @@ export const useFilterStore = () => {
   const [makerFilter, setMakerFilter] = useRecoilState(makerFilterState)
   const [cityFilter, setCityFilter] = useRecoilState(cityFilterState)
   const [stocks, setStocks] = useRecoilState(stocksFilterState)
+  const [rosterStockMin, setRosterStockMin] =
+    useRecoilState(rosterStockMinState)
+  const [rosterStockMax, setRosterStockMax] =
+    useRecoilState(rosterStockMaxState)
 
   const resetStatusFilter = useResetRecoilState(statusFilterState)
   const resetCompanyFilter = useResetRecoilState(companyFilterState)
   const resetMakerFilter = useResetRecoilState(makerFilterState)
   const resetCityFilter = useResetRecoilState(cityFilterState)
   const resetStocksFilter = useResetRecoilState(stocksFilterState)
+  const resetRosterStockMin = useResetRecoilState(rosterStockMinState)
+  const resetRosterStockMax = useResetRecoilState(rosterStockMaxState)
 
   const resetFilters = () => {
     resetStatusFilter()
@@ -64,6 +83,8 @@ export const useFilterStore = () => {
     resetMakerFilter()
     resetCityFilter()
     resetStocksFilter()
+    resetRosterStockMin()
+    resetRosterStockMax()
   }
 
   return {
@@ -72,11 +93,15 @@ export const useFilterStore = () => {
     makerFilter,
     cityFilter,
     stocks,
+    rosterStockMin,
+    rosterStockMax,
     setStatusFilter,
     setCompanyFilter,
     setMakerFilter,
     setCityFilter,
     setStocks,
+    setRosterStockMin,
+    setRosterStockMax,
     resetFilters,
   }
 }

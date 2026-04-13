@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
+import { searchShareholdersForMap } from "@/api/shareholderSearch"
 import { useFilterStore } from "@/store/filterState"
 
 import styled from "@emotion/styled"
@@ -8,10 +9,12 @@ import { Clear as ClearIcon } from "@mui/icons-material"
 import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
 import { STORAGE_KEY } from "@/pages"
+import type { Excel } from "@/types/excel"
 
 interface FilterModalChildrenProps {
   handleClose: () => void
   handleApplyFilters: () => void
+  onNavigateToShareholder?: (_row: Excel) => void
 }
 
 const MAJOR_CITIES = [
@@ -52,21 +55,54 @@ const STOCK_RANGES = [
 const FilterModalChildren = ({
   handleClose,
   handleApplyFilters,
+  onNavigateToShareholder,
 }: FilterModalChildrenProps) => {
   const {
     statusFilter,
     companyFilter,
     cityFilter,
     stocks,
+    rosterStockMin,
+    rosterStockMax,
     setStatusFilter,
     setCompanyFilter,
     setCityFilter,
     setStocks,
+    setRosterStockMin,
+    setRosterStockMax,
     resetFilters,
   } = useFilterStore()
   const { data: user } = useGetUserData()
   const { data: filterMenu } = useGetFilterMenu()
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
+
+  const [shareSearch, setShareSearch] = useState("")
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchHits, setSearchHits] = useState<Excel[]>([])
+
+  const runShareSearch = useCallback(async () => {
+    const q = shareSearch.trim()
+    if (q.length < 2) {
+      setSearchHits([])
+
+      return
+    }
+    setSearchLoading(true)
+    try {
+      const rows = await searchShareholdersForMap(q, user?.user?.user_metadata)
+      setSearchHits(rows)
+    } finally {
+      setSearchLoading(false)
+    }
+  }, [shareSearch, user?.user?.user_metadata])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void runShareSearch()
+    }, 450)
+
+    return () => window.clearTimeout(t)
+  }, [runShareSearch])
 
   // 사용자의 허용된 필터 옵션들
   const allowedStatus = useMemo(
@@ -147,6 +183,41 @@ const FilterModalChildren = ({
         </CloseButton>
       </ModalHeader>
 
+      {onNavigateToShareholder && (
+        <FilterSection>
+          <SectionTitle>주주 빠른 이동</SectionTitle>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            이름·주소·휴대폰으로 검색(2자 이상). 항목을 누르면 지도가 해당
+            위치로 이동하고 정보 창이 열립니다.
+          </Alert>
+          <SearchInput
+            type="search"
+            placeholder="예: 홍길동, 테헤란로, 010"
+            value={shareSearch}
+            onChange={(e) => setShareSearch(e.target.value)}
+          />
+          {searchLoading && <SearchHint>검색 중…</SearchHint>}
+          {searchHits.length > 0 && (
+            <SearchHitList>
+              {searchHits.map((row) => (
+                <SearchHitButton
+                  key={row.id}
+                  type="button"
+                  onClick={() => {
+                    onNavigateToShareholder(row)
+                  }}>
+                  <SearchHitName>{row.name || "(이름 없음)"}</SearchHitName>
+                  <SearchHitMeta>
+                    {row.company ? `${row.company} · ` : ""}
+                    {row.address ?? ""}
+                  </SearchHitMeta>
+                </SearchHitButton>
+              ))}
+            </SearchHitList>
+          )}
+        </FilterSection>
+      )}
+
       <FilterSection>
         <SectionTitle>지역(문자가 포함된 주소)</SectionTitle>
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -212,6 +283,33 @@ const FilterModalChildren = ({
           ))}
         </ChipsWrapper>
       </FilterSection>
+
+      {companyFilter.length === 1 && (
+        <FilterSection>
+          <SectionTitle>선택한 주주명부만 주식수 (숫자)</SectionTitle>
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            회사(구분1)을 <strong>하나만</strong> 선택했을 때만 적용됩니다. 값을
+            넣으면 아래 &quot;주식수 구간&quot; 칩 필터는 사용하지 않습니다.
+          </Alert>
+          <RosterStockRow>
+            <NumberField
+              type="number"
+              inputMode="numeric"
+              placeholder="최소 주식수"
+              value={rosterStockMin}
+              onChange={(e) => setRosterStockMin(e.target.value)}
+            />
+            <RosterSep>~</RosterSep>
+            <NumberField
+              type="number"
+              inputMode="numeric"
+              placeholder="최대 주식수"
+              value={rosterStockMax}
+              onChange={(e) => setRosterStockMax(e.target.value)}
+            />
+          </RosterStockRow>
+        </FilterSection>
+      )}
 
       <FilterSection>
         <SectionTitle>주식수 (다중 선택 가능)</SectionTitle>
@@ -388,6 +486,78 @@ const ApplyButton = styled.button`
   &:hover {
     background: ${COLORS.blue[600]};
   }
+`
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  font-size: 14px;
+  margin-bottom: 8px;
+`
+
+const SearchHint = styled.p`
+  font-size: 12px;
+  color: ${COLORS.gray[500]};
+  margin: 0 0 8px;
+`
+
+const SearchHitList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+`
+
+const SearchHitButton = styled.button`
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  background: ${COLORS.gray[50]};
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: ${COLORS.blue[50]};
+    border-color: ${COLORS.blue[200]};
+  }
+`
+
+const SearchHitName = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  color: ${COLORS.gray[900]};
+`
+
+const SearchHitMeta = styled.div`
+  font-size: 12px;
+  color: ${COLORS.gray[600]};
+  margin-top: 4px;
+  word-break: break-all;
+`
+
+const RosterStockRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`
+
+const NumberField = styled.input`
+  flex: 1;
+  min-width: 120px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  font-size: 14px;
+`
+
+const RosterSep = styled.span`
+  color: ${COLORS.gray[500]};
+  font-weight: 600;
 `
 
 export default FilterModalChildren

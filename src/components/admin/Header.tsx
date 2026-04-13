@@ -17,6 +17,10 @@ const HeaderContent = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  @media (max-width: 900px) {
+    padding-left: 3.5rem;
+  }
 `
 
 const PageTitle = styled.h2`

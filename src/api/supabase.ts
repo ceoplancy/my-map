@@ -61,9 +61,21 @@ const getExcel = async (mapLevel = 14, params?: FilterParams) => {
     query = query.like("address", `%${params.city}%`)
   }
 
-  // 스톡 필터링 로직 수정
-  if (params?.stocks && params.stocks.length > 0) {
-    // OR 조건으로 각 구간 필터링
+  const useRosterNarrow =
+    params?.company &&
+    params.company.length === 1 &&
+    (params.rosterStockMin != null || params.rosterStockMax != null)
+
+  if (useRosterNarrow && params) {
+    const rMin = params.rosterStockMin
+    const rMax = params.rosterStockMax
+    if (rMin != null && !Number.isNaN(Number(rMin))) {
+      query = query.gte("stocks", rMin)
+    }
+    if (rMax != null && !Number.isNaN(Number(rMax))) {
+      query = query.lte("stocks", rMax)
+    }
+  } else if (params?.stocks && params.stocks.length > 0) {
     const stockConditions = params.stocks
       .map((range) => `and(stocks.gte.${range.start},stocks.lte.${range.end})`)
       .join(",")
@@ -99,6 +111,8 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
     params?.company,
     params?.status,
     params?.stocks,
+    params?.rosterStockMin,
+    params?.rosterStockMax,
     params?.city,
     params?.userMetadata,
   ]
@@ -119,16 +133,25 @@ export const useGetExcel = (mapLevel: number, params?: FilterParams) => {
 // =========================================
 const updateExcel = async (patchData: Excel) => {
   const { id, ...attributes } = patchData
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("excel")
     .update(attributes)
     .eq("id", id)
     .select()
+    .maybeSingle()
 
   if (error) {
     Sentry.captureException(error)
     Sentry.captureMessage("엑셀 데이터 수정에 실패했습니다.")
     throw new Error(error.message)
+  }
+
+  // RLS·세션 만료·id 불일치 등으로 갱신된 행이 0개일 때, PostgREST는 error 없이 data=null을 줄 수 있음
+  if (data == null) {
+    const msg =
+      "저장되지 않았습니다. 로그인이 만료되었거나 권한이 없을 수 있습니다. 새로고침 후 다시 시도해 주세요."
+    Sentry.captureMessage(`excel update affected 0 rows (id=${String(id)})`)
+    throw new Error(msg)
   }
 }
 
@@ -140,10 +163,12 @@ export const usePatchExcel = () => {
       queryClient.invalidateQueries(["excel"])
       queryClient.invalidateQueries(["filteredStats"])
     },
-    onError: () => {
-      toast.error(
-        "네트워크 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.",
-      )
+    onError: (err: unknown) => {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "저장하지 못했습니다. 네트워크와 로그인 상태를 확인한 뒤 다시 시도해 주세요."
+      toast.error(message)
     },
   })
 }

@@ -1,5 +1,7 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
+import ShareholderStatusSelect from "@/components/shareholder/ShareholderStatusSelect"
+import { getStatusBadgeColors } from "@/lib/shareholderStatus"
 import { useState } from "react"
 import { useQueryClient } from "react-query"
 import supabaseAdmin from "@/lib/supabase/supabaseAdminClient"
@@ -81,16 +83,14 @@ const Input = styled.input`
   }
 `
 
-const Select = styled.select`
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 5rem;
   padding: 0.75rem 1rem;
   border: 1px solid ${COLORS.gray[200]};
   border-radius: 0.5rem;
   font-size: 1rem;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem;
+  resize: vertical;
 
   &:focus {
     border-color: ${COLORS.blue[500]};
@@ -220,27 +220,13 @@ const ChangeContent = styled.div`
   flex: 1;
 `
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $bg: string; $fg: string }>`
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-  background: ${({ status }) =>
-    status === "완료"
-      ? COLORS.green[50]
-      : status === "미방문"
-        ? COLORS.gray[100]
-        : status === "보류"
-          ? COLORS.yellow[50]
-          : COLORS.red[50]};
-  color: ${({ status }) =>
-    status === "완료"
-      ? COLORS.green[700]
-      : status === "미방문"
-        ? COLORS.gray[700]
-        : status === "보류"
-          ? COLORS.yellow[700]
-          : COLORS.red[700]};
+  background: ${({ $bg }) => $bg};
+  color: ${({ $fg }) => $fg};
 `
 
 interface Props {
@@ -261,6 +247,8 @@ export const FIELD_LABELS: Record<keyof Excel, string> = {
   maker: "마커(구분2)",
   stocks: "주식수",
   memo: "메모",
+  phone: "휴대폰",
+  special_notes: "특이사항",
   history: "히스토리",
   image: "이미지",
 }
@@ -332,15 +320,11 @@ export default function EditShareholderModal({ data, onClose }: Props) {
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.status}</Label>
-                <Select
-                  value={formData.status || ""}
-                  onChange={(e) => handleChange("status", e.target.value)}>
-                  <option value="">선택하세요</option>
-                  <option value="미방문">미방문</option>
-                  <option value="완료">완료</option>
-                  <option value="보류">보류</option>
-                  <option value="실패">실패</option>
-                </Select>
+                <ShareholderStatusSelect
+                  idPrefix="admin-shareholder-status"
+                  value={formData.status || "미방문"}
+                  onChange={(next) => handleChange("status", next)}
+                />
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.company}</Label>
@@ -375,11 +359,28 @@ export default function EditShareholderModal({ data, onClose }: Props) {
                 />
               </FormGroup>
               <FormGroup>
+                <Label>{FIELD_LABELS.phone}</Label>
+                <Input
+                  type="tel"
+                  value={formData.phone || ""}
+                  onChange={(e) => handleChange("phone", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
                 <Label>{FIELD_LABELS.memo}</Label>
                 <Input
                   type="text"
                   value={formData.memo || ""}
                   onChange={(e) => handleChange("memo", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.special_notes}</Label>
+                <TextArea
+                  value={formData.special_notes || ""}
+                  onChange={(e) =>
+                    handleChange("special_notes", e.target.value)
+                  }
                 />
               </FormGroup>
               <FormGroup>
@@ -407,6 +408,32 @@ export default function EditShareholderModal({ data, onClose }: Props) {
                         </ModifierInfo>
                       </HistoryHeader>
                       <HistoryDetails>
+                        {history.changes.phone && (
+                          <ChangeItem>
+                            <FieldName>휴대폰</FieldName>
+                            <ChangeContent>
+                              <span>
+                                {history.changes.phone.original || "-"}
+                              </span>
+                              <span>→</span>
+                              <span>{history.changes.phone.modified}</span>
+                            </ChangeContent>
+                          </ChangeItem>
+                        )}
+                        {history.changes.special_notes && (
+                          <ChangeItem>
+                            <FieldName>특이사항</FieldName>
+                            <ChangeContent>
+                              <span>
+                                {history.changes.special_notes.original || "-"}
+                              </span>
+                              <span>→</span>
+                              <span>
+                                {history.changes.special_notes.modified}
+                              </span>
+                            </ChangeContent>
+                          </ChangeItem>
+                        )}
                         {history.changes.memo && (
                           <ChangeItem>
                             <FieldName>메모</FieldName>
@@ -424,12 +451,30 @@ export default function EditShareholderModal({ data, onClose }: Props) {
                             <FieldName>상태</FieldName>
                             <ChangeContent>
                               <StatusBadge
-                                status={history.changes.status.original}>
+                                $bg={
+                                  getStatusBadgeColors(
+                                    history.changes.status.original,
+                                  ).bg
+                                }
+                                $fg={
+                                  getStatusBadgeColors(
+                                    history.changes.status.original,
+                                  ).fg
+                                }>
                                 {history.changes.status.original}
                               </StatusBadge>
                               <span>→</span>
                               <StatusBadge
-                                status={history.changes.status.modified}>
+                                $bg={
+                                  getStatusBadgeColors(
+                                    history.changes.status.modified,
+                                  ).bg
+                                }
+                                $fg={
+                                  getStatusBadgeColors(
+                                    history.changes.status.modified,
+                                  ).fg
+                                }>
                                 {history.changes.status.modified}
                               </StatusBadge>
                             </ChangeContent>

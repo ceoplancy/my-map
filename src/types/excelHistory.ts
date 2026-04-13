@@ -3,6 +3,8 @@
 export type HistoryChange = {
   memo?: { original: string; modified: string }
   status?: { original: string; modified: string }
+  phone?: { original: string; modified: string }
+  special_notes?: { original: string; modified: string }
 }
 
 export type HistoryItem = {

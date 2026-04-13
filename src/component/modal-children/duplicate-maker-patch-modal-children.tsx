@@ -4,6 +4,7 @@ import Button from "../button"
 import Font from "../font"
 import { format } from "date-fns"
 import ExcelDataTable from "../excel-data-table"
+import ShareholderStatusSelect from "@/components/shareholder/ShareholderStatusSelect"
 import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction } from "react"
 import { UseMutateFunction } from "react-query"
@@ -47,28 +48,23 @@ const DuplicateMakerPatchModalChildren = ({
           상태
         </Font>
 
-        <select
-          style={{ marginTop: "0.5rem" }}
-          name="status-select"
-          id="status-select"
-          value={duplicateMakerDataState?.status || ""}
-          onChange={(e) => {
-            setDuplicateMakerDataState((prev: Excel | null) => {
-              if (!prev) {
-                return duplicateMakerData
-                  ? { ...duplicateMakerData, status: e.target.value }
-                  : null
-              }
+        <div style={{ marginTop: "0.5rem" }}>
+          <ShareholderStatusSelect
+            idPrefix="dup-patch-status"
+            value={duplicateMakerDataState?.status || "미방문"}
+            onChange={(next) => {
+              setDuplicateMakerDataState((prev: Excel | null) => {
+                if (!prev) {
+                  return duplicateMakerData
+                    ? { ...duplicateMakerData, status: next }
+                    : null
+                }
 
-              return { ...prev, status: e.target.value }
-            })
-          }}>
-          <option value="">선택하세요</option>
-          <option value="미방문">미방문</option>
-          <option value="완료">완료</option>
-          <option value="보류">보류</option>
-          <option value="실패">실패</option>
-        </select>
+                return { ...prev, status: next }
+              })
+            }}
+          />
+        </div>
       </InfoWrapper>
 
       <InfoWrapper>
@@ -96,6 +92,51 @@ const DuplicateMakerPatchModalChildren = ({
         />
       </InfoWrapper>
 
+      <InfoWrapper>
+        <Font fontSize="14px" whiteSpace="nowrap">
+          휴대폰
+        </Font>
+
+        <input
+          type="tel"
+          style={{ marginTop: "0.5rem", width: "100%", padding: "0.5rem" }}
+          value={removeTags(duplicateMakerDataState?.phone ?? "")}
+          onChange={(e) => {
+            setDuplicateMakerDataState((prev: Excel | null) => {
+              if (!prev) {
+                return duplicateMakerData
+                  ? { ...duplicateMakerData, phone: e.target.value }
+                  : null
+              }
+
+              return { ...prev, phone: e.target.value }
+            })
+          }}
+        />
+      </InfoWrapper>
+
+      <InfoWrapper>
+        <Font fontSize="14px" whiteSpace="nowrap">
+          특이사항
+        </Font>
+
+        <textarea
+          style={{ marginTop: "0.5rem" }}
+          value={removeTags(duplicateMakerDataState?.special_notes ?? "")}
+          onChange={(e) => {
+            setDuplicateMakerDataState((prev: Excel | null) => {
+              if (!prev) {
+                return duplicateMakerData
+                  ? { ...duplicateMakerData, special_notes: e.target.value }
+                  : null
+              }
+
+              return { ...prev, special_notes: e.target.value }
+            })
+          }}
+        />
+      </InfoWrapper>
+
       <div style={{ display: "flex", justifyContent: "center" }}>
         <Button
           fontSize="14px"
@@ -109,6 +150,8 @@ const DuplicateMakerPatchModalChildren = ({
                 ...duplicateMakerDataState,
                 status: duplicateMakerDataState.status,
                 memo: duplicateMakerDataState.memo,
+                phone: duplicateMakerDataState.phone,
+                special_notes: duplicateMakerDataState.special_notes,
                 history: [
                   ...(duplicateMakerDataState.history as string[]),
                   `${userId} ${format(new Date(), "yyyy/MM/dd/ HH:mm:ss")}`,

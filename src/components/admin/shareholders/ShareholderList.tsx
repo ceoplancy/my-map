@@ -16,6 +16,7 @@ import {
 } from "@mui/icons-material"
 import { toast } from "react-toastify"
 import { normalizeExcelHistoryJson } from "@/lib/excelHistory"
+import { getAllSelectableStatusValues } from "@/lib/shareholderStatus"
 import * as Sentry from "@sentry/nextjs"
 import * as XLSX from "xlsx"
 
@@ -596,10 +597,11 @@ export default function ShareholderList() {
               value={filters.status}
               onChange={(e) => handleFilterChange("status", e.target.value)}>
               <option value="">모든 상태</option>
-              <option value="미방문">미방문</option>
-              <option value="완료">완료</option>
-              <option value="보류">보류</option>
-              <option value="실패">실패</option>
+              {getAllSelectableStatusValues().map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </FilterSelect>
           </FormGroup>
 

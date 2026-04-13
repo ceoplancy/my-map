@@ -6,6 +6,7 @@ import { Excel } from "@/types/excel"
 import Modal from "./modal"
 import { Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
+import { getMarkerToneForStatus } from "@/lib/shareholderStatus"
 
 export const STATUS_MARKERS = {
   미방문: "/svg/default.svg",
@@ -32,8 +33,9 @@ export const getMarkerImage = (
   company: string | null,
   companyList: string[],
 ) => {
-  if (status && status !== "미방문" && status in STATUS_MARKERS) {
-    return STATUS_MARKERS[status as keyof typeof STATUS_MARKERS]
+  const tone = getMarkerToneForStatus(status)
+  if (tone !== "미방문" && tone in STATUS_MARKERS) {
+    return STATUS_MARKERS[tone as keyof typeof STATUS_MARKERS]
   }
 
   if (company && companyList.length > 0) {

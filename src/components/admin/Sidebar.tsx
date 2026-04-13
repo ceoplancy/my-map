@@ -10,12 +10,30 @@ import {
 import { usePathname } from "next/navigation"
 import { normalizePathname } from "@/lib/utils"
 
-const SidebarContainer = styled.div`
+const SidebarContainer = styled.aside<{
+  $mobileOpen?: boolean
+}>`
   width: 16rem;
   background-color: ${COLORS.white};
   box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.1);
   height: 100%;
   border-right: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  z-index: 45;
+  transition: transform 0.25s ease;
+
+  @media (max-width: 900px) {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    max-width: min(18rem, 88vw);
+    transform: translateX(
+      ${({ $mobileOpen }) => ($mobileOpen ? "0" : "-100%")}
+    );
+    box-shadow: ${({ $mobileOpen }) =>
+      $mobileOpen ? "8px 0 24px rgba(0,0,0,0.12)" : "none"};
+  }
 `
 
 const LogoContainer = styled.div`
@@ -83,12 +101,20 @@ const menuItems = [
   },
 ]
 
-export default function Sidebar() {
+type SidebarProps = {
+  mobileOpen?: boolean
+  onNavigate?: () => void
+}
+
+export default function Sidebar({
+  mobileOpen = false,
+  onNavigate,
+}: SidebarProps) {
   const pathname = usePathname()
   pathname.isWellFormed()
 
   return (
-    <SidebarContainer>
+    <SidebarContainer $mobileOpen={mobileOpen}>
       <LogoContainer>
         <LogoSection>
           <LogoText>관리자 패널</LogoText>
@@ -99,6 +125,7 @@ export default function Sidebar() {
           <NavLink
             key={item.path}
             href={item.path}
+            onClick={() => onNavigate?.()}
             className={
               normalizePathname(pathname) === normalizePathname(item.path)
                 ? "active"
