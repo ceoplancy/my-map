@@ -28,6 +28,8 @@ import {
   InputAdornment,
   Grid,
   ListItemButton,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material"
 import {
   CloudUpload,
@@ -41,7 +43,9 @@ import {
   LocationOn,
   Map as MapIcon,
   Close,
+  DeleteOutline,
 } from "@mui/icons-material"
+import type { Excel } from "@/types/excel"
 import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import useDebounce from "@/hooks/useDebounce"
 import { reportError } from "@/lib/reportError"
@@ -49,6 +53,14 @@ import { BATCH_SIZE } from "@/pages/admin/excel-import"
 
 import { FIELD_LABELS } from "../admin/shareholders/EditShareholderModal"
 import { ExcelImportViewProps, SearchResult } from "./types"
+import { DeferredFailure } from "@/lib/excelImportDeferred"
+import { format } from "date-fns"
+
+const FAIL_REASON_LABEL: Record<DeferredFailure["reason"], string> = {
+  geocode: "주소→좌표 실패",
+  empty_address: "주소 없음",
+  db: "DB 저장 실패",
+}
 
 export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   fileName,
@@ -56,6 +68,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   failData,
   loading,
   progress,
+  preserveQueueBeforeUpload,
+  onPreserveQueueChange,
+  onClearDeferredQueue,
+  onRemoveDeferred,
   onFileChange,
   onClearFileName,
   onSubmit,
@@ -68,8 +84,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
 }) => {
   const theme = useTheme()
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [currentEditData, setCurrentEditData] =
-    useState<ImportSpreadsheetRow | null>(null)
+  const [editingDeferredId, setEditingDeferredId] = useState<string | null>(
+    null,
+  )
+  const [currentEditData, setCurrentEditData] = useState<Excel | null>(null)
   const [editedValues, setEditedValues] = useState<Record<string, any>>({})
 
   // 주소 검색 관련 상태
@@ -295,7 +313,9 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   }
 
   // 편집 다이얼로그 열기 함수
-  const handleEditClick = (rowData: ImportSpreadsheetRow) => {
+  const handleEditClick = (entry: DeferredFailure) => {
+    setEditingDeferredId(entry.id)
+    const rowData = entry.excel
     setCurrentEditData(rowData)
 
     // 모든 필드를 포함하는 초기 값 설정
@@ -308,6 +328,8 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
       "company",
       "maker",
       "memo",
+      "phone",
+      "special_notes",
       "stocks",
     ]
 
@@ -331,11 +353,16 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         case "address":
         case "maker":
         case "memo":
+        case "phone":
+        case "special_notes":
         case "latlngaddress":
           initialValues[field] = rowData[field] || ""
           break
         case "shareholderId":
-          initialValues[field] = rowData.shareholderId ?? null
+          initialValues[field] =
+            "shareholderId" in rowData
+              ? ((rowData as ImportSpreadsheetRow).shareholderId ?? null)
+              : null
           break
         default:
           break
@@ -363,6 +390,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   // 다이얼로그 닫기 함수
   const handleEditDialogClose = () => {
     setEditDialogOpen(false)
+    setEditingDeferredId(null)
     setCurrentEditData(null)
     setEditedValues({})
     setSearchKeyword("")
@@ -380,15 +408,13 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
 
   // 수정 저장 함수
   const handleSaveEdit = async () => {
-    if (currentEditData && editedValues) {
+    if (editingDeferredId && currentEditData && editedValues) {
       try {
-        // 수정된 데이터 저장
-        await onEditFailedData({
+        await onEditFailedData(editingDeferredId, {
           ...currentEditData,
           ...editedValues,
-        })
+        } as Excel)
 
-        // 다이얼로그 닫기
         handleEditDialogClose()
       } catch (error) {
         reportError(error, { toastMessage: "주소 수정에 실패했습니다." })
@@ -428,8 +454,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- progress.current는 ref, 의존성에서 제외
-  }, [loading, progress.current, progress.total])
+  }, [loading, progress])
 
   // 시간 포맷팅 함수
   const formatTime = useCallback((time: number) => {
@@ -473,6 +498,29 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
             변경 이력(shareholder_change_history)에 기록되지 않습니다.
           </strong>
         </Typography>
+
+        <FormControlLabel
+          sx={{ display: "block", mb: 2, alignItems: "flex-start" }}
+          control={
+            <Checkbox
+              checked={preserveQueueBeforeUpload}
+              onChange={(_, checked) => onPreserveQueueChange(checked)}
+              disabled={loading}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body2">
+                새 파일 변환 시 기존 실패 보관함 유지 (이번 실패 건을 이어서
+                모음)
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                끄면 변환 시작 시 보관함이 비워지고, 이번 실행에서 실패한 행만
+                남습니다.
+              </Typography>
+            </Box>
+          }
+        />
 
         <form onSubmit={onSubmit}>
           <Box
@@ -942,28 +990,38 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              flexWrap: "wrap",
+              gap: 1,
               mb: 3,
             }}>
             <Typography variant="h6" fontWeight="bold" color="error">
-              변환 실패 데이터 ({failCount}건)
+              실패 보관함 ({failCount}건)
             </Typography>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<FileDownload />}
-              onClick={() => onExport(failData)}
-              size="small">
-              실패 목록 다운로드 (.xlsx)
-            </Button>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={onClearDeferredQueue}
+                disabled={loading || failCount === 0}
+                size="small">
+                보관함 비우기
+              </Button>
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<FileDownload />}
+                onClick={() => onExport(failData)}
+                disabled={failCount === 0}
+                size="small">
+                엑셀 파일 다운로드
+              </Button>
+            </Box>
           </Box>
 
           <Alert severity="info" sx={{ mb: 1 }}>
-            아래 데이터는 주소를 좌표로 변환하는데 실패했습니다. 하단의 작업
-            버튼을 통해 주소를 수정한 후 저장 및 재변환을 시도해주세요.
-          </Alert>
-
-          <Alert severity="error" sx={{ mb: 3 }}>
-            새로 고침 시 수정 중인 데이터 목록은 사라집니다.
+            주소를 좌표로 바꾸지 못했거나 DB 저장에 실패한 행이 여기 모입니다.
+            행에서 수정 후 재시도하거나, 나중에 이어서 처리할 수 있습니다. 이
+            브라우저(기기)에 보관되며, 다른 기기와는 공유되지 않습니다.
           </Alert>
 
           <TableContainer>
@@ -973,8 +1031,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                   <TableCell>ID</TableCell>
                   <TableCell>이름</TableCell>
                   <TableCell>주소</TableCell>
-                  <TableCell>상태</TableCell>
-                  <TableCell width={100} align="center">
+                  <TableCell>사유</TableCell>
+                  <TableCell>파일</TableCell>
+                  <TableCell>보관 시각</TableCell>
+                  <TableCell width={120} align="center">
                     작업
                   </TableCell>
                 </TableRow>
@@ -982,27 +1042,47 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
               <TableBody>
                 {failData
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{row.id || index + 1}</TableCell>
-                      <TableCell>{row.name || "-"}</TableCell>
-                      <TableCell>{row.address || "-"}</TableCell>
+                  .map((entry, index) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{entry.excel.id || index + 1}</TableCell>
+                      <TableCell>{entry.excel.name || "-"}</TableCell>
+                      <TableCell>{entry.excel.address || "-"}</TableCell>
                       <TableCell>
                         <Chip
                           size="small"
                           icon={<ErrorIcon fontSize="small" />}
-                          label="변환 실패"
+                          label={FAIL_REASON_LABEL[entry.reason]}
                           color="error"
                           variant="outlined"
                         />
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          maxWidth: 140,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                        {entry.sourceFile || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(entry.addedAt), "yyyy-MM-dd HH:mm")}
                       </TableCell>
                       <TableCell align="center">
                         <Tooltip title="데이터 수정">
                           <IconButton
                             size="small"
                             color="primary"
-                            onClick={() => handleEditClick(row)}>
+                            onClick={() => handleEditClick(entry)}>
                             <Edit fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="보관함에서 제거">
+                          <IconButton
+                            size="small"
+                            color="default"
+                            onClick={() => onRemoveDeferred(entry.id)}>
+                            <DeleteOutline fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </TableCell>

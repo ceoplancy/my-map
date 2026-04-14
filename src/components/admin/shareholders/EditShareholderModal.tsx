@@ -1,5 +1,9 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
+import ShareholderStatusSelect from "@/components/shareholder/ShareholderStatusSelect"
+import { ShareholderExternalMapLinks } from "@/components/shareholder/ShareholderExternalMapLinks"
+import { ShareholderPhotoUploadField } from "@/components/shareholder/ShareholderPhotoUploadField"
+import { getStatusBadgeColors } from "@/lib/shareholderStatus"
 import { useState } from "react"
 import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
@@ -10,7 +14,6 @@ import {
   usePatchShareholder,
   useShareholderChangeHistory,
 } from "@/api/workspace"
-import Select from "@/components/ui/select"
 
 const Overlay = styled.div`
   position: fixed;
@@ -85,10 +88,15 @@ const Input = styled.input`
   }
 `
 
-const ModalSelect = styled(Select)`
+const TextArea = styled.textarea`
   width: 100%;
-  padding: 0.75rem 2rem 0.75rem 0.75rem;
+  min-height: 5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 0.5rem;
   font-size: 1rem;
+  resize: vertical;
+
   &:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
@@ -216,27 +224,13 @@ const ChangeContent = styled.div`
   flex: 1;
 `
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $bg: string; $fg: string }>`
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-  background: ${({ status }) =>
-    status === "완료"
-      ? COLORS.green[50]
-      : status === "미방문"
-        ? COLORS.gray[100]
-        : status === "보류"
-          ? COLORS.yellow[50]
-          : COLORS.red[50]};
-  color: ${({ status }) =>
-    status === "완료"
-      ? COLORS.green[700]
-      : status === "미방문"
-        ? COLORS.gray[700]
-        : status === "보류"
-          ? COLORS.yellow[700]
-          : COLORS.red[700]};
+  background: ${({ $bg }) => $bg};
+  color: ${({ $fg }) => $fg};
 `
 
 type Shareholder = Tables<"shareholders">
@@ -259,6 +253,10 @@ export const FIELD_LABELS: Record<string, string> = {
   maker: "마커(구분2)",
   stocks: "주식수",
   memo: "메모",
+  phone: "휴대폰",
+  special_notes: "특이사항",
+  history: "히스토리",
+  image: "이미지",
 }
 
 export default function EditShareholderModal({ data, userId, onClose }: Props) {
@@ -339,15 +337,11 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.status}</Label>
-                <ModalSelect
-                  value={formData.status || ""}
-                  onChange={(e) => handleChange("status", e.target.value)}>
-                  <option value="">선택하세요</option>
-                  <option value="미방문">미방문</option>
-                  <option value="완료">완료</option>
-                  <option value="보류">보류</option>
-                  <option value="실패">실패</option>
-                </ModalSelect>
+                <ShareholderStatusSelect
+                  idPrefix="admin-shareholder-status"
+                  value={formData.status || "미방문"}
+                  onChange={(next) => handleChange("status", next)}
+                />
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.company}</Label>
@@ -382,6 +376,14 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                 />
               </FormGroup>
               <FormGroup>
+                <Label>{FIELD_LABELS.phone}</Label>
+                <Input
+                  type="tel"
+                  value={formData.phone || ""}
+                  onChange={(e) => handleChange("phone", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
                 <Label>{FIELD_LABELS.memo}</Label>
                 <Input
                   type="text"
@@ -390,11 +392,37 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                 />
               </FormGroup>
               <FormGroup>
+                <Label>{FIELD_LABELS.special_notes}</Label>
+                <TextArea
+                  value={formData.special_notes || ""}
+                  onChange={(e) =>
+                    handleChange("special_notes", e.target.value)
+                  }
+                />
+              </FormGroup>
+              <FormGroup>
                 <Label>{FIELD_LABELS.maker}</Label>
                 <Input
                   type="text"
                   value={formData.maker || ""}
                   onChange={(e) => handleChange("maker", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>카카오맵</Label>
+                <ShareholderExternalMapLinks
+                  lat={formData.lat}
+                  lng={formData.lng}
+                  name={formData.name}
+                  address={formData.address}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.image}</Label>
+                <ShareholderPhotoUploadField
+                  shareholderId={data.id}
+                  imageUrl={formData.image}
+                  onChangeUrl={(url) => handleChange("image", url)}
                 />
               </FormGroup>
             </FormSection>
@@ -458,12 +486,30 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                               <FieldName>상태</FieldName>
                               <ChangeContent>
                                 <StatusBadge
-                                  status={history.changes.status.original}>
+                                  $bg={
+                                    getStatusBadgeColors(
+                                      history.changes.status.original,
+                                    ).bg
+                                  }
+                                  $fg={
+                                    getStatusBadgeColors(
+                                      history.changes.status.original,
+                                    ).fg
+                                  }>
                                   {history.changes.status.original}
                                 </StatusBadge>
                                 <span>→</span>
                                 <StatusBadge
-                                  status={history.changes.status.modified}>
+                                  $bg={
+                                    getStatusBadgeColors(
+                                      history.changes.status.modified,
+                                    ).bg
+                                  }
+                                  $fg={
+                                    getStatusBadgeColors(
+                                      history.changes.status.modified,
+                                    ).fg
+                                  }>
                                   {history.changes.status.modified}
                                 </StatusBadge>
                               </ChangeContent>

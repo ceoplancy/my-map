@@ -52,6 +52,8 @@ export function parseSpreadsheetRow(
     address: pickString(raw, ["주소", "address"]),
     status: pickString(raw, ["상태", "status", "방문 상태"]),
     memo: pickString(raw, ["메모", "memo"]),
+    phone: pickString(raw, ["휴대폰", "연락처", "phone", "전화"]),
+    special_notes: pickString(raw, ["특이사항", "special_notes", "비고"]),
     maker: pickString(raw, ["담당", "maker", "마커"]),
     stocks: pickNumber(raw, ["주식수", "stocks"]),
     lat: null,

@@ -248,6 +248,10 @@ type ShareholdersParams = {
   maker?: string | null
   city?: string
   stocks?: { start: number; end: number }[]
+
+  /** 회사(구분1) 1개 + 숫자 구간일 때 주주명부 좁히기(지도 통계 등) */
+  rosterStockMin?: number | null
+  rosterStockMax?: number | null
   lat?: number
   lng?: number
   mapLevel?: number
@@ -342,7 +346,20 @@ const getShareholderStats = async (
   if (params.city) {
     query = query.like("address", `%${params.city}%`)
   }
-  if (params.stocks?.length) {
+  const useRosterNarrow =
+    params.company?.length === 1 &&
+    (params.rosterStockMin != null || params.rosterStockMax != null)
+
+  if (useRosterNarrow) {
+    const rMin = params.rosterStockMin
+    const rMax = params.rosterStockMax
+    if (rMin != null && !Number.isNaN(Number(rMin))) {
+      query = query.gte("stocks", rMin)
+    }
+    if (rMax != null && !Number.isNaN(Number(rMax))) {
+      query = query.lte("stocks", rMax)
+    }
+  } else if (params.stocks?.length) {
     const conditions = params.stocks
       .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
       .join(",")
@@ -381,6 +398,8 @@ export const useShareholderStats = (params: ShareholdersParams) => {
       params.company,
       params.city,
       params.stocks,
+      params.rosterStockMin,
+      params.rosterStockMax,
     ],
     queryFn: () => getShareholderStats(params),
     enabled,

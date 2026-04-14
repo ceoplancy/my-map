@@ -15,7 +15,6 @@ import EditShareholderModal, {
 import GlobalSpinner from "@/components/ui/global-spinner"
 import { formatDateTimeKo } from "@/lib/formatDateTimeKo"
 import { useSession } from "@/api/auth"
-import type { Tables } from "@/types/db"
 import { toast } from "react-toastify"
 
 type HistoryRow = {
@@ -330,7 +329,7 @@ export function ChangeHistoryPageContent() {
         .single()
       if (error) throw error
 
-      return row as Tables<"shareholders">
+      return row
     },
     enabled: Boolean(shareholderIdForModal),
     retry: false,

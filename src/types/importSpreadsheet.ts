@@ -17,6 +17,8 @@ export type ImportSpreadsheetRow = {
   maker: string | null
   memo: string | null
   name: string | null
+  phone: string | null
+  special_notes: string | null
   status: string | null
   stocks: number
 }

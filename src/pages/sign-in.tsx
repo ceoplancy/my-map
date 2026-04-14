@@ -114,6 +114,7 @@ export default SignIn
 const Container = styled.div`
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -178,10 +179,12 @@ const RightSection = styled.div`
   flex-direction: column;
   justify-content: space-between;
   padding: 2rem;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
   background-color: #ffffff;
 
   @media (max-width: 768px) {
     padding: 1rem;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
   }
 `
 

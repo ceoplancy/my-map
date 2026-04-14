@@ -1,12 +1,13 @@
 import { useRouter } from "next/router"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import Sidebar from "@/components/admin/Sidebar"
 import Header from "@/components/admin/Header"
 import { FullPageLoader } from "@/components/FullPageLoader"
 import styled from "@emotion/styled"
 import { useGetUserData, useMyWorkspaces } from "@/api/auth"
-import { toast } from "react-toastify"
 import { useCurrentWorkspace } from "@/store/workspaceState"
+import { toast } from "react-toastify"
+import { Menu as MenuIcon, Close as CloseIcon } from "@mui/icons-material"
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -16,6 +17,40 @@ const LayoutContainer = styled.div`
   display: flex;
   height: 100vh;
   background-color: #fff;
+  position: relative;
+`
+
+const MobileNavToggle = styled.button`
+  display: none;
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  color: #374151;
+
+  @media (max-width: 900px) {
+    display: flex;
+  }
+`
+
+const SidebarBackdrop = styled.div<{ $open: boolean }>`
+  display: none;
+  @media (max-width: 900px) {
+    display: ${({ $open }) => ($open ? "block" : "none")};
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 40;
+  }
 `
 
 const MainContainer = styled.div`
@@ -23,25 +58,31 @@ const MainContainer = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 `
 
 const MainContent = styled.main`
   flex: 1;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   background-color: #fff;
   padding: 1.5rem;
+
+  @media (max-width: 900px) {
+    padding: 1rem;
+    padding-top: 3.75rem;
+  }
 `
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter()
-  const [, setCurrentWorkspace] = useCurrentWorkspace()
   const { data: user, isLoading: userLoading } = useGetUserData()
-  const hasUser = Boolean(user?.user)
   const { data: workspaces = [], isLoading: workspacesLoading } =
-    useMyWorkspaces({ enabled: hasUser })
+    useMyWorkspaces({ enabled: Boolean(user?.user) })
+  const [, setCurrentWorkspace] = useCurrentWorkspace()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
-  const ready = !userLoading && (!hasUser || !workspacesLoading)
+  const ready = !userLoading && (!user?.user || !workspacesLoading)
 
   useEffect(() => {
     if (!ready) return
@@ -71,7 +112,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <LayoutContainer>
-      <Sidebar />
+      <MobileNavToggle
+        type="button"
+        aria-label={mobileNavOpen ? "메뉴 닫기" : "메뉴 열기"}
+        onClick={() => setMobileNavOpen((o) => !o)}>
+        {mobileNavOpen ? <CloseIcon /> : <MenuIcon />}
+      </MobileNavToggle>
+      <SidebarBackdrop
+        $open={mobileNavOpen}
+        aria-hidden
+        onClick={() => setMobileNavOpen(false)}
+      />
+      <Sidebar
+        mobileOpen={mobileNavOpen}
+        onNavigate={() => setMobileNavOpen(false)}
+      />
       <MainContainer>
         <Header />
         <MainContent>{children}</MainContent>

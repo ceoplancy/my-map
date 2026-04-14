@@ -4,6 +4,7 @@ import {
   useShareholderChangeHistoryForMap,
 } from "@/api/workspace"
 import { useSession } from "@/api/auth"
+import type { MutateOptions } from "@tanstack/react-query"
 import { useCallback, useEffect, useState } from "react"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
@@ -174,11 +175,7 @@ const CustomMapMarker = ({
   const makerDataMutate = useCallback(
     (
       patchData: MapMarkerData,
-      options?: {
-        onSuccess?: () => void
-        onError?: () => void
-        onSettled?: () => void
-      },
+      options?: MutateOptions<unknown, unknown, MapMarkerData, unknown>,
     ) => {
       if (!isShareholderMarker) return
       const patch: Partial<{ id: string; status: string; memo: string }> & {
@@ -197,9 +194,21 @@ const CustomMapMarker = ({
           userId,
         },
         {
-          onSuccess: () => options?.onSuccess?.(),
-          onError: () => options?.onError?.(),
-          onSettled: () => options?.onSettled?.(),
+          onSuccess: (data, _variables, onMutateResult, context) => {
+            options?.onSuccess?.(data, patchData, onMutateResult, context)
+          },
+          onError: (error, _variables, onMutateResult, context) => {
+            options?.onError?.(error, patchData, onMutateResult, context)
+          },
+          onSettled: (data, error, _variables, onMutateResult, context) => {
+            options?.onSettled?.(
+              data,
+              error,
+              patchData,
+              onMutateResult,
+              context,
+            )
+          },
         },
       )
     },

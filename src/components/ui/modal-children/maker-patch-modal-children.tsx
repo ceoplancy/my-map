@@ -8,30 +8,34 @@ import {
   useRef,
   useState,
 } from "react"
-import CircularProgress from "@mui/material/CircularProgress"
+import { ShareholderExternalMapLinks } from "@/components/shareholder/ShareholderExternalMapLinks"
+import { ShareholderIdCardPanel } from "@/components/shareholder/ShareholderIdCardPanel"
+import { ShareholderPhotoUploadField } from "@/components/shareholder/ShareholderPhotoUploadField"
+import type { MutateOptions } from "@tanstack/react-query"
+import { CircularProgress } from "@mui/material"
 import { useFormik } from "formik"
+import { hasPatchChanges } from "@/lib/makerPatchForm"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
-import MarkerDetailTable, { type HistoryItem } from "../marker-detail-table"
+import MarkerDetailTable from "../marker-detail-table"
+import ShareholderStatusSelect from "@/components/shareholder/ShareholderStatusSelect"
 import { toast } from "react-toastify"
-import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
-import Select from "@/components/ui/select"
-import { hasPatchChanges, normalizeStatusForPatch } from "@/lib/makerPatchForm"
-
-export type MakerDataMutateOptions = {
-  onSuccess?: () => void
-  onError?: () => void
-  onSettled?: () => void
-}
+import {
+  buildHistoryChanges,
+  getHistoryMergeLossInfo,
+  mergeHistoryWithNewEntry,
+  normalizeStatusForHistory,
+} from "@/lib/excelHistory"
+import type { HistoryItem } from "@/types/excelHistory"
 
 interface MakerPatchModalChildrenProps {
   makerData: MapMarkerData | null
   makerDataMutate: (
     _patchData: MapMarkerData,
-    _options?: MakerDataMutateOptions,
+    _options?: MutateOptions<unknown, unknown, MapMarkerData, unknown>,
   ) => void
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 
@@ -43,24 +47,6 @@ interface MakerPatchModalChildrenProps {
 
   /** 저장 요청 중일 때 true — 모달 바깥 클릭·닫기 방지용 */
   onSavingChange?: (_isSaving: boolean) => void
-}
-
-function findDifferences<T extends Record<string, unknown>>(
-  original: T,
-  modified: T,
-): Record<string, { original: unknown; modified: unknown }> {
-  const differences: Record<string, { original: unknown; modified: unknown }> =
-    {}
-  for (const key of Object.keys(modified)) {
-    if (original[key] !== modified[key]) {
-      differences[key] = {
-        original: original[key],
-        modified: modified[key],
-      }
-    }
-  }
-
-  return differences
 }
 
 const MakerPatchModalChildren = ({
@@ -89,26 +75,42 @@ const MakerPatchModalChildren = ({
       name: makerData?.name ?? "",
       status: makerData?.status ?? "미방문",
       memo: makerData?.memo ?? "",
+      phone: makerData?.phone ?? "",
+      special_notes: makerData?.special_notes ?? "",
       stocks: makerData?.stocks ?? 0,
       image: makerData?.image ?? "",
       history: makerData?.history ?? [],
     },
     onSubmit: (values) => {
       if (!makerData || saveInFlightRef.current) return
-      if (!hasPatchChanges(makerData, values)) return
 
-      saveInFlightRef.current = true
-      setIsSaving(true)
-      onSavingChange?.(true)
+      const status = normalizeStatusForHistory(values.status)
+      const memoNext = values.memo ?? ""
+      const phoneNext = values.phone ?? ""
+      const notesNext = values.special_notes ?? ""
+      const imageNext = values.image ?? ""
 
-      const status = normalizeStatusForPatch(values.status)
-      const original = {
-        status: makerData.status,
-        memo: makerData.memo,
-      }
-      const modified = {
-        status,
-        memo: values.memo,
+      const changes = buildHistoryChanges(
+        {
+          status: makerData.status,
+          memo: makerData.memo,
+          phone: makerData.phone,
+          special_notes: makerData.special_notes,
+          image: makerData.image,
+        },
+        {
+          status,
+          memo: memoNext,
+          phone: phoneNext,
+          special_notes: notesNext,
+          image: imageNext,
+        },
+      )
+
+      if (Object.keys(changes).length === 0) {
+        toast.info("변경된 내용이 없습니다.")
+
+        return
       }
       const name = user?.user?.user_metadata?.name
       const email = user?.user?.email ?? ""
@@ -119,37 +121,48 @@ const MakerPatchModalChildren = ({
           : "미확인"
 
       const modified_at = format(new Date(), "yyyy년 MM월 dd일 HH시 mm분 ss초")
-      const changes = findDifferences(
-        original as Record<string, unknown>,
-        modified as Record<string, unknown>,
-      )
-
-      const historyPayload: Json = (
-        makerData.history
-          ? [
-              ...(Array.isArray(makerData.history)
-                ? (makerData.history as unknown[])
-                : []),
-              { modifier, modified_at, changes },
-            ]
-          : [{ modifier, modified_at, changes }]
-      ) as Json
-
-      const patchData: MapMarkerData = {
-        ...makerData,
-        address: values.address,
-        company: values.company,
-        lat: values.lat,
-        lng: values.lng,
-        latlngaddress: values.latlngaddress,
-        maker: values.maker,
-        name: values.name,
-        status,
-        memo: values.memo,
-        stocks: values.stocks,
-        image: values.image,
-        history: historyPayload,
+      const entry: HistoryItem = {
+        modifier,
+        modified_at,
+        changes,
       }
+
+      const loss = getHistoryMergeLossInfo(makerData.history)
+      if (loss.losesNonArrayShape || loss.droppedEntryCount > 0) {
+        const lines: string[] = []
+        if (loss.losesNonArrayShape) {
+          lines.push(
+            "변경이력이 표준 형식(배열)이 아니어서, 저장 시 기존 이력이 유지되지 않을 수 있습니다.",
+          )
+        }
+        if (loss.droppedEntryCount > 0) {
+          lines.push(
+            `예전 형식의 변경이력 ${loss.droppedEntryCount}건은 이번 저장 후 목록에 남지 않습니다.`,
+          )
+        }
+        const ok = window.confirm(`${lines.join("\n\n")}\n\n그래도 저장할까요?`)
+        if (!ok) {
+          return
+        }
+      }
+
+      const history = mergeHistoryWithNewEntry(makerData.history, entry)
+
+      const patchData = {
+        ...makerData,
+        ...values,
+        status,
+        memo: memoNext,
+        phone: phoneNext,
+        special_notes: notesNext,
+        image: imageNext,
+        history,
+      } as MapMarkerData
+
+      saveInFlightRef.current = true
+      setIsSaving(true)
+      onSavingChange?.(true)
+
       makerDataMutate(patchData, {
         onSuccess: () => {
           toast.success("주주 정보가 수정되었습니다.")
@@ -182,6 +195,8 @@ const MakerPatchModalChildren = ({
         name: makerData.name ?? "",
         status: makerData.status ?? "미방문",
         memo: makerData.memo ?? "",
+        phone: makerData.phone ?? "",
+        special_notes: makerData.special_notes ?? "",
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
         history: makerData.history ?? [],
@@ -226,19 +241,27 @@ const MakerPatchModalChildren = ({
 
           <Section>
             <SectionTitle>상태 변경</SectionTitle>
-            <SelectWrapper>
-              <StyledSelect
-                name="status"
-                value={formik.values.status || "미방문"}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                disabled={isSaveBusy}>
-                <option value="미방문">미방문</option>
-                <option value="완료">완료</option>
-                <option value="보류">보류</option>
-                <option value="실패">실패</option>
-              </StyledSelect>
-            </SelectWrapper>
+            <ShareholderStatusSelect
+              idPrefix="map-patch-status"
+              value={formik.values.status || "미방문"}
+              onChange={(next) => {
+                void formik.setFieldValue("status", next)
+              }}
+            />
+          </Section>
+
+          <Section>
+            <SectionTitle>휴대폰</SectionTitle>
+            <StyledInput
+              type="tel"
+              name="phone"
+              inputMode="tel"
+              autoComplete="tel"
+              value={formik.values.phone ?? ""}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="010-0000-0000"
+            />
           </Section>
 
           <Section>
@@ -251,6 +274,54 @@ const MakerPatchModalChildren = ({
               placeholder="메모를 입력하세요..."
               disabled={isSaveBusy}
             />
+          </Section>
+
+          <Section>
+            <SectionTitle>특이사항</SectionTitle>
+            <StyledTextarea
+              name="special_notes"
+              value={removeTags(formik.values.special_notes ?? "")}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="특이사항을 입력하세요..."
+            />
+          </Section>
+
+          <Section>
+            <SectionTitle>카카오맵</SectionTitle>
+            <ShareholderExternalMapLinks
+              lat={formik.values.lat}
+              lng={formik.values.lng}
+              name={formik.values.name}
+              address={formik.values.address}
+            />
+          </Section>
+
+          <Section>
+            <SectionTitle>사진</SectionTitle>
+            {makerData?.id ? (
+              <ShareholderPhotoUploadField
+                shareholderId={makerData.id}
+                imageUrl={formik.values.image}
+                onChangeUrl={(url) => void formik.setFieldValue("image", url)}
+              />
+            ) : (
+              <MutedLine>저장된 주주만 사진을 올릴 수 있습니다.</MutedLine>
+            )}
+          </Section>
+
+          <Section>
+            <SectionTitle>신분증 (QR · 본인 제출)</SectionTitle>
+            {makerData?.id ? (
+              <ShareholderIdCardPanel
+                excelId={makerData.id}
+                shareholderName={makerData.name}
+              />
+            ) : (
+              <MutedLine>
+                저장된 주주만 신분증 QR을 사용할 수 있습니다.
+              </MutedLine>
+            )}
           </Section>
 
           <ButtonGroup>
@@ -305,6 +376,8 @@ const ModalContainer = styled.div`
   max-width: 95vw;
   max-height: 90vh;
   width: 100%;
+  display: flex;
+  flex-direction: column;
 
   user-select: none;
   animation: slideUp 0.3s ease-out;
@@ -322,6 +395,13 @@ const ModalContainer = styled.div`
 
   @media (max-width: 768px) {
     border-radius: 12px;
+  }
+
+  @media (max-width: 640px) {
+    border-radius: 0;
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 0;
   }
 `
 
@@ -366,11 +446,16 @@ const HeaderTitle = styled.h2`
 const CloseButton = styled.button`
   background: none;
   border: none;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
   color: ${COLORS.gray[500]};
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover:not(:disabled) {
     background: ${COLORS.gray[100]};
@@ -387,9 +472,13 @@ const CloseButton = styled.button`
 const ModalContent = styled.form`
   padding: 24px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 
   @media (max-width: 768px) {
     padding: 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
   }
 `
 
@@ -404,16 +493,19 @@ const SectionTitle = styled.h3`
   margin-bottom: 12px;
 `
 
-const SelectWrapper = styled.div`
-  position: relative;
+const MutedLine = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: ${COLORS.gray[500]};
 `
 
-const StyledSelect = styled(Select)`
+const StyledInput = styled.input`
   width: 100%;
   padding: 12px 2rem 12px 16px;
   font-size: 14px;
-  min-height: 48px;
-  color: ${COLORS.gray[900]};
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 8px;
+  transition: all 0.2s ease;
 
   &:hover {
     border-color: ${COLORS.blue[300]};
@@ -423,11 +515,6 @@ const StyledSelect = styled(Select)`
     outline: none;
     border-color: ${COLORS.blue[500]};
     box-shadow: 0 0 0 3px ${COLORS.blue[100]};
-  }
-
-  @media (max-width: 768px) {
-    padding: 10px 14px;
-    font-size: 13px;
   }
 `
 
@@ -517,8 +604,8 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
 
   @media (max-width: 768px) {
     width: 100%;
-    padding: 10px 20px;
-    font-size: 13px;
+    padding: 14px 20px;
+    font-size: 16px;
   }
 `
 

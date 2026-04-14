@@ -27,6 +27,8 @@ export type Database = {
           maker: string | null
           memo: string | null
           name: string | null
+          phone: string | null
+          special_notes: string | null
           status: string | null
           stocks: number
         }
@@ -42,6 +44,8 @@ export type Database = {
           maker?: string | null
           memo?: string | null
           name?: string | null
+          phone?: string | null
+          special_notes?: string | null
           status?: string | null
           stocks: number
         }
@@ -57,8 +61,40 @@ export type Database = {
           maker?: string | null
           memo?: string | null
           name?: string | null
+          phone?: string | null
+          special_notes?: string | null
           status?: string | null
           stocks?: number
+        }
+        Relationships: []
+      }
+      shareholder_id_photo: {
+        Row: {
+          id: number
+          excel_id: number
+          file_url: string
+          storage_path: string
+          uploader_name: string | null
+          guide_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          excel_id: number
+          file_url: string
+          storage_path: string
+          uploader_name?: string | null
+          guide_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          excel_id?: number
+          file_url?: string
+          storage_path?: string
+          uploader_name?: string | null
+          guide_name?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -217,6 +253,8 @@ export type Database = {
           maker: string | null
           memo: string | null
           name: string | null
+          phone: string | null
+          special_notes: string | null
           status: string | null
           stocks: number
           updated_at: string
@@ -235,6 +273,8 @@ export type Database = {
           maker?: string | null
           memo?: string | null
           name?: string | null
+          phone?: string | null
+          special_notes?: string | null
           status?: string | null
           stocks?: number
           updated_at?: string
@@ -253,6 +293,8 @@ export type Database = {
           maker?: string | null
           memo?: string | null
           name?: string | null
+          phone?: string | null
+          special_notes?: string | null
           status?: string | null
           stocks?: number
           updated_at?: string

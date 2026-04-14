@@ -8,11 +8,9 @@ const buildEslintCommand = (filenames) =>
     .map((f) => path.relative(process.cwd(), f))
     .join(" --file ")}`
 
-const buildCommand = () => `next build`
-
-/** pre-commit: 타입 생성은 Supabase 프로젝트 상태에 의존하므로 제외. 필요 시 `pnpm typegen` 실행 */
+/** pre-commit: `next build`는 lint-staged가 파일을 여러 청크로 나누면 병렬로 두 번 돌아 .next 충돌이 날 수 있어 제외. CI·로컬에서 `npm run build`로 확인. */
 const config = {
-  "*.{js,jsx,ts,tsx}": [buildEslintCommand, buildCommand],
+  "*.{js,jsx,ts,tsx}": [buildEslintCommand],
 }
 
 export default config

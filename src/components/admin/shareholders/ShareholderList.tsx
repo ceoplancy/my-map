@@ -15,26 +15,27 @@ import {
   Add as AddIcon,
   Download as DownloadIcon,
 } from "@mui/icons-material"
+import { Select } from "@mui/material"
 import { toast } from "react-toastify"
 import { reportError } from "@/lib/reportError"
-import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
-import type { Tables } from "@/types/db"
-import {
-  useShareholders,
-  useDeleteShareholder,
-  useChangesForList,
-  useWorkspaceMembersWithUsers,
-  type LatestChange,
-  type ChangeEntry,
-} from "@/api/workspace"
-import { useSession } from "@/api/auth"
-import GlobalSpinner from "@/components/ui/global-spinner"
-import Select from "@/components/ui/select"
+import { getAllSelectableStatusValues } from "@/lib/shareholderStatus"
 import * as XLSX from "xlsx"
 import { buildShareholderRegistryExportFileName } from "@/lib/shareholderRegistryExportFilename"
+import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
 import { removeTags } from "@/lib/utils"
 import supabase from "@/lib/supabase/supabaseClient"
+import { useSession } from "@/api/auth"
 import { useGetUsers } from "@/api/supabase"
+import {
+  type ChangeEntry,
+  type LatestChange,
+  useChangesForList,
+  useDeleteShareholder,
+  useShareholders,
+  useWorkspaceMembersWithUsers,
+} from "@/api/workspace"
+import GlobalSpinner from "@/components/ui/global-spinner"
+import type { Tables } from "@/types/db"
 
 type Shareholder = Tables<"shareholders">
 
@@ -888,12 +889,15 @@ export default function ShareholderList({ listId, listName }: Props) {
               <Label>상태</Label>
               <FilterSelect
                 value={filters.status}
-                onChange={(e) => handleFilterChange("status", e.target.value)}>
+                onChange={(e) =>
+                  handleFilterChange("status", String(e.target.value))
+                }>
                 <option value="">모든 상태</option>
-                <option value="미방문">미방문</option>
-                <option value="완료">완료</option>
-                <option value="보류">보류</option>
-                <option value="실패">실패</option>
+                {getAllSelectableStatusValues().map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </FilterSelect>
             </FormGroup>
 
@@ -924,7 +928,9 @@ export default function ShareholderList({ listId, listName }: Props) {
               <Label>최종 수정자</Label>
               <ModifierSelect
                 value={filters.modifier}
-                onChange={(e) => handleFilterChange("modifier", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("modifier", String(e.target.value))
+                }
                 title="표시 열과 동일: 변경 이력 기준 최신 수정자만">
                 <option value="">모든 최종 수정자</option>
                 {latestModifierIds.map((uid) => (
@@ -962,7 +968,7 @@ export default function ShareholderList({ listId, listName }: Props) {
               <Label>정렬 기준</Label>
               <FilterSelect
                 value={sort.field ?? ""}
-                onChange={(e) => handleSortFieldSelect(e.target.value)}>
+                onChange={(e) => handleSortFieldSelect(String(e.target.value))}>
                 <option value="">기본 (정렬 없음)</option>
                 {SHAREHOLDER_LIST_SORT_FIELD_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -978,7 +984,9 @@ export default function ShareholderList({ listId, listName }: Props) {
                 value={sort.direction}
                 disabled={!sort.field}
                 onChange={(e) =>
-                  handleSortDirectionSelect(e.target.value as "asc" | "desc")
+                  handleSortDirectionSelect(
+                    String(e.target.value) as "asc" | "desc",
+                  )
                 }>
                 <option value="asc">오름차순</option>
                 <option value="desc">내림차순</option>

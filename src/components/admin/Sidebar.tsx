@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { COLORS } from "@/styles/global-style"
 import Link from "next/link"
 import styled from "@emotion/styled"
@@ -18,14 +19,30 @@ import {
 } from "@/lib/utils"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 
-const SidebarContainer = styled.div`
+const SidebarContainer = styled.aside<{
+  $mobileOpen?: boolean
+}>`
   width: 16rem;
   background-color: ${COLORS.white};
   box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.1);
   height: 100%;
   border-right: 1px solid #e5e7eb;
-  position: relative;
-  z-index: 1;
+  flex-shrink: 0;
+  z-index: 45;
+  transition: transform 0.25s ease;
+
+  @media (max-width: 900px) {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    max-width: min(18rem, 88vw);
+    transform: translateX(
+      ${({ $mobileOpen }) => ($mobileOpen ? "0" : "-100%")}
+    );
+    box-shadow: ${({ $mobileOpen }) =>
+      $mobileOpen ? "8px 0 24px rgba(0,0,0,0.12)" : "none"};
+  }
 `
 
 const LogoContainer = styled.div`
@@ -122,18 +139,20 @@ const WORKSPACE_USERS = {
   icon: <People />,
 }
 
-type NavItem = { title: string; path: string; icon: React.ReactNode }
+type NavItem = { title: string; path: string; icon: ReactNode }
 
 function NavItems({
   items,
   pathname,
   pathPrefix = "",
   useSubStyle = false,
+  onNavigate,
 }: {
   items: NavItem[]
   pathname: string
   pathPrefix?: string
   useSubStyle?: boolean
+  onNavigate?: () => void
 }) {
   const LinkComponent = useSubStyle ? NavLinkSub : NavLink
 
@@ -146,6 +165,7 @@ function NavItems({
           <LinkComponent
             key={fullPath}
             href={fullPath}
+            onClick={() => onNavigate?.()}
             className={
               normalizePathname(pathname) === normalizePathname(fullPath)
                 ? "active"
@@ -164,16 +184,19 @@ function SingleNavLink({
   item,
   pathname,
   pathPrefix,
+  onNavigate,
 }: {
   item: NavItem
   pathname: string
   pathPrefix: string
+  onNavigate?: () => void
 }) {
   const fullPath = pathPrefix + item.path
 
   return (
     <NavLink
       href={fullPath}
+      onClick={() => onNavigate?.()}
       className={
         normalizePathname(pathname) === normalizePathname(fullPath)
           ? "active"
@@ -185,7 +208,15 @@ function SingleNavLink({
   )
 }
 
-export default function Sidebar() {
+type SidebarProps = {
+  mobileOpen?: boolean
+  onNavigate?: () => void
+}
+
+export default function Sidebar({
+  mobileOpen = false,
+  onNavigate,
+}: SidebarProps) {
   const pathname = usePathname()
   const [currentWorkspace] = useCurrentWorkspace()
   const { data: adminStatus } = useAdminStatus()
@@ -193,7 +224,7 @@ export default function Sidebar() {
   const integrated = isIntegratedRoute(pathname)
 
   return (
-    <SidebarContainer>
+    <SidebarContainer $mobileOpen={mobileOpen}>
       <LogoContainer>
         <LogoSection>
           <LogoText>관리자 패널</LogoText>
@@ -204,7 +235,11 @@ export default function Sidebar() {
           isServiceAdmin && (
             <Section>
               <SectionLabel>통합 관리</SectionLabel>
-              <NavItems items={INTEGRATED_MENU_ITEMS} pathname={pathname} />
+              <NavItems
+                items={INTEGRATED_MENU_ITEMS}
+                pathname={pathname}
+                onNavigate={onNavigate}
+              />
             </Section>
           )
         ) : (
@@ -213,6 +248,7 @@ export default function Sidebar() {
               {currentWorkspace && (
                 <NavLink
                   href={`/workspaces/${currentWorkspace.id}/admin`}
+                  onClick={() => onNavigate?.()}
                   className={
                     isWorkspaceAdminDashboardRoute(pathname) ? "active" : ""
                   }>
@@ -229,6 +265,7 @@ export default function Sidebar() {
                     item={WORKSPACE_SHAREHOLDER_ITEM}
                     pathname={pathname}
                     pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                    onNavigate={onNavigate}
                   />
                 </>
               )}
@@ -237,6 +274,7 @@ export default function Sidebar() {
                   item={WORKSPACE_USERS}
                   pathname={pathname}
                   pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                  onNavigate={onNavigate}
                 />
               )}
             </Section>

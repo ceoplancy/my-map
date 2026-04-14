@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
 import { useFilterMenuForLists } from "@/api/workspace"
-import { useFilterStore } from "@/store/filterState"
+import { searchShareholdersForMap } from "@/api/shareholderSearch"
+import { useFilterStore, type StockRange } from "@/store/filterState"
 
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
@@ -9,6 +10,7 @@ import { Clear as ClearIcon } from "@mui/icons-material"
 import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
 import { getMapStorageKeys } from "@/constants/map-storage"
+import type { Excel } from "@/types/excel"
 
 interface FilterModalChildrenProps {
   handleClose: () => void
@@ -19,6 +21,7 @@ interface FilterModalChildrenProps {
 
   /** 지도 뷰 localStorage 키를 WS별로 분리 */
   workspaceId?: string
+  onNavigateToShareholder?: (_row: Excel) => void
 }
 
 const MAJOR_CITIES = [
@@ -64,16 +67,21 @@ const FilterModalChildren = ({
   handleApplyFilters,
   listIds,
   workspaceId,
+  onNavigateToShareholder,
 }: FilterModalChildrenProps) => {
   const {
     statusFilter,
     companyFilter,
     cityFilter,
     stocks,
+    rosterStockMin,
+    rosterStockMax,
     setStatusFilter,
     setCompanyFilter,
     setCityFilter,
     setStocks,
+    setRosterStockMin,
+    setRosterStockMax,
     resetFilters,
   } = useFilterStore()
   const { data: user } = useGetUserData()
@@ -95,7 +103,35 @@ const FilterModalChildren = ({
       ? filterMenuForLists?.companyMenu
       : filterMenu?.companyMenu) ?? []
 
-  // 사용자의 허용된 필터 옵션들 (워크스페이스가 아닐 때)
+  const [shareSearch, setShareSearch] = useState("")
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchHits, setSearchHits] = useState<Excel[]>([])
+
+  const runShareSearch = useCallback(async () => {
+    const q = shareSearch.trim()
+    if (q.length < 2) {
+      setSearchHits([])
+
+      return
+    }
+    setSearchLoading(true)
+    try {
+      const rows = await searchShareholdersForMap(q, user?.user?.user_metadata)
+      setSearchHits(rows)
+    } finally {
+      setSearchLoading(false)
+    }
+  }, [shareSearch, user?.user?.user_metadata])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void runShareSearch()
+    }, 450)
+
+    return () => window.clearTimeout(t)
+  }, [runShareSearch])
+
+  // 사용자의 허용된 필터 옵션들
   const allowedStatus = useMemo(
     () => user?.user?.user_metadata?.allowedStatus || [],
     [user?.user?.user_metadata?.allowedStatus],
@@ -119,10 +155,10 @@ const FilterModalChildren = ({
 
   useEffect(() => {
     if (isAdmin || useListScopedMenu) return
-    setStatusFilter((prev) =>
+    setStatusFilter((prev: string[]) =>
       prev.filter((status) => allowedStatus.includes(status)),
     )
-    setCompanyFilter((prev) =>
+    setCompanyFilter((prev: string[]) =>
       prev.filter((company) => allowedCompany.includes(company)),
     )
   }, [
@@ -135,7 +171,7 @@ const FilterModalChildren = ({
   ])
 
   const handleRangeSelect = (start: number, end: number) => {
-    setStocks((prev) => {
+    setStocks((prev: StockRange[]) => {
       const isSelected = prev.some(
         (range) => range.start === start && range.end === end,
       )
@@ -151,7 +187,7 @@ const FilterModalChildren = ({
   }
 
   const handleCompanyFilter = (selectedCompany: string) => {
-    setCompanyFilter((prev) => {
+    setCompanyFilter((prev: string[]) => {
       // 이미 선택된 회사인 경우 제거
       if (prev.includes(selectedCompany)) {
         return prev.filter((company) => company !== selectedCompany)
@@ -170,6 +206,41 @@ const FilterModalChildren = ({
           <ClearIcon />
         </CloseButton>
       </ModalHeader>
+
+      {onNavigateToShareholder && (
+        <FilterSection>
+          <SectionTitle>주주 빠른 이동</SectionTitle>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            이름·주소·휴대폰으로 검색(2자 이상). 항목을 누르면 지도가 해당
+            위치로 이동하고 정보 창이 열립니다.
+          </Alert>
+          <SearchInput
+            type="search"
+            placeholder="예: 홍길동, 테헤란로, 010"
+            value={shareSearch}
+            onChange={(e) => setShareSearch(e.target.value)}
+          />
+          {searchLoading && <SearchHint>검색 중…</SearchHint>}
+          {searchHits.length > 0 && (
+            <SearchHitList>
+              {searchHits.map((row) => (
+                <SearchHitButton
+                  key={row.id}
+                  type="button"
+                  onClick={() => {
+                    onNavigateToShareholder(row)
+                  }}>
+                  <SearchHitName>{row.name || "(이름 없음)"}</SearchHitName>
+                  <SearchHitMeta>
+                    {row.company ? `${row.company} · ` : ""}
+                    {row.address ?? ""}
+                  </SearchHitMeta>
+                </SearchHitButton>
+              ))}
+            </SearchHitList>
+          )}
+        </FilterSection>
+      )}
 
       <FilterSection>
         <SectionTitle>지역(문자가 포함된 주소)</SectionTitle>
@@ -212,7 +283,9 @@ const FilterModalChildren = ({
               isSelected={statusFilter.includes(status)}
               onClick={() => {
                 if (statusFilter.includes(status)) {
-                  setStatusFilter(statusFilter.filter((s) => s !== status))
+                  setStatusFilter(
+                    statusFilter.filter((s: string) => s !== status),
+                  )
                 } else {
                   setStatusFilter([...statusFilter, status])
                 }
@@ -237,6 +310,33 @@ const FilterModalChildren = ({
         </ChipsWrapper>
       </FilterSection>
 
+      {companyFilter.length === 1 && (
+        <FilterSection>
+          <SectionTitle>선택한 주주명부만 주식수 (숫자)</SectionTitle>
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            회사(구분1)을 <strong>하나만</strong> 선택했을 때만 적용됩니다. 값을
+            넣으면 아래 &quot;주식수 구간&quot; 칩 필터는 사용하지 않습니다.
+          </Alert>
+          <RosterStockRow>
+            <NumberField
+              type="number"
+              inputMode="numeric"
+              placeholder="최소 주식수"
+              value={rosterStockMin}
+              onChange={(e) => setRosterStockMin(e.target.value)}
+            />
+            <RosterSep>~</RosterSep>
+            <NumberField
+              type="number"
+              inputMode="numeric"
+              placeholder="최대 주식수"
+              value={rosterStockMax}
+              onChange={(e) => setRosterStockMax(e.target.value)}
+            />
+          </RosterStockRow>
+        </FilterSection>
+      )}
+
       <FilterSection>
         <SectionTitle>주식수 (다중 선택 가능)</SectionTitle>
         <StockRangeWrapper>
@@ -244,7 +344,8 @@ const FilterModalChildren = ({
             <StockRangeButton
               key={range.label}
               isSelected={stocks.some(
-                (s) => s.start === range.start && s.end === range.end,
+                (s: StockRange) =>
+                  s.start === range.start && s.end === range.end,
               )}
               onClick={() => handleRangeSelect(range.start, range.end)}>
               {range.label}
@@ -276,9 +377,17 @@ const FilterModalChildren = ({
 
 const FilterContainer = styled.div`
   padding: 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
   position: relative;
   height: 100%;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+
+  @media (max-width: 640px) {
+    padding: 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  }
 `
 
 const ModalHeader = styled.div`
@@ -299,8 +408,10 @@ const CloseButton = styled.button`
   border: none;
   color: ${COLORS.gray[500]};
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -312,7 +423,7 @@ const CloseButton = styled.button`
   }
 
   svg {
-    font-size: 20px;
+    font-size: 22px;
   }
 `
 
@@ -334,7 +445,8 @@ const ChipsWrapper = styled.div`
 `
 
 const FilterChip = styled.button<{ isSelected: boolean }>`
-  padding: 8px 16px;
+  padding: 10px 16px;
+  min-height: 44px;
   border-radius: 20px;
   border: 1px solid
     ${(props) => (props.isSelected ? COLORS.blue[500] : COLORS.gray[200])};
@@ -347,6 +459,10 @@ const FilterChip = styled.button<{ isSelected: boolean }>`
   &:hover {
     background: ${(props) =>
       props.isSelected ? COLORS.blue[100] : COLORS.gray[50]};
+  }
+
+  @media (max-width: 480px) {
+    font-size: 15px;
   }
 `
 
@@ -362,6 +478,7 @@ const StockRangeWrapper = styled.div`
 
 const StockRangeButton = styled.button<{ isSelected: boolean }>`
   width: 100%;
+  min-height: 44px;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid
@@ -382,7 +499,14 @@ const ButtonGroup = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-top: 24px;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
 `
 
 const ResetButton = styled.button`
@@ -390,14 +514,19 @@ const ResetButton = styled.button`
   border: none;
   color: ${COLORS.gray[500]};
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 12px 18px;
+  min-height: 48px;
+  border-radius: 10px;
+  font-size: 15px;
   transition: all 0.2s ease;
 
   &:hover {
     background: ${COLORS.gray[100]};
     color: ${COLORS.gray[700]};
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
   }
 `
 
@@ -405,9 +534,10 @@ const ApplyButton = styled.button`
   background: ${COLORS.blue[500]};
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 12px 22px;
+  min-height: 48px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -415,6 +545,91 @@ const ApplyButton = styled.button`
   &:hover {
     background: ${COLORS.blue[600]};
   }
+
+  @media (max-width: 480px) {
+    width: 100%;
+  }
+`
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  font-size: 14px;
+  margin-bottom: 8px;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
+`
+
+const SearchHint = styled.p`
+  font-size: 12px;
+  color: ${COLORS.gray[500]};
+  margin: 0 0 8px;
+`
+
+const SearchHitList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+`
+
+const SearchHitButton = styled.button`
+  text-align: left;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  background: ${COLORS.gray[50]};
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: ${COLORS.blue[50]};
+    border-color: ${COLORS.blue[200]};
+  }
+`
+
+const SearchHitName = styled.div`
+  font-weight: 600;
+  font-size: 14px;
+  color: ${COLORS.gray[900]};
+`
+
+const SearchHitMeta = styled.div`
+  font-size: 12px;
+  color: ${COLORS.gray[600]};
+  margin-top: 4px;
+  word-break: break-all;
+`
+
+const RosterStockRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`
+
+const NumberField = styled.input`
+  flex: 1;
+  min-width: 120px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.gray[200]};
+  font-size: 14px;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
+`
+
+const RosterSep = styled.span`
+  color: ${COLORS.gray[500]};
+  font-weight: 600;
 `
 
 export default FilterModalChildren

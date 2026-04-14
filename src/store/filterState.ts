@@ -13,6 +13,8 @@ interface FilterState {
   makerFilter: string[]
   cityFilter: string
   stocks: StockRange[]
+  rosterStockMin: string
+  rosterStockMax: string
   setStatusFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
   setCompanyFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
   setMakerFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
@@ -20,6 +22,8 @@ interface FilterState {
   setStocks: (
     _v: StockRange[] | ((_prev: StockRange[]) => StockRange[]),
   ) => void
+  setRosterStockMin: (_v: string | ((_prev: string) => string)) => void
+  setRosterStockMax: (_v: string | ((_prev: string) => string)) => void
   resetFilters: () => void
   ensureWorkspaceScope: (_workspaceId: string) => void
 }
@@ -30,6 +34,8 @@ const filterFieldsInitial = {
   makerFilter: [] as string[],
   cityFilter: "",
   stocks: [] as StockRange[],
+  rosterStockMin: "",
+  rosterStockMax: "",
 }
 
 export const useFilterStore = create<FilterState>()(
@@ -56,6 +62,14 @@ export const useFilterStore = create<FilterState>()(
       setStocks: (v) =>
         set((s) => ({
           stocks: typeof v === "function" ? v(s.stocks) : v,
+        })),
+      setRosterStockMin: (v) =>
+        set((s) => ({
+          rosterStockMin: typeof v === "function" ? v(s.rosterStockMin) : v,
+        })),
+      setRosterStockMax: (v) =>
+        set((s) => ({
+          rosterStockMax: typeof v === "function" ? v(s.rosterStockMax) : v,
         })),
       resetFilters: () =>
         set((s) => ({

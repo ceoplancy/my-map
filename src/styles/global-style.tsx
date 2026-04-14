@@ -325,6 +325,15 @@ const globalStyle = css`
     }
   }
 
+  /* iOS: 입력 시 자동 확대 방지(16px 이상) */
+  @media (max-width: 768px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
   // 스크롤바 스타일링
   ::-webkit-scrollbar {
     width: 8px;

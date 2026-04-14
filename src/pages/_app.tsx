@@ -14,6 +14,7 @@ import { AuthStateSync } from "@/components/AuthStateSync"
 import Script from "next/script"
 import { ToastContainer } from "react-toastify"
 import { reportError } from "@/lib/reportError"
+import { getPublicSiteUrl } from "@/lib/siteUrl"
 
 declare global {
   interface Window {
@@ -50,8 +51,8 @@ const queryClientOptions = {
 const App = ({ Component, pageProps }: AppProps) => {
   const { dehydratedState, ...restPageProps } = pageProps
   const [queryClient] = useState(() => new QueryClient(queryClientOptions))
+  const siteUrl = getPublicSiteUrl()
 
-  // 카카오맵 로딩: 스크립트 로드 후 초기화. 맵이 필요한 페이지는 window.kakao / useKakaoMaps 사용.
   const initializeKakaoMap = useCallback(() => {
     if (!window.kakao) return
     try {
@@ -83,7 +84,6 @@ const App = ({ Component, pageProps }: AppProps) => {
           content="주주명부관리,의결권위임장,주주총회,기업관리,스타트업"
         />
 
-        {/* Open Graph Tags */}
         <meta
           property="og:title"
           content="ANT:RE | 스마트한 주주 관리 서비스"
@@ -93,20 +93,18 @@ const App = ({ Component, pageProps }: AppProps) => {
           content="주주 관리와 의결권 위임장 수집을 위한 올인원 서비스"
         />
         <meta property="og:type" content="website" />
-        {/* <meta property="og:url" content="https://antre.co.kr" /> */}
-        <meta property="og:image" content="/antre-logo-square.png" />
+        <meta property="og:url" content={`${siteUrl}/`} />
+        <link rel="canonical" href={`${siteUrl}/`} />
+        <meta property="og:image" content={`${siteUrl}/og-image.png`} />
 
-        {/* Viewport */}
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
-        {/* Favicon - only link assets that exist in public/ */}
         <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/site.webmanifest" />
 
-        {/* 추가 메타 태그 */}
         <meta name="theme-color" content="#8536FF" />
         <meta name="application-name" content="ANT:RE" />
       </Head>
@@ -118,7 +116,16 @@ const App = ({ Component, pageProps }: AppProps) => {
           <AuthStateSync />
           <HydrationBoundary state={dehydratedState}>
             <Component {...restPageProps} />
-            <ToastContainer position="top-center" limit={3} autoClose={3000} />
+            <ToastContainer
+              position="top-center"
+              limit={3}
+              autoClose={3000}
+              style={{
+                top: "max(12px, env(safe-area-inset-top, 0px))",
+                width: "min(100%, calc(100vw - 24px))",
+              }}
+              toastStyle={{ borderRadius: "12px" }}
+            />
             <div id="portal" />
           </HydrationBoundary>
           {process.env.NODE_ENV === "development" && (

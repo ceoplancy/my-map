@@ -1,5 +1,25 @@
+/** 프로덕션 메인 배포 (Vercel 프로젝트 antre-map) */
+const DEFAULT_PRODUCTION_SITE = "https://antre-map.vercel.app"
+
+/**
+ * OG/canonical용 공개 URL. 명시 env > Vercel 호스트 > 로컬/폴백
+ * @see https://vercel.com/docs/projects/environment-variables/system-environment-variables
+ */
+function resolvePublicSiteUrl() {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (explicit) return explicit.replace(/\/$/, "")
+  const vercel = process.env.VERCEL_URL?.trim()
+  if (vercel)
+    return `https://${vercel.replace(/^https?:\/\//, "").replace(/\/$/, "")}`
+  if (process.env.NODE_ENV === "development") return "http://localhost:3000"
+  return DEFAULT_PRODUCTION_SITE
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_SITE_URL: resolvePublicSiteUrl(),
+  },
   experimental: {
     forceSwcTransforms: false,
   },

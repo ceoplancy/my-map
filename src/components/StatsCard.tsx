@@ -1,33 +1,60 @@
 import styled from "@emotion/styled"
+import { useMemo } from "react"
 import { COLORS } from "@/styles/global-style"
 import { useShareholderStats } from "@/api/workspace"
 import { useFilterStore } from "@/store/filterState"
 
-export type StatsCardProps = {
-  /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계 (shareholders) */
+type StatsCardProps = {
   listIds: string[]
 }
 
 const StatsCard = ({ listIds }: StatsCardProps) => {
-  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+  const {
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    rosterStockMin,
+    rosterStockMax,
+  } = useFilterStore()
 
-  const hasLists = listIds.length > 0
-  const { data: shareholderStats, isLoading: shareholderLoading } =
-    useShareholderStats({
-      listIds: hasLists ? listIds : null,
-      status: statusFilter?.length ? statusFilter : undefined,
-      company: companyFilter?.length ? companyFilter : undefined,
+  const statsParams = useMemo(() => {
+    let rMin: number | null = null
+    let rMax: number | null = null
+    if (companyFilter.length === 1) {
+      if (rosterStockMin.trim() !== "") {
+        const n = Number(rosterStockMin)
+        rMin = Number.isNaN(n) ? null : n
+      }
+      if (rosterStockMax.trim() !== "") {
+        const n = Number(rosterStockMax)
+        rMax = Number.isNaN(n) ? null : n
+      }
+    }
+
+    const useRosterNarrow =
+      companyFilter.length === 1 && (rMin != null || rMax != null)
+
+    return {
+      listIds: listIds.length > 0 ? listIds : null,
+      status: statusFilter,
+      company: companyFilter,
       city: cityFilter || undefined,
-      stocks: stocks?.length ? stocks : undefined,
-    })
+      stocks: useRosterNarrow ? undefined : stocks,
+      rosterStockMin: useRosterNarrow ? rMin : null,
+      rosterStockMax: useRosterNarrow ? rMax : null,
+    }
+  }, [
+    listIds,
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    rosterStockMin,
+    rosterStockMax,
+  ])
 
-  const stats = shareholderStats ?? {
-    totalShareholders: 0,
-    totalStocks: 0,
-    completedShareholders: 0,
-    completedStocks: 0,
-  }
-  const isLoading = hasLists ? shareholderLoading : false
+  const { data: stats, isLoading } = useShareholderStats(statsParams)
 
   return (
     <Container>
@@ -50,7 +77,7 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
         </StatValue>
       </StatItem>
       <StatItem>
-        <StatLabel>완료 주주 수</StatLabel>
+        <StatLabel>의결권 위임 완료 주주 수</StatLabel>
         <StatValue>
           {isLoading
             ? "-"
@@ -58,7 +85,7 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
         </StatValue>
       </StatItem>
       <StatItem>
-        <StatLabel>완료 주식 수</StatLabel>
+        <StatLabel>의결권 위임 완료 주식 수</StatLabel>
         <StatValue>
           {isLoading
             ? "-"
@@ -76,6 +103,11 @@ const Container = styled.div`
   border-radius: 12px;
   padding: 20px;
   margin: 12px 0;
+
+  @media (max-width: 480px) {
+    padding: 16px;
+    margin: 8px 0;
+  }
 `
 
 const HeaderSection = styled.div`

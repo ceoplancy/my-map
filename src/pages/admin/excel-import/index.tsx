@@ -4,15 +4,21 @@ import { useRouter } from "next/router"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
 import { ExcelImportView } from "@/components/excel-import/ExcelImportView"
-import { useSpreadsheetImport } from "@/hooks/useSpreadsheetImport"
+import { useExcelImport } from "@/hooks/useSpreadsheetImport"
 import { useKakaoMaps } from "@/hooks/useKakaoMaps"
 import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import type { TablesInsert, TablesUpdate } from "@/types/db"
+import type { Excel } from "@/types/excel"
 import { parseSpreadsheetRow } from "@/lib/spreadsheetImport"
 
 import AdminLayout from "@/layouts/AdminLayout"
 import Link from "next/link"
 import styled from "@emotion/styled"
+import {
+  createDeferredFailure,
+  loadPreserveQueuePref,
+  savePreserveQueuePref,
+} from "@/lib/excelImportDeferred"
 import { reportError } from "@/lib/reportError"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import { getWorkspaceAdminBase } from "@/lib/utils"
@@ -39,6 +45,8 @@ function spreadsheetRowToShareholderInsert(
     status: row.status ?? null,
     stocks: row.stocks ?? 0,
     memo: row.memo ?? null,
+    phone: row.phone ?? null,
+    special_notes: row.special_notes ?? null,
     maker: row.maker ?? null,
     image: row.image ?? null,
     history: row.history ?? null,
@@ -59,6 +67,8 @@ function patchFromImportRow(
     status: row.status ?? null,
     stocks: row.stocks ?? 0,
     memo: row.memo ?? null,
+    phone: row.phone ?? null,
+    special_notes: row.special_notes ?? null,
     maker: row.maker ?? null,
     image: row.image ?? null,
     history: row.history ?? null,
@@ -144,20 +154,48 @@ export function ExcelImportPageContent() {
     failData,
     setFailData,
     failCount,
-    setFailCount,
-    spreadsheetFile,
-    setSpreadsheetFile,
+    excelFile,
+    setExcelFile,
     fileName,
     setFileName,
     loading,
     setLoading,
     progress,
     setProgress,
-  } = useSpreadsheetImport()
+  } = useExcelImport()
 
   const { waitForKakaoMaps } = useKakaoMaps()
 
   const [_processingItem, setProcessingItem] = useState<number | null>(null)
+
+  const [preserveQueueBeforeUpload, setPreserveQueueBeforeUpload] =
+    useState(true)
+
+  useEffect(() => {
+    const pref = loadPreserveQueuePref()
+    if (pref !== null) setPreserveQueueBeforeUpload(pref)
+  }, [])
+
+  const handlePreserveQueueChange = (next: boolean) => {
+    setPreserveQueueBeforeUpload(next)
+    savePreserveQueuePref(next)
+  }
+
+  const handleClearDeferredQueue = () => {
+    if (failData.length === 0) return
+    if (
+      !confirm("실패 보관함을 모두 비울까요? 이 작업은 되돌릴 수 없습니다.")
+    ) {
+      return
+    }
+    setFailData([])
+    toast.info("실패 보관함을 비웠습니다.")
+  }
+
+  const handleRemoveDeferred = (deferredId: string) => {
+    setFailData((prev) => prev.filter((f) => f.id !== deferredId))
+    toast.info("보관함에서 제거했습니다.")
+  }
 
   const handleFile: ChangeEventHandler<HTMLInputElement> = (e) => {
     const fileTypes = [
@@ -186,17 +224,20 @@ export function ExcelImportPageContent() {
     setFileName(selectedFile.name)
     const reader = new FileReader()
     reader.readAsArrayBuffer(selectedFile)
-    reader.onload = (e) => setSpreadsheetFile(e.target?.result as ArrayBuffer)
+    reader.onload = (e) => setExcelFile(e.target?.result as ArrayBuffer)
   }
 
   const clearFileName = (): void => {
     setFileName("")
-    setSpreadsheetFile(null)
+    setExcelFile(null)
   }
 
-  const handleExport = (): void => {
+  const handleExport = (_data?: typeof failData): void => {
+    const rows = (_data ?? failData).map(
+      (f) => f.excel as Record<string, unknown>,
+    )
     const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.aoa_to_sheet(convertToExportArray(failData))
+    const ws = XLSX.utils.aoa_to_sheet(convertToExportArray(rows))
     XLSX.utils.book_append_sheet(wb, ws, "Sheet1")
 
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
@@ -247,8 +288,10 @@ export function ExcelImportPageContent() {
               },
             })
           } else {
-            setFailData((prev) => [...prev, row])
-            setFailCount((prev) => prev + 1)
+            setFailData((prev) => [
+              ...prev,
+              createDeferredFailure(row as Excel, "geocode", fileName || null),
+            ])
             resolve({ success: false })
           }
         },
@@ -277,7 +320,7 @@ export function ExcelImportPageContent() {
     e: FormEvent<HTMLFormElement>,
   ): Promise<void> => {
     e.preventDefault()
-    if (!spreadsheetFile) return
+    if (!excelFile) return
     if (!listId) {
       toast.error(
         "주주명부를 선택한 뒤 업로드해 주세요. 주주명부 목록에서 파일 가져오기를 실행하세요.",
@@ -287,13 +330,14 @@ export function ExcelImportPageContent() {
     }
 
     setLoading(true)
-    setFailData([])
-    setFailCount(0)
+    if (!preserveQueueBeforeUpload) {
+      setFailData([])
+    }
 
     try {
       await waitForKakaoMaps()
 
-      const workbook = XLSX.read(spreadsheetFile, { type: "buffer" })
+      const workbook = XLSX.read(excelFile, { type: "buffer" })
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const data = XLSX.utils.sheet_to_json(worksheet)
       const parsedRows = data.map((raw, i) =>
@@ -387,7 +431,8 @@ export function ExcelImportPageContent() {
 
   // 실패 데이터 수정 및 재변환 함수
   const handleEditFailedData = async (
-    editedData: ImportSpreadsheetRow,
+    deferredId: string,
+    editedData: Excel,
   ): Promise<void> => {
     if (!listId) {
       toast.error("주주명부가 선택되지 않았습니다.")
@@ -399,7 +444,10 @@ export function ExcelImportPageContent() {
       await waitForKakaoMaps()
       const geocoder = new window.kakao.maps.services.Geocoder()
 
-      const result = await handleGeocoding(geocoder, editedData)
+      const result = await handleGeocoding(
+        geocoder,
+        editedData as unknown as ImportSpreadsheetRow,
+      )
 
       if (result.success && result.data) {
         const row = result.data
@@ -423,18 +471,13 @@ export function ExcelImportPageContent() {
           if (error) throw error
         }
 
-        setFailData(
-          failData.filter(
-            (item) => item.latlngaddress !== editedData.latlngaddress,
-          ),
-        )
-        setFailCount((prev) => prev - 1)
+        setFailData((prev) => prev.filter((f) => f.id !== deferredId))
 
         toast.success("데이터가 성공적으로 변환되어 업로드되었습니다.")
       } else {
-        setFailData(
-          failData.map((item) =>
-            item.latlngaddress === editedData.latlngaddress ? editedData : item,
+        setFailData((prev) =>
+          prev.map((f) =>
+            f.id === deferredId ? { ...f, excel: editedData } : f,
           ),
         )
 
@@ -474,7 +517,10 @@ export function ExcelImportPageContent() {
         setProgress({ current: i + 1, total: totalItems })
         setProcessingItem(i)
 
-        const result = await handleGeocoding(geocoder, failData[i])
+        const result = await handleGeocoding(
+          geocoder,
+          failData[i].excel as unknown as ImportSpreadsheetRow,
+        )
 
         if (result.success && result.data) {
           const row = result.data
@@ -503,7 +549,6 @@ export function ExcelImportPageContent() {
 
       const newFailData = failData.filter((_, idx) => !successIndices.has(idx))
       setFailData(newFailData)
-      setFailCount(newFailData.length)
 
       if (successIndices.size > 0) {
         toast.success(
@@ -550,7 +595,7 @@ export function ExcelImportPageContent() {
       setFileName(file.name)
       const reader = new FileReader()
       reader.readAsArrayBuffer(file)
-      reader.onload = (e) => setSpreadsheetFile(e.target?.result as ArrayBuffer)
+      reader.onload = (e) => setExcelFile(e.target?.result as ArrayBuffer)
     }
   }
 
@@ -590,6 +635,10 @@ export function ExcelImportPageContent() {
         failData={failData}
         loading={loading}
         progress={progress}
+        preserveQueueBeforeUpload={preserveQueueBeforeUpload}
+        onPreserveQueueChange={handlePreserveQueueChange}
+        onClearDeferredQueue={handleClearDeferredQueue}
+        onRemoveDeferred={handleRemoveDeferred}
         onFileChange={handleFile}
         onClearFileName={clearFileName}
         onSubmit={handleFileSubmit}
