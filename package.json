@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "validate": "pnpm run lint && pnpm run build",
+    "validate": "npm run lint && npm run build",
     "prepare": "husky",
     "typegen": "supabase gen types typescript --project-id xavgmoavznyppbsfqiis --schema public > ./src/types/db.ts",
     "supabase:typegen": "supabase gen types typescript --project-id xavgmoavznyppbsfqiis --schema public > ./src/types/db.ts",
