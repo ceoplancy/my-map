@@ -1,6 +1,8 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import ShareholderStatusSelect from "@/components/shareholder/ShareholderStatusSelect"
+import { ShareholderExternalMapLinks } from "@/components/shareholder/ShareholderExternalMapLinks"
+import { ShareholderPhotoUploadField } from "@/components/shareholder/ShareholderPhotoUploadField"
 import { getStatusBadgeColors } from "@/lib/shareholderStatus"
 import { useState } from "react"
 import { useQueryClient } from "react-query"
@@ -391,6 +393,23 @@ export default function EditShareholderModal({ data, onClose }: Props) {
                   onChange={(e) => handleChange("maker", e.target.value)}
                 />
               </FormGroup>
+              <FormGroup>
+                <Label>카카오맵</Label>
+                <ShareholderExternalMapLinks
+                  lat={formData.lat}
+                  lng={formData.lng}
+                  name={formData.name}
+                  address={formData.address}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.image}</Label>
+                <ShareholderPhotoUploadField
+                  shareholderId={data.id}
+                  imageUrl={formData.image}
+                  onChangeUrl={(url) => handleChange("image", url)}
+                />
+              </FormGroup>
             </FormSection>
           </FormGrid>
 
@@ -477,6 +496,20 @@ export default function EditShareholderModal({ data, onClose }: Props) {
                                 }>
                                 {history.changes.status.modified}
                               </StatusBadge>
+                            </ChangeContent>
+                          </ChangeItem>
+                        )}
+                        {history.changes.image && (
+                          <ChangeItem>
+                            <FieldName>이미지</FieldName>
+                            <ChangeContent>
+                              <span title={history.changes.image.original}>
+                                {history.changes.image.original || "-"}
+                              </span>
+                              <span>→</span>
+                              <span title={history.changes.image.modified}>
+                                {history.changes.image.modified}
+                              </span>
                             </ChangeContent>
                           </ChangeItem>
                         )}

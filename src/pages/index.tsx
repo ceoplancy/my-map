@@ -429,12 +429,19 @@ const SpinnerFrame = styled.div`
 
 const MenuButton = styled.button`
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: max(16px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
   z-index: 10;
   background-color: white;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 0;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
   border: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
@@ -445,22 +452,36 @@ const MenuButton = styled.button`
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
+
+  svg {
+    font-size: 26px;
+  }
 `
 
 const MenuOverlay = styled.div<{ isVisible: boolean }>`
-  display: none;
+  display: ${(props) => (props.isVisible ? "block" : "none")};
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(2px);
 `
 
 const SideMenu = styled.div<{ isVisible: boolean }>`
   position: fixed;
-  top: 80px;
-  left: 20px;
-  width: 320px;
+  top: max(76px, calc(env(safe-area-inset-top, 0px) + 60px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  width: min(360px, calc(100vw - 24px));
   height: auto;
-  max-height: calc(100vh - 100px);
+  max-height: calc(
+    var(--vh, 1vh) * 100 - env(safe-area-inset-top, 0px) - env(
+        safe-area-inset-bottom,
+        0px
+      ) - 96px
+  );
   background: white;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  padding: 24px;
+  padding: 20px;
   border-radius: 16px;
   opacity: ${(props) => (props.isVisible ? 1 : 0)};
   visibility: ${(props) => (props.isVisible ? "visible" : "hidden")};
@@ -470,10 +491,12 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
 
-  @media (max-width: 768px) {
-    width: 260px;
+  @media (max-width: 380px) {
+    width: calc(100vw - 20px);
+    padding: 16px;
   }
 `
 
@@ -506,7 +529,9 @@ const CloseButton = styled.button`
 `
 
 const MenuItem = styled.div`
-  padding: 0px;
+  padding: 14px 12px;
+  min-height: 48px;
+  box-sizing: border-box;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -514,16 +539,23 @@ const MenuItem = styled.div`
   cursor: pointer;
   transition: all 0.2s ease;
   color: ${COLORS.gray[700]};
-  margin-top: 4px;
-  margin-bottom: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  font-size: 15px;
+  flex-shrink: 0;
 
   &:hover {
     background: ${COLORS.gray[50]};
     color: ${COLORS.gray[900]};
   }
 
+  &:active {
+    background: ${COLORS.gray[100]};
+  }
+
   svg {
-    font-size: 20px;
+    font-size: 22px;
+    flex-shrink: 0;
   }
 `
 

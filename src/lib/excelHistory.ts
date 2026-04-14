@@ -104,12 +104,14 @@ export function buildHistoryChanges(
     memo: string | null | undefined
     phone?: string | null | undefined
     special_notes?: string | null | undefined
+    image?: string | null | undefined
   },
   next: {
     status: string
     memo: string
     phone: string
     special_notes: string
+    image: string
   },
 ): HistoryChange {
   const changes: HistoryChange = {}
@@ -142,6 +144,15 @@ export function buildHistoryChanges(
     changes.special_notes = {
       original: oNotes.length > 0 ? oNotes : "(없음)",
       modified: nNotes.length > 0 ? nNotes : "(없음)",
+    }
+  }
+
+  const oImage = normalizeMemoForHistory(row.image)
+  const nImage = normalizeMemoForHistory(next.image)
+  if (oImage !== nImage) {
+    changes.image = {
+      original: oImage.length > 0 ? oImage : "(없음)",
+      modified: nImage.length > 0 ? nImage : "(없음)",
     }
   }
 

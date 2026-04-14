@@ -173,17 +173,24 @@ const DialogFrame = styled.div<DialogFrameProps>`
   }
 
   @media (max-width: 1920px) {
-    width: 600px;
-    max-height: 80vh;
+    width: min(600px, calc(100vw - 32px));
+    max-height: min(80vh, 900px);
   }
-  @media (max-width: 600px) {
-    width: 400px;
-    max-height: 80vh;
-  }
-  @media (max-width: 450px) {
-    width: 450px;
-    max-height: 100vh;
+
+  @media (max-width: 640px) {
     width: 100%;
+    max-width: 100%;
     height: 100%;
+    max-height: 100%;
+    min-height: 100dvh;
+    border-radius: 0;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    transform: none !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 `

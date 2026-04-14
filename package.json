@@ -28,6 +28,7 @@
     "axios": "^1.6.7",
     "babel-plugin-styled-components": "^2.1.4",
     "date-fns": "^3.3.1",
+    "formidable": "^3.5.4",
     "formik": "^2.4.6",
     "lodash": "^4.17.21",
     "lottie-react": "^2.4.1",
@@ -35,6 +36,7 @@
     "next": "15.1.11",
     "next-intercept-stdout": "^1.0.1",
     "prop-types": "^15.8.1",
+    "qrcode.react": "^4.2.0",
     "query-string": "^8.2.0",
     "react": "^18",
     "react-csv": "^2.2.2",
@@ -53,6 +55,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
     "@eslint/js": "^9.22.0",
+    "@types/formidable": "^3.5.1",
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.8.2",
     "@types/react": "^18.3.12",

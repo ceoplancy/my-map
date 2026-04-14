@@ -1,6 +1,9 @@
 import styled from "@emotion/styled"
 import { Excel } from "@/types/excel"
 import { Dispatch, SetStateAction, useEffect } from "react"
+import { ShareholderExternalMapLinks } from "@/components/shareholder/ShareholderExternalMapLinks"
+import { ShareholderIdCardPanel } from "@/components/shareholder/ShareholderIdCardPanel"
+import { ShareholderPhotoUploadField } from "@/components/shareholder/ShareholderPhotoUploadField"
 import { UseMutateFunction } from "react-query"
 import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
@@ -57,6 +60,7 @@ const MakerPatchModalChildren = ({
       const memoNext = values.memo ?? ""
       const phoneNext = values.phone ?? ""
       const notesNext = values.special_notes ?? ""
+      const imageNext = values.image ?? ""
 
       const changes = buildHistoryChanges(
         {
@@ -64,12 +68,14 @@ const MakerPatchModalChildren = ({
           memo: makerData.memo,
           phone: makerData.phone,
           special_notes: makerData.special_notes,
+          image: makerData.image,
         },
         {
           status,
           memo: memoNext,
           phone: phoneNext,
           special_notes: notesNext,
+          image: imageNext,
         },
       )
 
@@ -123,6 +129,7 @@ const MakerPatchModalChildren = ({
         memo: memoNext,
         phone: phoneNext,
         special_notes: notesNext,
+        image: imageNext,
         history,
       } as Excel
 
@@ -227,6 +234,43 @@ const MakerPatchModalChildren = ({
             />
           </Section>
 
+          <Section>
+            <SectionTitle>카카오맵</SectionTitle>
+            <ShareholderExternalMapLinks
+              lat={formik.values.lat}
+              lng={formik.values.lng}
+              name={formik.values.name}
+              address={formik.values.address}
+            />
+          </Section>
+
+          <Section>
+            <SectionTitle>사진</SectionTitle>
+            {makerData?.id ? (
+              <ShareholderPhotoUploadField
+                shareholderId={makerData.id}
+                imageUrl={formik.values.image}
+                onChangeUrl={(url) => void formik.setFieldValue("image", url)}
+              />
+            ) : (
+              <MutedLine>저장된 주주만 사진을 올릴 수 있습니다.</MutedLine>
+            )}
+          </Section>
+
+          <Section>
+            <SectionTitle>신분증 (QR · 본인 제출)</SectionTitle>
+            {makerData?.id ? (
+              <ShareholderIdCardPanel
+                excelId={makerData.id}
+                shareholderName={makerData.name}
+              />
+            ) : (
+              <MutedLine>
+                저장된 주주만 신분증 QR을 사용할 수 있습니다.
+              </MutedLine>
+            )}
+          </Section>
+
           <ButtonGroup>
             <ActionButton type="submit" variant="primary">
               수정 완료
@@ -253,6 +297,8 @@ const ModalContainer = styled.div`
   max-width: 95vw;
   max-height: 90vh;
   width: 100%;
+  display: flex;
+  flex-direction: column;
 
   user-select: none;
   animation: slideUp 0.3s ease-out;
@@ -270,6 +316,13 @@ const ModalContainer = styled.div`
 
   @media (max-width: 768px) {
     border-radius: 12px;
+  }
+
+  @media (max-width: 640px) {
+    border-radius: 0;
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 0;
   }
 `
 
@@ -314,11 +367,16 @@ const HeaderTitle = styled.h2`
 const CloseButton = styled.button`
   background: none;
   border: none;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
   color: ${COLORS.gray[500]};
   cursor: pointer;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     background: ${COLORS.gray[100]};
@@ -330,9 +388,13 @@ const CloseButton = styled.button`
 const ModalContent = styled.form`
   padding: 24px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 
   @media (max-width: 768px) {
     padding: 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
   }
 `
 
@@ -345,6 +407,12 @@ const SectionTitle = styled.h3`
   font-weight: 600;
   color: ${COLORS.gray[700]};
   margin-bottom: 12px;
+`
+
+const MutedLine = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: ${COLORS.gray[500]};
 `
 
 const StyledInput = styled.input`
@@ -439,8 +507,8 @@ const ActionButton = styled.button<{ variant: "primary" | "secondary" }>`
 
   @media (max-width: 768px) {
     width: 100%;
-    padding: 10px 20px;
-    font-size: 13px;
+    padding: 14px 20px;
+    font-size: 16px;
   }
 `
 

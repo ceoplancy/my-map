@@ -68,6 +68,36 @@ export type Database = {
         }
         Relationships: []
       }
+      shareholder_id_photo: {
+        Row: {
+          id: number
+          excel_id: number
+          file_url: string
+          storage_path: string
+          uploader_name: string | null
+          guide_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          excel_id: number
+          file_url: string
+          storage_path: string
+          uploader_name?: string | null
+          guide_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          excel_id?: number
+          file_url?: string
+          storage_path?: string
+          uploader_name?: string | null
+          guide_name?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

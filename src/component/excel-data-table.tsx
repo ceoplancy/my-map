@@ -437,6 +437,20 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
             </ChangeContent>
           </ChangeItem>
         )}
+        {history.changes?.image && (
+          <ChangeItem>
+            <FieldName>이미지 URL</FieldName>
+            <ChangeContent>
+              <ChangeText title={history.changes.image.original}>
+                {history.changes.image.original || "(없음)"}
+              </ChangeText>
+              <ArrowIcon>→</ArrowIcon>
+              <ChangeText highlight title={history.changes.image.modified}>
+                {history.changes.image.modified || "(없음)"}
+              </ChangeText>
+            </ChangeContent>
+          </ChangeItem>
+        )}
         {history.changes?.status && (
           <ChangeItem>
             <FieldName>상태</FieldName>

@@ -95,10 +95,10 @@ const App = ({ Component, pageProps }: AppProps) => {
         <link rel="canonical" href={`${siteUrl}/`} />
         <meta property="og:image" content={`${siteUrl}/og-image.png`} />
 
-        {/* Viewport */}
+        {/* Viewport: viewport-fit=cover 노치 대응, 확대는 접근성 위해 허용 */}
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
         {/* Favicon */}
@@ -138,6 +138,11 @@ const App = ({ Component, pageProps }: AppProps) => {
                 position="top-center"
                 limit={3}
                 autoClose={3000}
+                style={{
+                  top: "max(12px, env(safe-area-inset-top, 0px))",
+                  width: "min(100%, calc(100vw - 24px))",
+                }}
+                toastStyle={{ borderRadius: "12px" }}
               />
               <div id="portal" />
             </RecoilRoot>

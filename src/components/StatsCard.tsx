@@ -95,6 +95,11 @@ const Container = styled.div`
   border-radius: 12px;
   padding: 20px;
   margin: 12px 0;
+
+  @media (max-width: 480px) {
+    padding: 16px;
+    margin: 8px 0;
+  }
 `
 
 const HeaderSection = styled.div`

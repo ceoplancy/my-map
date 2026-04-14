@@ -347,9 +347,17 @@ const FilterModalChildren = ({
 
 const FilterContainer = styled.div`
   padding: 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
   position: relative;
   height: 100%;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+
+  @media (max-width: 640px) {
+    padding: 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+  }
 `
 
 const ModalHeader = styled.div`
@@ -370,8 +378,10 @@ const CloseButton = styled.button`
   border: none;
   color: ${COLORS.gray[500]};
   cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -383,7 +393,7 @@ const CloseButton = styled.button`
   }
 
   svg {
-    font-size: 20px;
+    font-size: 22px;
   }
 `
 
@@ -405,7 +415,8 @@ const ChipsWrapper = styled.div`
 `
 
 const FilterChip = styled.button<{ isSelected: boolean }>`
-  padding: 8px 16px;
+  padding: 10px 16px;
+  min-height: 44px;
   border-radius: 20px;
   border: 1px solid
     ${(props) => (props.isSelected ? COLORS.blue[500] : COLORS.gray[200])};
@@ -418,6 +429,10 @@ const FilterChip = styled.button<{ isSelected: boolean }>`
   &:hover {
     background: ${(props) =>
       props.isSelected ? COLORS.blue[100] : COLORS.gray[50]};
+  }
+
+  @media (max-width: 480px) {
+    font-size: 15px;
   }
 `
 
@@ -433,6 +448,7 @@ const StockRangeWrapper = styled.div`
 
 const StockRangeButton = styled.button<{ isSelected: boolean }>`
   width: 100%;
+  min-height: 44px;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid
@@ -453,7 +469,14 @@ const ButtonGroup = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-top: 24px;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
 `
 
 const ResetButton = styled.button`
@@ -461,14 +484,19 @@ const ResetButton = styled.button`
   border: none;
   color: ${COLORS.gray[500]};
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 12px 18px;
+  min-height: 48px;
+  border-radius: 10px;
+  font-size: 15px;
   transition: all 0.2s ease;
 
   &:hover {
     background: ${COLORS.gray[100]};
     color: ${COLORS.gray[700]};
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
   }
 `
 
@@ -476,15 +504,20 @@ const ApplyButton = styled.button`
   background: ${COLORS.blue[500]};
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 14px;
+  border-radius: 10px;
+  padding: 12px 22px;
+  min-height: 48px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
     background: ${COLORS.blue[600]};
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
   }
 `
 
@@ -495,6 +528,10 @@ const SearchInput = styled.input`
   border: 1px solid ${COLORS.gray[200]};
   font-size: 14px;
   margin-bottom: 8px;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
 `
 
 const SearchHint = styled.p`
@@ -513,6 +550,7 @@ const SearchHitList = styled.div`
 
 const SearchHitButton = styled.button`
   text-align: left;
+  min-height: 44px;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid ${COLORS.gray[200]};
@@ -553,6 +591,10 @@ const NumberField = styled.input`
   border-radius: 8px;
   border: 1px solid ${COLORS.gray[200]};
   font-size: 14px;
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
 `
 
 const RosterSep = styled.span`

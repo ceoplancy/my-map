@@ -75,17 +75,19 @@ export default InfoPanel
 
 const PanelContainer = styled.div`
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  width: 420px;
-  max-width: 90vw;
+  width: min(420px, calc(100vw - 16px));
+  max-height: min(72vh, 560px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   pointer-events: auto;
 
   @media (max-width: 480px) {
-    width: 300px;
+    width: calc(100vw - 12px);
+    max-height: min(70vh, 520px);
+    border-radius: 12px;
   }
 `
 
@@ -106,18 +108,23 @@ const HeaderTitle = styled.h3`
 
 const PanelBody = styled.div`
   padding: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 `
 
 const PanelFooter = styled.div`
   display: flex;
   gap: 8px;
   padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid ${COLORS.gray[100]};
   flex-shrink: 0;
 
   @media (max-width: 768px) {
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
   }
 `
 
@@ -127,13 +134,13 @@ const ActionButton = styled.button<{
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 12px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
-  min-height: 36px;
+  min-height: 46px;
   flex: 1;
   transition: opacity 0.15s;
 
@@ -150,21 +157,24 @@ const ActionButton = styled.button<{
   }
 
   @media (max-width: 768px) {
-    font-size: 13px;
-    padding: 6px 10px;
+    font-size: 15px;
+    min-height: 48px;
+    padding: 12px 8px;
   }
 `
 
 const CloseBtn = styled.button`
   background: none;
   border: none;
-  padding: 4px;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
   cursor: pointer;
   color: ${COLORS.gray[500]};
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 10px;
   transition: all 0.15s;
 
   &:hover {
