@@ -192,6 +192,10 @@ const WorkspaceMapPage = () => {
     [debouncedMapUpdate],
   )
 
+  const handleMapClick = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("workspace-map-interact"))
+  }, [])
+
   const handleApplyFilters = () => {
     mapMarkersRefetch()
     setIsFilterModalOpen(false)
@@ -312,6 +316,7 @@ const WorkspaceMapPage = () => {
           center={{ lat: currCenter.lat, lng: currCenter.lng }}
           style={{ width: "100%", height: "100%" }}
           level={mapLevel}
+          onClick={handleMapClick}
           onZoomChanged={handleZoomChange}
           onDragEnd={handleDragEnd}>
           <MapTypeControl position={"TOPRIGHT"} />

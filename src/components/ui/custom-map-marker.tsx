@@ -163,6 +163,7 @@ const CustomMapMarker = ({
     isGroupMarker && markers ? resolveGroupClusterVariant(markers) : null
 
   const [isOpen, setIsOpen] = useState(initialInfoWindowOpen)
+  const [isMobileSheetCollapsed, setIsMobileSheetCollapsed] = useState(false)
   const [makerDataUpdateIsModalOpen, setMakerDataUpdateIsModalOpen] =
     useState(false)
   const [isMarkerSelectModalOpen, setIsMarkerSelectModalOpen] = useState(false)
@@ -176,10 +177,15 @@ const CustomMapMarker = ({
   const session = useSession().data
   const userId = session?.user?.id ?? ""
 
-  const isShareholderMarker = isShareholder(marker)
+  const markerForDetail = isGroupMarker
+    ? (selectedGroupMarker ?? marker)
+    : marker
+  const isShareholderMarker = isShareholder(markerForDetail)
   const makerDataMutateIsLoading = shareholderMutateLoading
 
-  const shareholderIdForHistory = isShareholderMarker ? String(marker.id) : null
+  const shareholderIdForHistory = isShareholderMarker
+    ? String(markerForDetail.id)
+    : null
   const { data: mapHistory = [], isLoading: historyLoading } =
     useShareholderChangeHistoryForMap(shareholderIdForHistory, {
       enabled: isOpen,
@@ -222,15 +228,23 @@ const CustomMapMarker = ({
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
-    navigator.clipboard.writeText(marker.address ?? "")
+    navigator.clipboard.writeText(markerForDetail.address ?? "")
     toast.success("주소가 클립보드에 복사되었습니다")
   }
 
   const handleMarkerClick = () => {
     if (isGroupMarker) {
-      setIsMarkerSelectModalOpen(true)
+      if (isMobile) {
+        setIsOpen(true)
+        setIsMobileSheetCollapsed(false)
+      } else {
+        setIsMarkerSelectModalOpen(true)
+      }
     } else if (!isOpen) {
       setIsOpen(true)
+      setIsMobileSheetCollapsed(false)
+    } else if (isMobileSheetCollapsed) {
+      setIsMobileSheetCollapsed(false)
     }
   }
 
@@ -249,6 +263,25 @@ const CustomMapMarker = ({
       setIsOpen(true)
     }
   }, [forceKeepOpen])
+
+  useEffect(() => {
+    if (!isMobile) return
+    const onMapInteract = () => {
+      if (isOpen) {
+        setIsMobileSheetCollapsed(true)
+      }
+    }
+    window.addEventListener("workspace-map-interact", onMapInteract)
+
+    return () =>
+      window.removeEventListener("workspace-map-interact", onMapInteract)
+  }, [isMobile, isOpen])
+
+  useEffect(() => {
+    if (isGroupMarker && markerForDetail.id !== selectedGroupMarker?.id) {
+      setSelectedGroupMarker(markerForDetail)
+    }
+  }, [isGroupMarker, markerForDetail, selectedGroupMarker?.id])
 
   if (!filterMenu) return null
 
@@ -287,61 +320,93 @@ const CustomMapMarker = ({
       {isOpen &&
         (isMobile ? (
           <Portal>
-            <MobileSheetBackdrop
-              onClick={() => {
-                setIsOpen(false)
-                onMarkerSelect?.(null)
-              }}
-            />
             <MobileSheet
+              $collapsed={isMobileSheetCollapsed}
               onClick={(e) => e.stopPropagation()}
               onTouchMove={(e) => e.stopPropagation()}>
-              <MobileSheetHandle />
-              <InfoWindowHeader>
-                <HeaderTitle>주주 정보</HeaderTitle>
-                <CloseButton
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setIsOpen(false)
-                    onMarkerSelect?.(null)
-                  }}>
-                  <Close fontSize="small" />
-                </CloseButton>
-              </InfoWindowHeader>
-              <MobileSheetBody>
-                <MarkerDetailTable
-                  data={marker}
-                  history={isShareholderMarker ? mapHistory : undefined}
-                  historyLoading={isShareholderMarker && historyLoading}
-                />
-              </MobileSheetBody>
-              <MobileSheetFooter>
-                <ActionButton
-                  variant="success"
-                  onClick={(e) => {
-                    handleAddressCopy(e)
-                  }}>
-                  <ContentCopy fontSize="small" />
-                  <span>주소 복사</span>
-                </ActionButton>
-                <ActionButton
-                  variant="primary"
-                  onClick={(_e) => {
-                    setMakerDataUpdateIsModalOpen(true)
-                  }}>
-                  <Edit fontSize="small" />
-                  <span>수정하기</span>
-                </ActionButton>
-                <ActionButton
-                  variant="close"
-                  onClick={(_e) => {
-                    setIsOpen(false)
-                    onMarkerSelect?.(null)
-                  }}>
-                  <Close fontSize="small" />
-                  <span>닫기</span>
-                </ActionButton>
-              </MobileSheetFooter>
+              <MobileSheetHandleButton
+                type="button"
+                aria-label={
+                  isMobileSheetCollapsed ? "시트 펼치기" : "시트 접기"
+                }
+                onClick={() =>
+                  setIsMobileSheetCollapsed((prevCollapsed) => !prevCollapsed)
+                }>
+                <MobileSheetHandle />
+              </MobileSheetHandleButton>
+              {isMobileSheetCollapsed ? (
+                <CollapsedSummary>
+                  <CollapsedTitle>
+                    {markerForDetail.name ?? "주주"}
+                  </CollapsedTitle>
+                  <CollapsedSubTitle>
+                    {markerForDetail.company ?? "회사 미지정"}
+                  </CollapsedSubTitle>
+                </CollapsedSummary>
+              ) : (
+                <>
+                  <InfoWindowHeader>
+                    <HeaderTitle>주주 정보</HeaderTitle>
+                    <CloseButton
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setIsOpen(false)
+                        onMarkerSelect?.(null)
+                      }}>
+                      <Close fontSize="small" />
+                    </CloseButton>
+                  </InfoWindowHeader>
+                  <MobileSheetBody>
+                    {isGroupMarker && markers.length > 1 && (
+                      <>
+                        <GroupSelectTitle>주주 선택</GroupSelectTitle>
+                        <MobileMarkerTabs>
+                          {markers.map((m) => (
+                            <MobileMarkerTab
+                              key={m.id}
+                              $selected={markerForDetail.id === m.id}
+                              onClick={() => handleMarkerSelect(m)}>
+                              {m.name ?? `주주 ${m.id}`}
+                            </MobileMarkerTab>
+                          ))}
+                        </MobileMarkerTabs>
+                      </>
+                    )}
+                    <MarkerDetailTable
+                      data={markerForDetail}
+                      history={isShareholderMarker ? mapHistory : undefined}
+                      historyLoading={isShareholderMarker && historyLoading}
+                    />
+                  </MobileSheetBody>
+                  <MobileSheetFooter>
+                    <ActionButton
+                      variant="success"
+                      onClick={(e) => {
+                        handleAddressCopy(e)
+                      }}>
+                      <ContentCopy fontSize="small" />
+                      <span>주소 복사</span>
+                    </ActionButton>
+                    <ActionButton
+                      variant="primary"
+                      onClick={(_e) => {
+                        setMakerDataUpdateIsModalOpen(true)
+                      }}>
+                      <Edit fontSize="small" />
+                      <span>수정하기</span>
+                    </ActionButton>
+                    <ActionButton
+                      variant="close"
+                      onClick={(_e) => {
+                        setIsOpen(false)
+                        onMarkerSelect?.(null)
+                      }}>
+                      <Close fontSize="small" />
+                      <span>닫기</span>
+                    </ActionButton>
+                  </MobileSheetFooter>
+                </>
+              )}
             </MobileSheet>
           </Portal>
         ) : (
@@ -372,7 +437,7 @@ const CustomMapMarker = ({
                 </InfoWindowHeader>
 
                 <MarkerDetailTable
-                  data={marker}
+                  data={markerForDetail}
                   history={isShareholderMarker ? mapHistory : undefined}
                   historyLoading={isShareholderMarker && historyLoading}
                 />
@@ -417,7 +482,7 @@ const CustomMapMarker = ({
           setMakerDataUpdateIsModalOpen(nextOpen)
         }}>
         <MakerPatchModalChildren
-          makerData={isGroupMarker ? selectedGroupMarker : marker}
+          makerData={isGroupMarker ? (selectedGroupMarker ?? marker) : marker}
           makerDataMutate={makerDataMutate}
           setMakerDataUpdateIsModalOpen={setMakerDataUpdateIsModalOpen}
           mutateIsPending={makerDataMutateIsLoading}
@@ -431,7 +496,7 @@ const CustomMapMarker = ({
         />
       </Modal>
       {/* 그룹 마커 선택 모달 */}
-      {isGroupMarker && (
+      {isGroupMarker && !isMobile && (
         <Modal
           open={isMarkerSelectModalOpen}
           setOpen={setIsMarkerSelectModalOpen}
@@ -512,18 +577,7 @@ const InfoWindowContainer = styled.div`
   }
 `
 
-const MobileSheetBackdrop = styled.button`
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  border: none;
-  margin: 0;
-  padding: 0;
-  background: rgba(15, 23, 42, 0.4);
-  -webkit-tap-highlight-color: transparent;
-`
-
-const MobileSheet = styled.div`
+const MobileSheet = styled.div<{ $collapsed: boolean }>`
   position: fixed;
   left: max(0.5rem, env(safe-area-inset-left));
   right: max(0.5rem, env(safe-area-inset-right));
@@ -534,8 +588,19 @@ const MobileSheet = styled.div`
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  max-height: min(86vh, calc(100dvh - env(safe-area-inset-top) - 1rem));
+  max-height: ${(p) =>
+    p.$collapsed
+      ? "4.5rem"
+      : "min(86vh, calc(100dvh - env(safe-area-inset-top) - 1rem))"};
   overflow: hidden;
+  transition: max-height 0.24s ease;
+`
+
+const MobileSheetHandleButton = styled.button`
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0.75rem 0;
+  -webkit-tap-highlight-color: transparent;
 `
 
 const MobileSheetHandle = styled.div`
@@ -543,7 +608,7 @@ const MobileSheetHandle = styled.div`
   height: 0.3rem;
   border-radius: 999px;
   background: ${COLORS.gray[300]};
-  margin: 0.625rem auto 0;
+  margin: 0 auto;
 `
 
 const MobileSheetBody = styled.div`
@@ -551,6 +616,54 @@ const MobileSheetBody = styled.div`
   -webkit-overflow-scrolling: touch;
   padding: 0 1rem;
   max-height: min(56vh, calc(100dvh - 16rem));
+`
+
+const CollapsedSummary = styled.div`
+  padding: 0.35rem 1rem 0.75rem;
+  min-width: 0;
+`
+
+const CollapsedTitle = styled.div`
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: ${COLORS.gray[900]};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`
+
+const CollapsedSubTitle = styled.div`
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[600]};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`
+
+const GroupSelectTitle = styled.h4`
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[700]};
+`
+
+const MobileMarkerTabs = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+`
+
+const MobileMarkerTab = styled.button<{ $selected: boolean }>`
+  border-radius: 999px;
+  border: 1px solid
+    ${(p) => (p.$selected ? COLORS.blue[500] : COLORS.gray[300])};
+  background: ${(p) => (p.$selected ? COLORS.blue[50] : "#fff")};
+  color: ${(p) => (p.$selected ? COLORS.blue[700] : COLORS.gray[700])};
+  padding: 0.4rem 0.75rem;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  min-height: 2rem;
 `
 
 const MobileSheetFooter = styled.div`
