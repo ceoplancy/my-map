@@ -202,14 +202,24 @@ const FilterModalChildren = ({
     [companyStockFilterMap],
   )
 
-  const statusMenu =
-    (useListScopedMenu
-      ? filterMenuForLists?.statusMenu
-      : filterMenu?.statusMenu) ?? []
-  const companyMenu =
-    (useListScopedMenu
-      ? filterMenuForLists?.companyMenu
-      : filterMenu?.companyMenu) ?? []
+  const statusMenu = useMemo(
+    () =>
+      (useListScopedMenu
+        ? filterMenuForLists?.statusMenu
+        : filterMenu?.statusMenu) ?? [],
+    [useListScopedMenu, filterMenuForLists?.statusMenu, filterMenu?.statusMenu],
+  )
+  const companyMenu = useMemo(
+    () =>
+      (useListScopedMenu
+        ? filterMenuForLists?.companyMenu
+        : filterMenu?.companyMenu) ?? [],
+    [
+      useListScopedMenu,
+      filterMenuForLists?.companyMenu,
+      filterMenu?.companyMenu,
+    ],
+  )
 
   // 사용자의 허용된 필터 옵션들 (워크스페이스가 아닐 때)
   const allowedStatus = useMemo(
@@ -223,31 +233,43 @@ const FilterModalChildren = ({
   )
 
   // 관리자 또는 워크스페이스 명부 기준이면 전체, 아니면 허용된 것만
-  const availableStatus =
-    isAdmin || useListScopedMenu
-      ? statusMenu
-      : statusMenu.filter((status) => allowedStatus.includes(status))
+  const availableStatus = useMemo(
+    () =>
+      isAdmin || useListScopedMenu
+        ? statusMenu
+        : statusMenu.filter((status) => allowedStatus.includes(status)),
+    [isAdmin, useListScopedMenu, statusMenu, allowedStatus],
+  )
 
-  const availableCompany =
-    isAdmin || useListScopedMenu
-      ? companyMenu
-      : companyMenu.filter((company) => allowedCompany.includes(company))
+  const availableCompany = useMemo(
+    () =>
+      isAdmin || useListScopedMenu
+        ? companyMenu
+        : companyMenu.filter((company) => allowedCompany.includes(company)),
+    [isAdmin, useListScopedMenu, companyMenu, allowedCompany],
+  )
 
   useEffect(() => {
     if (isAdmin || useListScopedMenu) return
     setStatusFilter((prev) => {
-      const safePrev = toStringArray(prev)
+      const rawPrev = prev as unknown
+      const safePrev = toStringArray(rawPrev)
       const next = safePrev.filter((status) => allowedStatus.includes(status))
-      if (sameStringArray(safePrev, next)) return safePrev
+      if (sameStringArray(safePrev, next)) {
+        return Array.isArray(rawPrev) ? (rawPrev as string[]) : safePrev
+      }
 
       return next
     })
     setCompanyFilter((prev) => {
-      const safePrev = toStringArray(prev)
+      const rawPrev = prev as unknown
+      const safePrev = toStringArray(rawPrev)
       const next = safePrev.filter((company) =>
         allowedCompany.includes(company),
       )
-      if (sameStringArray(safePrev, next)) return safePrev
+      if (sameStringArray(safePrev, next)) {
+        return Array.isArray(rawPrev) ? (rawPrev as string[]) : safePrev
+      }
 
       return next
     })
@@ -262,13 +284,18 @@ const FilterModalChildren = ({
 
   useEffect(() => {
     setCompanyStockFilterMap((prev) => {
-      const safePrev = toCompanyStockMap(prev)
+      const rawPrev = prev as unknown
+      const safePrev = toCompanyStockMap(rawPrev)
       const allowed = new Set(availableCompany)
       const next: typeof prev = {}
       for (const [company, ranges] of Object.entries(safePrev)) {
         if (allowed.has(company)) next[company] = ranges
       }
-      if (sameCompanyStockMap(safePrev, next)) return safePrev
+      if (sameCompanyStockMap(safePrev, next)) {
+        return rawPrev && typeof rawPrev === "object" && !Array.isArray(rawPrev)
+          ? (rawPrev as typeof prev)
+          : safePrev
+      }
 
       return next
     })
@@ -280,14 +307,19 @@ const FilterModalChildren = ({
     end: number,
   ) => {
     setCompanyStockFilterMap((prev) => {
-      const current = prev[company] ?? []
+      const safePrev = toCompanyStockMap(prev)
+      const current = safePrev[company] ?? []
       const exists = current.some((r) => r.start === start && r.end === end)
       const nextForCompany = exists
         ? current.filter((r) => !(r.start === start && r.end === end))
         : [...current, { start, end }]
 
+      if (sameRangeArray(current, nextForCompany)) {
+        return prev
+      }
+
       return {
-        ...prev,
+        ...safePrev,
         [company]: nextForCompany,
       }
     })
