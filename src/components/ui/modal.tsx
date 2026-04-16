@@ -74,7 +74,7 @@ const Frame = styled.div`
   visibility: hidden;
   background-color: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(5px);
-  z-index: 20;
+  z-index: 400;
   transition: all 0.2s ease-in-out;
 
   &.slideUp {

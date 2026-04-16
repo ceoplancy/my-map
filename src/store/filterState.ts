@@ -6,6 +6,8 @@ export interface StockRange {
   end: number
 }
 
+export type CompanyStockFilterMap = Record<string, StockRange[]>
+
 interface FilterState {
   boundWorkspaceId: string | null
   statusFilter: string[]
@@ -13,12 +15,18 @@ interface FilterState {
   makerFilter: string[]
   cityFilter: string
   stocks: StockRange[]
+  companyStockFilterMap: CompanyStockFilterMap
   setStatusFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
   setCompanyFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
   setMakerFilter: (_v: string[] | ((_prev: string[]) => string[])) => void
   setCityFilter: (_v: string | ((_prev: string) => string)) => void
   setStocks: (
     _v: StockRange[] | ((_prev: StockRange[]) => StockRange[]),
+  ) => void
+  setCompanyStockFilterMap: (
+    _v:
+      | CompanyStockFilterMap
+      | ((_prev: CompanyStockFilterMap) => CompanyStockFilterMap),
   ) => void
   resetFilters: () => void
   ensureWorkspaceScope: (_workspaceId: string) => void
@@ -30,6 +38,7 @@ const filterFieldsInitial = {
   makerFilter: [] as string[],
   cityFilter: "",
   stocks: [] as StockRange[],
+  companyStockFilterMap: {} as CompanyStockFilterMap,
 }
 
 export const useFilterStore = create<FilterState>()(
@@ -56,6 +65,11 @@ export const useFilterStore = create<FilterState>()(
       setStocks: (v) =>
         set((s) => ({
           stocks: typeof v === "function" ? v(s.stocks) : v,
+        })),
+      setCompanyStockFilterMap: (v) =>
+        set((s) => ({
+          companyStockFilterMap:
+            typeof v === "function" ? v(s.companyStockFilterMap) : v,
         })),
       resetFilters: () =>
         set((s) => ({

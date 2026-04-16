@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import {
   keepPreviousData,
+  type QueryClient,
   useMutation,
   useQuery,
   useQueryClient,
@@ -27,6 +28,7 @@ import { reportError } from "@/lib/reportError"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
 import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
 import { getCoordinateRanges } from "@/lib/utils"
+import type { CompanyStockFilterMap, StockRange } from "@/store/filterState"
 
 type ShareholderList = Tables<"shareholder_lists">
 type Shareholder = Tables<"shareholders">
@@ -251,6 +253,100 @@ type ShareholdersParams = {
   lat?: number
   lng?: number
   mapLevel?: number
+  companyStockFilterMap?: CompanyStockFilterMap
+}
+
+type CompanyStockStats = Record<
+  string,
+  {
+    min: number
+    max: number
+    count: number
+  }
+>
+
+function hasCompanyStockFilterMap(
+  map: CompanyStockFilterMap | undefined,
+): map is CompanyStockFilterMap {
+  return !!map && Object.keys(map).length > 0
+}
+
+function getCompanyStockGlobalBounds(map: CompanyStockFilterMap): {
+  min: number
+  max: number
+} | null {
+  let min = Number.POSITIVE_INFINITY
+  let max = Number.NEGATIVE_INFINITY
+  for (const ranges of Object.values(map)) {
+    for (const range of ranges) {
+      if (range.start < min) min = range.start
+      if (range.end > max) max = range.end
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+
+  return { min, max }
+}
+
+function matchesRange(stocks: number, range: StockRange): boolean {
+  return stocks >= range.start && stocks <= range.end
+}
+
+function applyCompanyStockFilter<
+  T extends { company: string | null; stocks: number | null },
+>(rows: T[], map: CompanyStockFilterMap): T[] {
+  return rows.filter((row) => {
+    const company = row.company ?? ""
+    const ranges = map[company]
+    if (!ranges || ranges.length === 0) return true
+    const stocks = Number(row.stocks ?? 0)
+
+    return ranges.some((range) => matchesRange(stocks, range))
+  })
+}
+
+const getCompanyStockStatsForLists = async (
+  listIds: string[],
+): Promise<CompanyStockStats> => {
+  if (listIds.length === 0) return {}
+  const { data, error } = await supabase
+    .from("shareholders")
+    .select("company, stocks")
+    .in("list_id", listIds)
+  if (error) {
+    reportError(error)
+
+    return {}
+  }
+  const stats: CompanyStockStats = {}
+  for (const row of data ?? []) {
+    const company = (row.company ?? "").trim()
+    if (!company) continue
+    const stocks = Number(row.stocks ?? 0)
+    const prev = stats[company]
+    if (!prev) {
+      stats[company] = { min: stocks, max: stocks, count: 1 }
+      continue
+    }
+    stats[company] = {
+      min: Math.min(prev.min, stocks),
+      max: Math.max(prev.max, stocks),
+      count: prev.count + 1,
+    }
+  }
+
+  return stats
+}
+
+export const useCompanyStockStatsForLists = (listIds: string[] | null) => {
+  const hasLists = Array.isArray(listIds) && listIds.length > 0
+
+  return useQuery({
+    queryKey: ["companyStockStatsForLists", listIds],
+    queryFn: () => getCompanyStockStatsForLists(listIds ?? []),
+    enabled: hasLists,
+    staleTime: 1000 * 60 * 5,
+  })
 }
 
 const getShareholders = async (params: ShareholdersParams) => {
@@ -287,6 +383,13 @@ const getShareholders = async (params: ShareholdersParams) => {
       .join(",")
     query = query.or(conditions)
   }
+  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
+    const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
+    if (bounds) {
+      query = query.gte("stocks", bounds.min)
+      query = query.lte("stocks", bounds.max)
+    }
+  }
   if (params.lat != null && params.lng != null && params.mapLevel != null) {
     const { latRange, lngRange } = getCoordinateRanges(params.mapLevel)
     query = query.gte("lat", params.lat - latRange)
@@ -300,7 +403,12 @@ const getShareholders = async (params: ShareholdersParams) => {
     throw new Error(error.message)
   }
 
-  return data ?? []
+  let rows = data ?? []
+  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
+    rows = applyCompanyStockFilter(rows, params.companyStockFilterMap)
+  }
+
+  return rows
 }
 
 export type ShareholderStats = {
@@ -327,7 +435,7 @@ const getShareholderStats = async (
     }
   }
 
-  let query = supabase.from("shareholders").select("status, stocks")
+  let query = supabase.from("shareholders").select("status, stocks, company")
   if (listIds.length === 1) {
     query = query.eq("list_id", listIds[0])
   } else {
@@ -348,12 +456,22 @@ const getShareholderStats = async (
       .join(",")
     query = query.or(conditions)
   }
+  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
+    const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
+    if (bounds) {
+      query = query.gte("stocks", bounds.min)
+      query = query.lte("stocks", bounds.max)
+    }
+  }
   const { data, error } = await query
   if (error) {
     reportError(error)
     throw new Error(error.message)
   }
-  const rows = data ?? []
+  let rows = data ?? []
+  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
+    rows = applyCompanyStockFilter(rows, params.companyStockFilterMap)
+  }
   const totalStocks = rows.reduce((sum, r) => sum + (Number(r.stocks) || 0), 0)
   const completedRows = rows.filter((r) => r.status === "완료")
   const completedStocks = completedRows.reduce(
@@ -381,6 +499,7 @@ export const useShareholderStats = (params: ShareholdersParams) => {
       params.company,
       params.city,
       params.stocks,
+      params.companyStockFilterMap,
     ],
     queryFn: () => getShareholderStats(params),
     enabled,
@@ -443,6 +562,7 @@ export const useShareholders = (params: ShareholdersParams) => {
       params.maker,
       params.city,
       params.stocks,
+      params.companyStockFilterMap,
       params.lat,
       params.lng,
       params.mapLevel,
@@ -968,6 +1088,19 @@ export const useShareholderChangeHistoryForMap = (
         ? fetchShareholderChangeHistoryForMap(shareholderId)
         : Promise.resolve([]),
     enabled,
+    staleTime: 1000 * 60 * 2,
+  })
+}
+
+/** 모바일 시트 오픈 직전 prefetch로 체감 지연을 줄인다. */
+export const prefetchShareholderChangeHistoryForMap = async (
+  queryClient: QueryClient,
+  shareholderId: string | null,
+): Promise<void> => {
+  if (!shareholderId) return
+  await queryClient.prefetchQuery({
+    queryKey: ["shareholderChangeHistoryForMap", shareholderId],
+    queryFn: () => fetchShareholderChangeHistoryForMap(shareholderId),
     staleTime: 1000 * 60 * 2,
   })
 }

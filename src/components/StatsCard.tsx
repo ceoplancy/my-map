@@ -9,7 +9,13 @@ export type StatsCardProps = {
 }
 
 const StatsCard = ({ listIds }: StatsCardProps) => {
-  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+  const {
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    companyStockFilterMap,
+  } = useFilterStore()
 
   const hasLists = listIds.length > 0
   const { data: shareholderStats, isLoading: shareholderLoading } =
@@ -19,6 +25,7 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
       company: companyFilter?.length ? companyFilter : undefined,
       city: cityFilter || undefined,
       stocks: stocks?.length ? stocks : undefined,
+      companyStockFilterMap,
     })
 
   const stats = shareholderStats ?? {

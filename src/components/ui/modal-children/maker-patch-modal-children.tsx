@@ -20,6 +20,13 @@ import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
 import Select from "@/components/ui/select"
 import { hasPatchChanges, normalizeStatusForPatch } from "@/lib/makerPatchForm"
+import {
+  composeShareholderStatus,
+  PRIMARY_STATUS_OPTIONS,
+  splitShareholderStatus,
+  STATUS_DETAIL_OPTIONS,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
 
 export type MakerDataMutateOptions = {
   onSuccess?: () => void
@@ -89,6 +96,8 @@ const MakerPatchModalChildren = ({
       maker: makerData?.maker ?? "",
       name: makerData?.name ?? "",
       status: makerData?.status ?? "미방문",
+      statusPrimary: splitShareholderStatus(makerData?.status).primary,
+      statusDetail: splitShareholderStatus(makerData?.status).detail,
       memo: makerData?.memo ?? "",
       stocks: makerData?.stocks ?? 0,
       image: makerData?.image ?? "",
@@ -96,14 +105,29 @@ const MakerPatchModalChildren = ({
     },
     onSubmit: (values) => {
       if (!makerData || saveInFlightRef.current) return
-      if (!hasPatchChanges(makerData, values)) return
+
+      const statusPrimary = values.statusPrimary
+      const statusDetail = (values.statusDetail ?? "").trim()
+      if (statusDetail.length === 0) {
+        toast.error("상세 상태를 선택해야 저장할 수 있습니다.")
+
+        return
+      }
+      const status = composeShareholderStatus(statusPrimary, statusDetail)
+      if (
+        !hasPatchChanges(makerData, {
+          status,
+          memo: values.memo,
+        })
+      ) {
+        return
+      }
 
       saveInFlightRef.current = true
       saveSucceededRef.current = false
       setIsSaving(true)
       onSavingChange?.(true)
 
-      const status = normalizeStatusForPatch(values.status)
       const original = {
         status: makerData.status,
         memo: makerData.memo,
@@ -186,6 +210,8 @@ const MakerPatchModalChildren = ({
         maker: makerData.maker ?? "",
         name: makerData.name ?? "",
         status: makerData.status ?? "미방문",
+        statusPrimary: splitShareholderStatus(makerData.status).primary,
+        statusDetail: splitShareholderStatus(makerData.status).detail,
         memo: makerData.memo ?? "",
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
@@ -196,10 +222,23 @@ const MakerPatchModalChildren = ({
   }, [makerData])
 
   const hasEditableChanges = useMemo(
-    () => (makerData ? hasPatchChanges(makerData, formik.values) : false),
-    // 편집 가능 필드는 status·memo뿐 — formik.values 전체는 불필요한 재계산 유발
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- status, memo만 추적
-    [makerData, formik.values.status, formik.values.memo],
+    () =>
+      makerData
+        ? hasPatchChanges(makerData, {
+            status: composeShareholderStatus(
+              formik.values.statusPrimary,
+              formik.values.statusDetail ?? "",
+            ),
+            memo: formik.values.memo,
+          })
+        : false,
+    // 편집 가능 필드는 status·memo뿐 — statusPrimary/statusDetail/memo만 추적
+    [
+      makerData,
+      formik.values.statusPrimary,
+      formik.values.statusDetail,
+      formik.values.memo,
+    ],
   )
 
   const canSubmit = hasEditableChanges && !isSaveBusy
@@ -233,15 +272,54 @@ const MakerPatchModalChildren = ({
             <SectionTitle>상태 변경</SectionTitle>
             <SelectWrapper>
               <StyledSelect
-                name="status"
-                value={formik.values.status || "미방문"}
-                onChange={formik.handleChange}
+                name="statusPrimary"
+                value={formik.values.statusPrimary || "미방문"}
+                onChange={(e) => {
+                  const primary = e.target.value as PrimaryStatus
+                  formik.setFieldValue("statusPrimary", primary)
+                  const firstDetail = STATUS_DETAIL_OPTIONS[primary][0] ?? ""
+                  formik.setFieldValue("statusDetail", firstDetail)
+                  formik.setFieldValue(
+                    "status",
+                    normalizeStatusForPatch(
+                      composeShareholderStatus(primary, firstDetail),
+                    ),
+                  )
+                }}
                 onBlur={formik.handleBlur}
                 disabled={isSaveBusy}>
-                <option value="미방문">미방문</option>
-                <option value="완료">완료</option>
-                <option value="보류">보류</option>
-                <option value="실패">실패</option>
+                {PRIMARY_STATUS_OPTIONS.map((statusOpt) => (
+                  <option key={statusOpt} value={statusOpt}>
+                    {statusOpt}
+                  </option>
+                ))}
+              </StyledSelect>
+            </SelectWrapper>
+            <SelectWrapper style={{ marginTop: "0.5rem" }}>
+              <StyledSelect
+                name="statusDetail"
+                value={formik.values.statusDetail || ""}
+                onChange={(e) => {
+                  formik.setFieldValue("statusDetail", e.target.value)
+                  formik.setFieldValue(
+                    "status",
+                    normalizeStatusForPatch(
+                      composeShareholderStatus(
+                        formik.values.statusPrimary,
+                        e.target.value,
+                      ),
+                    ),
+                  )
+                }}
+                onBlur={formik.handleBlur}
+                disabled={isSaveBusy}>
+                {(STATUS_DETAIL_OPTIONS[formik.values.statusPrimary] ?? []).map(
+                  (detailOpt) => (
+                    <option key={detailOpt} value={detailOpt}>
+                      {detailOpt}
+                    </option>
+                  ),
+                )}
               </StyledSelect>
             </SelectWrapper>
           </Section>

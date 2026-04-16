@@ -108,7 +108,13 @@ const WorkspaceMapPage = () => {
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
   const [mapLevel, setMapLevel] = useState<number>(6)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
-  const { statusFilter, companyFilter, cityFilter, stocks } = useFilterStore()
+  const {
+    statusFilter,
+    companyFilter,
+    cityFilter,
+    stocks,
+    companyStockFilterMap,
+  } = useFilterStore()
   const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
     lat: 37.5665,
     lng: 126.978,
@@ -140,6 +146,7 @@ const WorkspaceMapPage = () => {
     status: statusFilter?.length ? statusFilter : undefined,
     company: companyFilter?.length ? companyFilter : undefined,
     stocks: stocks?.length ? stocks : undefined,
+    companyStockFilterMap,
     city: cityFilter || undefined,
     lat: currCenter.lat,
     lng: currCenter.lng,
@@ -433,7 +440,7 @@ const WorkspaceMapPage = () => {
           <Modal
             open={isFilterModalOpen}
             setOpen={setIsFilterModalOpen}
-            position={isMobile ? "bottom" : "center"}>
+            position={isMobile ? "top" : "center"}>
             <FilterModalChildren
               handleClose={() => setIsFilterModalOpen(false)}
               handleApplyFilters={handleApplyFilters}

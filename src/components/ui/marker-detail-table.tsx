@@ -7,6 +7,7 @@ import { COLORS } from "@/styles/global-style"
 import { nanoid } from "nanoid"
 import { useState } from "react"
 import ModalComponent from "./modal"
+import { getPrimaryStatusCategory } from "@/lib/shareholderStatus"
 
 export type HistoryChange = {
   memo?: { original: string; modified: string }
@@ -25,12 +26,16 @@ interface MarkerDetailTableProps {
   data: MarkerDetailSource
   history?: HistoryItem[]
   historyLoading?: boolean
+  mobileScrollable?: boolean
+  hideShareholderId?: boolean
 }
 
 const MarkerDetailTable = ({
   data,
   history: historyProp,
   historyLoading = false,
+  mobileScrollable = true,
+  hideShareholderId = false,
 }: MarkerDetailTableProps) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const history =
@@ -48,13 +53,15 @@ const MarkerDetailTable = ({
   if (!data) return null
 
   return (
-    <TableContainer>
+    <TableContainer $mobileScrollable={mobileScrollable}>
       <Table>
         <tbody>
-          <TableRow>
-            <TableHeader>주주번호</TableHeader>
-            <TableCell>{String(data.id)}</TableCell>
-          </TableRow>
+          {!hideShareholderId && (
+            <TableRow>
+              <TableHeader>주주번호</TableHeader>
+              <TableCell>{String(data.id)}</TableCell>
+            </TableRow>
+          )}
           <TableRow>
             <TableHeader>이름</TableHeader>
             <TableCell>{data.name}</TableCell>
@@ -120,7 +127,7 @@ const MarkerDetailTable = ({
 
 export default MarkerDetailTable
 
-const TableContainer = styled.div`
+const TableContainer = styled.div<{ $mobileScrollable: boolean }>`
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -130,8 +137,8 @@ const TableContainer = styled.div`
   @media screen and (max-width: 768px) {
     border-radius: 0;
     box-shadow: none;
-    max-height: 300px;
-    overflow-y: auto;
+    max-height: ${(p) => (p.$mobileScrollable ? "300px" : "none")};
+    overflow-y: ${(p) => (p.$mobileScrollable ? "auto" : "visible")};
   }
 `
 
@@ -245,7 +252,16 @@ const StatusBadge = styled.span<{ status: string | null }>`
   }
 
   background: ${({ status }) => {
-    switch (status) {
+    const primary = getPrimaryStatusCategory(status)
+    switch (primary) {
+      case "전자투표":
+        return COLORS.purple[50]
+      case "주주총회":
+        return COLORS.purple[100]
+      default:
+        break
+    }
+    switch (primary) {
       case "완료":
         return COLORS.green[50]
       case "미방문":
@@ -259,13 +275,20 @@ const StatusBadge = styled.span<{ status: string | null }>`
     }
   }};
   color: ${({ status }) => {
-    switch (status) {
+    const primary = getPrimaryStatusCategory(status)
+    switch (primary) {
       case "완료":
         return COLORS.green[700]
-      case "진행중":
+      case "미방문":
         return COLORS.blue[700]
       case "보류":
         return COLORS.yellow[700]
+      case "실패":
+        return COLORS.red[700]
+      case "전자투표":
+        return COLORS.purple[700]
+      case "주주총회":
+        return COLORS.purple[800]
       default:
         return COLORS.gray[700]
     }

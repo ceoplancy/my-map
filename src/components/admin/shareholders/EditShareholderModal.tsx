@@ -11,6 +11,13 @@ import {
   useShareholderChangeHistory,
 } from "@/api/workspace"
 import Select from "@/components/ui/select"
+import {
+  composeShareholderStatus,
+  PRIMARY_STATUS_OPTIONS,
+  splitShareholderStatus,
+  STATUS_DETAIL_OPTIONS,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
 
 const Overlay = styled.div`
   position: fixed;
@@ -263,6 +270,11 @@ export const FIELD_LABELS: Record<string, string> = {
 
 export default function EditShareholderModal({ data, userId, onClose }: Props) {
   const [formData, setFormData] = useState<Shareholder>(data)
+  const parsedStatus = splitShareholderStatus(data.status)
+  const [statusPrimary, setStatusPrimary] = useState<PrimaryStatus>(
+    parsedStatus.primary,
+  )
+  const [statusDetail, setStatusDetail] = useState(parsedStatus.detail)
   const patchShareholder = usePatchShareholder()
   const { data: changeHistoryBundle } = useShareholderChangeHistory(data.id)
   const changeHistoryRows = changeHistoryBundle?.rows ?? []
@@ -276,6 +288,11 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!statusDetail.trim()) {
+      toast.error("상세 상태를 선택해야 저장할 수 있습니다.")
+
+      return
+    }
 
     try {
       await patchShareholder.mutateAsync({
@@ -283,7 +300,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           id: data.id,
           name: formData.name,
           address: formData.address,
-          status: formData.status,
+          status: composeShareholderStatus(statusPrimary, statusDetail),
           company: formData.company,
           stocks: formData.stocks,
           latlngaddress: formData.latlngaddress,
@@ -340,13 +357,29 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
               <FormGroup>
                 <Label>{FIELD_LABELS.status}</Label>
                 <ModalSelect
-                  value={formData.status || ""}
-                  onChange={(e) => handleChange("status", e.target.value)}>
-                  <option value="">선택하세요</option>
-                  <option value="미방문">미방문</option>
-                  <option value="완료">완료</option>
-                  <option value="보류">보류</option>
-                  <option value="실패">실패</option>
+                  value={statusPrimary}
+                  onChange={(e) => {
+                    const nextPrimary = e.target.value as PrimaryStatus
+                    setStatusPrimary(nextPrimary)
+                    setStatusDetail(STATUS_DETAIL_OPTIONS[nextPrimary][0] ?? "")
+                  }}>
+                  {PRIMARY_STATUS_OPTIONS.map((statusOption) => (
+                    <option key={statusOption} value={statusOption}>
+                      {statusOption}
+                    </option>
+                  ))}
+                </ModalSelect>
+                <ModalSelect
+                  style={{ marginTop: "0.5rem" }}
+                  value={statusDetail}
+                  onChange={(e) => setStatusDetail(e.target.value)}>
+                  {(STATUS_DETAIL_OPTIONS[statusPrimary] ?? []).map(
+                    (detail) => (
+                      <option key={detail} value={detail}>
+                        {detail}
+                      </option>
+                    ),
+                  )}
                 </ModalSelect>
               </FormGroup>
               <FormGroup>

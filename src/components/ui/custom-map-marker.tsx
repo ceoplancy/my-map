@@ -1,10 +1,12 @@
 import { useGetFilterMenu } from "@/api/supabase"
 import {
+  prefetchShareholderChangeHistoryForMap,
   usePatchShareholder,
   useShareholderChangeHistoryForMap,
 } from "@/api/workspace"
 import { useSession } from "@/api/auth"
 import { useCallback, useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
 import { type MapMarkerData, isShareholderMarker } from "@/types/map"
@@ -17,6 +19,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { toast } from "react-toastify"
 import { ContentCopy, Edit, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
+import { getPrimaryStatusCategory } from "@/lib/shareholderStatus"
 
 export type { MapMarkerData } from "@/types/map"
 const isShareholder = isShareholderMarker
@@ -32,6 +35,8 @@ const STATUS_MARKER_COLORS = {
   보류: "#FFD939",
   완료: "#4DD664",
   실패: "#000000",
+  전자투표: "#7C3AED",
+  주주총회: "#0EA5E9",
 } as const
 
 // 상태 마커도 정적 파일 대신 코드 기반 SVG(data URL)로 생성
@@ -65,8 +70,9 @@ export const getMarkerImage = (
   company: string | null,
   companyList: string[],
 ) => {
-  if (status && status !== "미방문" && status in STATUS_MARKERS) {
-    return STATUS_MARKERS[status as keyof typeof STATUS_MARKERS]
+  const primaryStatus = getPrimaryStatusCategory(status)
+  if (primaryStatus in STATUS_MARKERS && primaryStatus !== "미방문") {
+    return STATUS_MARKERS[primaryStatus as keyof typeof STATUS_MARKERS]
   }
 
   if (company && companyList.length > 0) {
@@ -81,9 +87,7 @@ export const getMarkerImage = (
 
 /** 같은 좌표에 2개 이상 마커일 때, 모두 동일한 방문 상태면 클러스터 핀 색을 그 상태에 맞춤 */
 const normalizeVisitStatus = (s: string | null | undefined): string => {
-  const t = (s ?? "").trim()
-
-  return t === "" ? "미방문" : t
+  return getPrimaryStatusCategory(s)
 }
 
 /** 클러스터 핀 채우기 — 상태별 마커와 동일 색상 계열 */
@@ -156,6 +160,7 @@ const CustomMapMarker = ({
   initialInfoWindowOpen = false,
   forceKeepOpen = false,
 }: CustomMapMarkerProps) => {
+  const queryClient = useQueryClient()
   const isMobile = useMediaQuery("(max-width: 768px)")
   const { data: filterMenu } = useGetFilterMenu()
   const isGroupMarker = markers && markers.length > 1
@@ -233,6 +238,10 @@ const CustomMapMarker = ({
   }
 
   const handleMarkerClick = () => {
+    void prefetchShareholderChangeHistoryForMap(
+      queryClient,
+      isGroupMarker ? String(markerForDetail.id) : String(marker.id),
+    )
     if (isGroupMarker) {
       if (isMobile) {
         setIsOpen(true)
@@ -249,6 +258,10 @@ const CustomMapMarker = ({
   }
 
   const handleMarkerSelect = (selectedMarker: MapMarkerData) => {
+    void prefetchShareholderChangeHistoryForMap(
+      queryClient,
+      String(selectedMarker.id),
+    )
     setSelectedGroupMarker(selectedMarker)
     onMarkerSelect?.(selectedMarker)
     setIsMarkerSelectModalOpen(false)
@@ -342,21 +355,45 @@ const CustomMapMarker = ({
                   <CollapsedSubTitle>
                     {markerForDetail.company ?? "회사 미지정"}
                   </CollapsedSubTitle>
+                  <CollapsedMetaRow>
+                    <CollapsedStatusBadge
+                      status={String(markerForDetail.status ?? "미방문")}>
+                      {String(markerForDetail.status ?? "미방문")}
+                    </CollapsedStatusBadge>
+                    <CollapsedStocks>
+                      {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
+                    </CollapsedStocks>
+                  </CollapsedMetaRow>
                 </CollapsedSummary>
               ) : (
                 <>
-                  <InfoWindowHeader>
-                    <HeaderTitle>주주 정보</HeaderTitle>
-                    <CloseButton
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setIsOpen(false)
-                        onMarkerSelect?.(null)
-                      }}>
-                      <Close fontSize="small" />
-                    </CloseButton>
-                  </InfoWindowHeader>
                   <MobileSheetBody>
+                    <MobileExpandedSummary>
+                      <MobileExpandedItem>
+                        <SummaryKey>주주명</SummaryKey>
+                        <SummaryValue>
+                          {markerForDetail.name ?? "-"}
+                        </SummaryValue>
+                      </MobileExpandedItem>
+                      <MobileExpandedItem>
+                        <SummaryKey>주식수</SummaryKey>
+                        <SummaryValue>
+                          {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
+                        </SummaryValue>
+                      </MobileExpandedItem>
+                      <MobileExpandedItem>
+                        <SummaryKey>회사구분</SummaryKey>
+                        <SummaryValue>
+                          {markerForDetail.company ?? "-"}
+                        </SummaryValue>
+                      </MobileExpandedItem>
+                      <MobileExpandedItem>
+                        <SummaryKey>상태</SummaryKey>
+                        <SummaryStatus>
+                          {String(markerForDetail.status ?? "미방문")}
+                        </SummaryStatus>
+                      </MobileExpandedItem>
+                    </MobileExpandedSummary>
                     {isGroupMarker && markers.length > 1 && (
                       <>
                         <GroupSelectTitle>주주 선택</GroupSelectTitle>
@@ -376,6 +413,8 @@ const CustomMapMarker = ({
                       data={markerForDetail}
                       history={isShareholderMarker ? mapHistory : undefined}
                       historyLoading={isShareholderMarker && historyLoading}
+                      mobileScrollable={false}
+                      hideShareholderId
                     />
                   </MobileSheetBody>
                   <MobileSheetFooter>
@@ -394,15 +433,6 @@ const CustomMapMarker = ({
                       }}>
                       <Edit fontSize="small" />
                       <span>수정하기</span>
-                    </ActionButton>
-                    <ActionButton
-                      variant="close"
-                      onClick={(_e) => {
-                        setIsOpen(false)
-                        onMarkerSelect?.(null)
-                      }}>
-                      <Close fontSize="small" />
-                      <span>닫기</span>
                     </ActionButton>
                   </MobileSheetFooter>
                 </>
@@ -584,7 +614,7 @@ const MobileSheet = styled.div<{ $collapsed: boolean }>`
   bottom: max(0.5rem, env(safe-area-inset-bottom));
   z-index: 101;
   background: white;
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -599,7 +629,9 @@ const MobileSheet = styled.div<{ $collapsed: boolean }>`
 const MobileSheetHandleButton = styled.button`
   border: none;
   background: transparent;
-  padding: 0.5rem 0.75rem 0;
+  padding: 0.625rem 0.75rem 0.25rem;
+  min-height: 2rem;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 `
 
@@ -614,8 +646,8 @@ const MobileSheetHandle = styled.div`
 const MobileSheetBody = styled.div`
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 1rem;
-  max-height: min(56vh, calc(100dvh - 16rem));
+  padding: 0 1rem 0.75rem;
+  max-height: min(58vh, calc(100dvh - 15rem));
 `
 
 const CollapsedSummary = styled.div`
@@ -640,10 +672,89 @@ const CollapsedSubTitle = styled.div`
   white-space: nowrap;
 `
 
+const CollapsedMetaRow = styled.div`
+  margin-top: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+`
+
+const CollapsedStatusBadge = styled.span<{ status: string }>`
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: ${({ status }) => {
+    const primary = getPrimaryStatusCategory(status)
+    if (primary === "완료") return COLORS.green[50]
+    if (primary === "보류") return COLORS.yellow[50]
+    if (primary === "실패") return COLORS.red[50]
+    if (primary === "전자투표") return COLORS.purple[50]
+    if (primary === "주주총회") return "#E0F2FE"
+
+    return COLORS.gray[100]
+  }};
+  color: ${({ status }) => {
+    const primary = getPrimaryStatusCategory(status)
+    if (primary === "완료") return COLORS.green[700]
+    if (primary === "보류") return COLORS.yellow[700]
+    if (primary === "실패") return COLORS.red[700]
+    if (primary === "전자투표") return COLORS.purple[700]
+    if (primary === "주주총회") return "#0369A1"
+
+    return COLORS.gray[700]
+  }};
+`
+
+const CollapsedStocks = styled.span`
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: ${COLORS.gray[800]};
+  white-space: nowrap;
+`
+
 const GroupSelectTitle = styled.h4`
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.625rem;
   font-size: 0.875rem;
+  font-weight: 700;
   color: ${COLORS.gray[700]};
+`
+
+const MobileExpandedSummary = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  background: ${COLORS.gray[50]};
+  border-radius: 10px;
+`
+
+const MobileExpandedItem = styled.div`
+  min-width: 0;
+`
+
+const SummaryKey = styled.div`
+  font-size: 0.6875rem;
+  color: ${COLORS.gray[500]};
+  margin-bottom: 0.15rem;
+`
+
+const SummaryValue = styled.div`
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[800]};
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`
+
+const SummaryStatus = styled(SummaryValue)`
+  color: ${COLORS.blue[700]};
 `
 
 const MobileMarkerTabs = styled.div`
@@ -651,7 +762,7 @@ const MobileMarkerTabs = styled.div`
   gap: 0.5rem;
   overflow-x: auto;
   padding-bottom: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 `
 
 const MobileMarkerTab = styled.button<{ $selected: boolean }>`
@@ -660,10 +771,12 @@ const MobileMarkerTab = styled.button<{ $selected: boolean }>`
     ${(p) => (p.$selected ? COLORS.blue[500] : COLORS.gray[300])};
   background: ${(p) => (p.$selected ? COLORS.blue[50] : "#fff")};
   color: ${(p) => (p.$selected ? COLORS.blue[700] : COLORS.gray[700])};
-  padding: 0.4rem 0.75rem;
+  padding: 0.5rem 0.85rem;
   white-space: nowrap;
   font-size: 0.8125rem;
-  min-height: 2rem;
+  min-height: 2.25rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 `
 
 const MobileSheetFooter = styled.div`
@@ -673,7 +786,7 @@ const MobileSheetFooter = styled.div`
   position: sticky;
   bottom: 0;
   margin-top: 0;
-  padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+  padding: 0.875rem 1rem max(0.9rem, env(safe-area-inset-bottom));
   background: white;
   border-top: 1px solid ${COLORS.gray[200]};
 `
@@ -709,12 +822,12 @@ const ActionButton = styled.button<{
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 0.625rem 0.875rem;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  min-height: 36px;
+  min-height: 2.75rem;
   flex: 1;
 
   background-color: ${({ variant }) =>
@@ -731,7 +844,7 @@ const ActionButton = styled.button<{
 
   @media (max-width: 768px) {
     font-size: 13px;
-    padding: 6px 10px;
+    padding: 0.625rem 0.75rem;
   }
 `
 

@@ -1,6 +1,9 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
-import { useFilterMenuForLists } from "@/api/workspace"
+import {
+  useCompanyStockStatsForLists,
+  useFilterMenuForLists,
+} from "@/api/workspace"
 import { useFilterStore } from "@/store/filterState"
 
 import styled from "@emotion/styled"
@@ -38,26 +41,56 @@ const MAJOR_CITIES = [
   "제주",
 ]
 
-const STOCK_RANGES = [
-  { label: "1천주 미만", start: 0, end: 999 },
-  { label: "1천주 ~ 2천주", start: 1000, end: 1999 },
-  { label: "2천주 ~ 3천주", start: 2000, end: 2999 },
-  { label: "3천주 ~ 4천주", start: 3000, end: 3999 },
-  { label: "4천주 ~ 5천주", start: 4000, end: 4999 },
-  { label: "5천주 ~ 1만주", start: 5000, end: 9999 },
-  { label: "1만주 ~ 2만주", start: 10000, end: 19999 },
-  { label: "2만주 ~ 3만주", start: 20000, end: 29999 },
-  { label: "3만주 ~ 4만주", start: 30000, end: 39999 },
-  { label: "4만주 ~ 5만주", start: 40000, end: 49999 },
-  { label: "5만주 ~ 10만주", start: 50000, end: 99999 },
-  { label: "10만주 이상", start: 100000, end: 199999 },
-  { label: "20만주 이상", start: 200000, end: 399999 },
-  { label: "40만주 이상", start: 400000, end: 599999 },
-  { label: "60만주 이상", start: 600000, end: 799999 },
-  { label: "80만주 이상", start: 800000, end: 999999 },
-  { label: "100만주 이상", start: 1000000, end: 1499999 },
-  { label: "150만주 이상", start: 1500000, end: 99999999999 },
-] as const
+type StockRangeUi = { label: string; start: number; end: number }
+
+const formatStocks = (n: number) => `${Math.round(n).toLocaleString()}주`
+
+const rangeLabel = (start: number, end: number, isLast: boolean) => {
+  if (isLast) return `${formatStocks(start)} 이상`
+
+  return `${formatStocks(start)} ~ ${formatStocks(end)}`
+}
+
+const dynamicStepForMax = (max: number) => {
+  if (max <= 60_000) return 5_000
+  if (max <= 200_000) return 10_000
+  if (max <= 700_000) return 50_000
+  if (max <= 2_000_000) return 100_000
+
+  return 500_000
+}
+
+const buildAdaptiveRanges = (min: number, max: number): StockRangeUi[] => {
+  const safeMin = Math.max(0, Math.floor(min))
+  const safeMax = Math.max(safeMin, Math.floor(max))
+  const step = dynamicStepForMax(safeMax)
+  const baseStart = Math.floor(safeMin / step) * step
+  const ranges: StockRangeUi[] = []
+  let start = baseStart
+  let guard = 0
+  while (start <= safeMax && guard < 20) {
+    const end = start + step - 1
+    const isLast = end >= safeMax
+    ranges.push({
+      label: rangeLabel(start, isLast ? safeMax : end, isLast),
+      start,
+      end: isLast ? Number.MAX_SAFE_INTEGER : end,
+    })
+    start += step
+    guard += 1
+  }
+  if (ranges.length === 0) {
+    ranges.push({
+      label: `${formatStocks(0)} 이상`,
+      start: 0,
+      end: Number.MAX_SAFE_INTEGER,
+    })
+  }
+
+  return ranges
+}
+
+const STOCK_TAB_ALL = "__all__"
 
 const FilterModalChildren = ({
   handleClose,
@@ -74,8 +107,11 @@ const FilterModalChildren = ({
     setCompanyFilter,
     setCityFilter,
     setStocks,
+    companyStockFilterMap,
+    setCompanyStockFilterMap,
     resetFilters,
   } = useFilterStore()
+  const [activeStockTab, setActiveStockTab] = useState<string>(STOCK_TAB_ALL)
   const { data: user } = useGetUserData()
   const useListScopedMenu = listIds != null
   const { data: filterMenu } = useGetFilterMenu({
@@ -83,6 +119,9 @@ const FilterModalChildren = ({
   })
   const { data: filterMenuForLists } = useFilterMenuForLists(
     useListScopedMenu ? listIds : null,
+  )
+  const { data: companyStockStats = {} } = useCompanyStockStatsForLists(
+    useListScopedMenu ? (listIds ?? null) : null,
   )
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
 
@@ -134,18 +173,33 @@ const FilterModalChildren = ({
     setCompanyFilter,
   ])
 
-  const handleRangeSelect = (start: number, end: number) => {
-    setStocks((prev) => {
-      const isSelected = prev.some(
-        (range) => range.start === start && range.end === end,
-      )
+  useEffect(() => {
+    setCompanyStockFilterMap((prev) => {
+      const allowed = new Set(availableCompany)
+      const next: typeof prev = {}
+      for (const [company, ranges] of Object.entries(prev)) {
+        if (allowed.has(company)) next[company] = ranges
+      }
 
-      if (isSelected) {
-        return prev.filter(
-          (range) => !(range.start === start && range.end === end),
-        )
-      } else {
-        return [...prev, { start, end }]
+      return next
+    })
+  }, [availableCompany, setCompanyStockFilterMap])
+
+  const handleCompanyRangeSelect = (
+    company: string,
+    start: number,
+    end: number,
+  ) => {
+    setCompanyStockFilterMap((prev) => {
+      const current = prev[company] ?? []
+      const exists = current.some((r) => r.start === start && r.end === end)
+      const nextForCompany = exists
+        ? current.filter((r) => !(r.start === start && r.end === end))
+        : [...current, { start, end }]
+
+      return {
+        ...prev,
+        [company]: nextForCompany,
       }
     })
   }
@@ -154,6 +208,13 @@ const FilterModalChildren = ({
     setCompanyFilter((prev) => {
       // 이미 선택된 회사인 경우 제거
       if (prev.includes(selectedCompany)) {
+        setCompanyStockFilterMap((map) => {
+          const next = { ...map }
+          delete next[selectedCompany]
+
+          return next
+        })
+
         return prev.filter((company) => company !== selectedCompany)
       }
 
@@ -161,6 +222,43 @@ const FilterModalChildren = ({
       return [...prev, selectedCompany]
     })
   }
+
+  const companySpecificRanges = useMemo(() => {
+    const out: Record<string, StockRangeUi[]> = {}
+    for (const company of companyFilter) {
+      const stats = companyStockStats[company]
+      if (!stats) continue
+      out[company] = buildAdaptiveRanges(stats.min, stats.max)
+    }
+
+    return out
+  }, [companyFilter, companyStockStats])
+
+  const targetCompaniesForGlobalStocks = useMemo(() => {
+    return companyFilter.length > 0 ? companyFilter : availableCompany
+  }, [companyFilter, availableCompany])
+
+  const globalStockRanges = useMemo(() => {
+    const statsRows = targetCompaniesForGlobalStocks
+      .map((company) => companyStockStats[company])
+      .filter(Boolean)
+    if (statsRows.length === 0) return []
+    const min = Math.min(...statsRows.map((s) => s.min))
+    const max = Math.max(...statsRows.map((s) => s.max))
+
+    return buildAdaptiveRanges(min, max)
+  }, [targetCompaniesForGlobalStocks, companyStockStats])
+
+  const stockTabs = useMemo(
+    () => [STOCK_TAB_ALL, ...companyFilter],
+    [companyFilter],
+  )
+
+  useEffect(() => {
+    if (!stockTabs.includes(activeStockTab)) {
+      setActiveStockTab(STOCK_TAB_ALL)
+    }
+  }, [activeStockTab, stockTabs])
 
   return (
     <FilterContainer>
@@ -238,19 +336,85 @@ const FilterModalChildren = ({
       </FilterSection>
 
       <FilterSection>
-        <SectionTitle>주식수 (다중 선택 가능)</SectionTitle>
-        <StockRangeWrapper>
-          {STOCK_RANGES.map((range) => (
-            <StockRangeButton
-              key={range.label}
-              isSelected={stocks.some(
-                (s) => s.start === range.start && s.end === range.end,
-              )}
-              onClick={() => handleRangeSelect(range.start, range.end)}>
-              {range.label}
-            </StockRangeButton>
+        <SectionTitle>주식수 필터 (회사별)</SectionTitle>
+        <HintText>
+          전체 탭은 공통 주식수 구간, 회사 탭은 회사별로 다른 구간을 설정합니다.
+        </HintText>
+        {!isAdmin && !useListScopedMenu && (
+          <HintText style={{ marginTop: "0.35rem" }}>
+            * 현장요원 권한에 따라 회사/상태 목록이 다르게 보일 수 있습니다.
+          </HintText>
+        )}
+        <StockTabRow>
+          {stockTabs.map((tab) => (
+            <StockTabButton
+              key={tab}
+              isActive={activeStockTab === tab}
+              onClick={() => setActiveStockTab(tab)}>
+              {tab === STOCK_TAB_ALL ? "전체" : tab}
+            </StockTabButton>
           ))}
-        </StockRangeWrapper>
+        </StockTabRow>
+
+        {activeStockTab === STOCK_TAB_ALL ? (
+          globalStockRanges.length === 0 ? (
+            <HintText style={{ marginTop: "0.5rem" }}>
+              현재 조건에서 사용할 수 있는 주식수 데이터가 없습니다.
+            </HintText>
+          ) : (
+            <CompanyStockSection>
+              <CompanyStockTitle>전체 구간</CompanyStockTitle>
+              <StockRangeWrapper>
+                {globalStockRanges.map((range) => (
+                  <StockRangeButton
+                    key={`all-${range.label}`}
+                    isSelected={stocks.some(
+                      (s) => s.start === range.start && s.end === range.end,
+                    )}
+                    onClick={() => {
+                      setStocks((prev) => {
+                        const exists = prev.some(
+                          (s) => s.start === range.start && s.end === range.end,
+                        )
+                        if (exists) {
+                          return prev.filter(
+                            (s) =>
+                              !(s.start === range.start && s.end === range.end),
+                          )
+                        }
+
+                        return [...prev, { start: range.start, end: range.end }]
+                      })
+                    }}>
+                    {range.label}
+                  </StockRangeButton>
+                ))}
+              </StockRangeWrapper>
+            </CompanyStockSection>
+          )
+        ) : (
+          <CompanyStockSection>
+            <CompanyStockTitle>{activeStockTab}</CompanyStockTitle>
+            <StockRangeWrapper>
+              {(companySpecificRanges[activeStockTab] ?? []).map((range) => (
+                <StockRangeButton
+                  key={`${activeStockTab}-${range.label}`}
+                  isSelected={(
+                    companyStockFilterMap[activeStockTab] ?? []
+                  ).some((s) => s.start === range.start && s.end === range.end)}
+                  onClick={() =>
+                    handleCompanyRangeSelect(
+                      activeStockTab,
+                      range.start,
+                      range.end,
+                    )
+                  }>
+                  {range.label}
+                </StockRangeButton>
+              ))}
+            </StockRangeWrapper>
+          </CompanyStockSection>
+        )}
       </FilterSection>
 
       <ButtonGroup>
@@ -265,6 +429,8 @@ const FilterModalChildren = ({
               )
             }
             resetFilters()
+            setStocks([])
+            setCompanyStockFilterMap({})
           }}>
           필터 초기화
         </ResetButton>
@@ -338,6 +504,46 @@ const SectionTitle = styled.h3`
   @media (max-width: 768px) {
     margin-bottom: 8px;
   }
+`
+
+const HintText = styled.p`
+  margin: 0;
+  color: ${COLORS.gray[500]};
+  font-size: 0.875rem;
+  line-height: 1.4;
+`
+
+const CompanyStockSection = styled.div`
+  padding: 0.75rem 0;
+`
+
+const CompanyStockTitle = styled.h4`
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[700]};
+  font-weight: 600;
+`
+
+const StockTabRow = styled.div`
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+`
+
+const StockTabButton = styled.button<{ isActive: boolean }>`
+  border: 1px solid ${(p) => (p.isActive ? COLORS.blue[500] : COLORS.gray[300])};
+  background: ${(p) => (p.isActive ? COLORS.blue[50] : "#fff")};
+  color: ${(p) => (p.isActive ? COLORS.blue[700] : COLORS.gray[700])};
+  border-radius: 999px;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
 `
 
 const ChipsWrapper = styled.div`
