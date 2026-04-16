@@ -92,6 +92,45 @@ const buildAdaptiveRanges = (min: number, max: number): StockRangeUi[] => {
 
 const STOCK_TAB_ALL = "__all__"
 
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter((v): v is string => typeof v === "string")
+}
+
+const toStockRangeArray = (
+  value: unknown,
+): { start: number; end: number }[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter(
+    (v): v is { start: number; end: number } =>
+      !!v &&
+      typeof v === "object" &&
+      typeof (v as { start?: unknown }).start === "number" &&
+      typeof (v as { end?: unknown }).end === "number",
+  )
+}
+
+const toCompanyStockMap = (
+  value: unknown,
+): Record<string, { start: number; end: number }[]> => {
+  if (!value || typeof value !== "object") {
+    return {}
+  }
+
+  const result: Record<string, { start: number; end: number }[]> = {}
+  for (const [key, ranges] of Object.entries(value)) {
+    result[key] = toStockRangeArray(ranges)
+  }
+
+  return result
+}
+
 const FilterModalChildren = ({
   handleClose,
   handleApplyFilters,
@@ -124,6 +163,19 @@ const FilterModalChildren = ({
     useListScopedMenu ? (listIds ?? null) : null,
   )
   const isAdmin = String(user?.user?.user_metadata?.role).includes("admin")
+  const safeStatusFilter = useMemo(
+    () => toStringArray(statusFilter),
+    [statusFilter],
+  )
+  const safeCompanyFilter = useMemo(
+    () => toStringArray(companyFilter),
+    [companyFilter],
+  )
+  const safeStocks = useMemo(() => toStockRangeArray(stocks), [stocks])
+  const safeCompanyStockFilterMap = useMemo(
+    () => toCompanyStockMap(companyStockFilterMap),
+    [companyStockFilterMap],
+  )
 
   const statusMenu =
     (useListScopedMenu
@@ -136,12 +188,12 @@ const FilterModalChildren = ({
 
   // 사용자의 허용된 필터 옵션들 (워크스페이스가 아닐 때)
   const allowedStatus = useMemo(
-    () => user?.user?.user_metadata?.allowedStatus || [],
+    () => toStringArray(user?.user?.user_metadata?.allowedStatus),
     [user?.user?.user_metadata?.allowedStatus],
   )
 
   const allowedCompany = useMemo(
-    () => user?.user?.user_metadata?.allowedCompany || [],
+    () => toStringArray(user?.user?.user_metadata?.allowedCompany),
     [user?.user?.user_metadata?.allowedCompany],
   )
 
@@ -177,7 +229,7 @@ const FilterModalChildren = ({
     setCompanyStockFilterMap((prev) => {
       const allowed = new Set(availableCompany)
       const next: typeof prev = {}
-      for (const [company, ranges] of Object.entries(prev)) {
+      for (const [company, ranges] of Object.entries(toCompanyStockMap(prev))) {
         if (allowed.has(company)) next[company] = ranges
       }
 
@@ -206,37 +258,38 @@ const FilterModalChildren = ({
 
   const handleCompanyFilter = (selectedCompany: string) => {
     setCompanyFilter((prev) => {
+      const safePrev = toStringArray(prev)
       // 이미 선택된 회사인 경우 제거
-      if (prev.includes(selectedCompany)) {
+      if (safePrev.includes(selectedCompany)) {
         setCompanyStockFilterMap((map) => {
-          const next = { ...map }
+          const next = { ...toCompanyStockMap(map) }
           delete next[selectedCompany]
 
           return next
         })
 
-        return prev.filter((company) => company !== selectedCompany)
+        return safePrev.filter((company) => company !== selectedCompany)
       }
 
       // 새로운 회사 추가
-      return [...prev, selectedCompany]
+      return [...safePrev, selectedCompany]
     })
   }
 
   const companySpecificRanges = useMemo(() => {
     const out: Record<string, StockRangeUi[]> = {}
-    for (const company of companyFilter) {
+    for (const company of safeCompanyFilter) {
       const stats = companyStockStats[company]
       if (!stats) continue
       out[company] = buildAdaptiveRanges(stats.min, stats.max)
     }
 
     return out
-  }, [companyFilter, companyStockStats])
+  }, [safeCompanyFilter, companyStockStats])
 
   const targetCompaniesForGlobalStocks = useMemo(() => {
-    return companyFilter.length > 0 ? companyFilter : availableCompany
-  }, [companyFilter, availableCompany])
+    return safeCompanyFilter.length > 0 ? safeCompanyFilter : availableCompany
+  }, [safeCompanyFilter, availableCompany])
 
   const globalStockRanges = useMemo(() => {
     const statsRows = targetCompaniesForGlobalStocks
@@ -250,8 +303,8 @@ const FilterModalChildren = ({
   }, [targetCompaniesForGlobalStocks, companyStockStats])
 
   const stockTabs = useMemo(
-    () => [STOCK_TAB_ALL, ...companyFilter],
-    [companyFilter],
+    () => [STOCK_TAB_ALL, ...safeCompanyFilter],
+    [safeCompanyFilter],
   )
 
   useEffect(() => {
@@ -307,12 +360,12 @@ const FilterModalChildren = ({
           {availableStatus.map((status) => (
             <FilterChip
               key={status}
-              isSelected={statusFilter.includes(status)}
+              isSelected={safeStatusFilter.includes(status)}
               onClick={() => {
-                if (statusFilter.includes(status)) {
-                  setStatusFilter(statusFilter.filter((s) => s !== status))
+                if (safeStatusFilter.includes(status)) {
+                  setStatusFilter(safeStatusFilter.filter((s) => s !== status))
                 } else {
-                  setStatusFilter([...statusFilter, status])
+                  setStatusFilter([...safeStatusFilter, status])
                 }
               }}>
               {status}
@@ -327,7 +380,7 @@ const FilterModalChildren = ({
           {availableCompany.map((company) => (
             <FilterChip
               key={company}
-              isSelected={companyFilter.includes(company)}
+              isSelected={safeCompanyFilter.includes(company)}
               onClick={() => handleCompanyFilter(company)}>
               {company}
             </FilterChip>
@@ -368,22 +421,26 @@ const FilterModalChildren = ({
                 {globalStockRanges.map((range) => (
                   <StockRangeButton
                     key={`all-${range.label}`}
-                    isSelected={stocks.some(
+                    isSelected={safeStocks.some(
                       (s) => s.start === range.start && s.end === range.end,
                     )}
                     onClick={() => {
                       setStocks((prev) => {
-                        const exists = prev.some(
+                        const safePrev = toStockRangeArray(prev)
+                        const exists = safePrev.some(
                           (s) => s.start === range.start && s.end === range.end,
                         )
                         if (exists) {
-                          return prev.filter(
+                          return safePrev.filter(
                             (s) =>
                               !(s.start === range.start && s.end === range.end),
                           )
                         }
 
-                        return [...prev, { start: range.start, end: range.end }]
+                        return [
+                          ...safePrev,
+                          { start: range.start, end: range.end },
+                        ]
                       })
                     }}>
                     {range.label}
@@ -400,7 +457,7 @@ const FilterModalChildren = ({
                 <StockRangeButton
                   key={`${activeStockTab}-${range.label}`}
                   isSelected={(
-                    companyStockFilterMap[activeStockTab] ?? []
+                    safeCompanyStockFilterMap[activeStockTab] ?? []
                   ).some((s) => s.start === range.start && s.end === range.end)}
                   onClick={() =>
                     handleCompanyRangeSelect(

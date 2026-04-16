@@ -41,6 +41,41 @@ const filterFieldsInitial = {
   companyStockFilterMap: {} as CompanyStockFilterMap,
 }
 
+const normalizeStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter((v): v is string => typeof v === "string")
+}
+
+const normalizeStockRanges = (value: unknown): StockRange[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter(
+    (v): v is StockRange =>
+      !!v &&
+      typeof v === "object" &&
+      typeof (v as { start?: unknown }).start === "number" &&
+      typeof (v as { end?: unknown }).end === "number",
+  )
+}
+
+const normalizeCompanyStockFilterMap = (
+  value: unknown,
+): CompanyStockFilterMap => {
+  if (!value || typeof value !== "object") return {}
+
+  const next: CompanyStockFilterMap = {}
+  for (const [company, ranges] of Object.entries(value)) {
+    next[company] = normalizeStockRanges(ranges)
+  }
+
+  return next
+}
+
 export const useFilterStore = create<FilterState>()(
   persist(
     (set) => ({
@@ -88,6 +123,35 @@ export const useFilterStore = create<FilterState>()(
           }
         }),
     }),
-    { name: "filter" },
+    {
+      name: "filter",
+      merge: (persistedState, currentState) => {
+        const persisted =
+          persistedState && typeof persistedState === "object"
+            ? (persistedState as Partial<FilterState>)
+            : {}
+
+        return {
+          ...currentState,
+          ...persisted,
+          boundWorkspaceId:
+            typeof persisted.boundWorkspaceId === "string" ||
+            persisted.boundWorkspaceId === null
+              ? persisted.boundWorkspaceId
+              : currentState.boundWorkspaceId,
+          statusFilter: normalizeStringArray(persisted.statusFilter),
+          companyFilter: normalizeStringArray(persisted.companyFilter),
+          makerFilter: normalizeStringArray(persisted.makerFilter),
+          cityFilter:
+            typeof persisted.cityFilter === "string"
+              ? persisted.cityFilter
+              : "",
+          stocks: normalizeStockRanges(persisted.stocks),
+          companyStockFilterMap: normalizeCompanyStockFilterMap(
+            persisted.companyStockFilterMap,
+          ),
+        }
+      },
+    },
   ),
 )
