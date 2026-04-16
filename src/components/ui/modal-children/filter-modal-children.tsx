@@ -131,6 +131,31 @@ const toCompanyStockMap = (
   return result
 }
 
+const sameStringArray = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((v, i) => v === b[i])
+
+const sameRangeArray = (
+  a: { start: number; end: number }[],
+  b: { start: number; end: number }[],
+) =>
+  a.length === b.length &&
+  a.every((v, i) => v.start === b[i]?.start && v.end === b[i]?.end)
+
+const sameCompanyStockMap = (
+  a: Record<string, { start: number; end: number }[]>,
+  b: Record<string, { start: number; end: number }[]>,
+) => {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+
+  for (const key of aKeys) {
+    if (!sameRangeArray(a[key] ?? [], b[key] ?? [])) return false
+  }
+
+  return true
+}
+
 const FilterModalChildren = ({
   handleClose,
   handleApplyFilters,
@@ -210,12 +235,22 @@ const FilterModalChildren = ({
 
   useEffect(() => {
     if (isAdmin || useListScopedMenu) return
-    setStatusFilter((prev) =>
-      prev.filter((status) => allowedStatus.includes(status)),
-    )
-    setCompanyFilter((prev) =>
-      prev.filter((company) => allowedCompany.includes(company)),
-    )
+    setStatusFilter((prev) => {
+      const safePrev = toStringArray(prev)
+      const next = safePrev.filter((status) => allowedStatus.includes(status))
+      if (sameStringArray(safePrev, next)) return safePrev
+
+      return next
+    })
+    setCompanyFilter((prev) => {
+      const safePrev = toStringArray(prev)
+      const next = safePrev.filter((company) =>
+        allowedCompany.includes(company),
+      )
+      if (sameStringArray(safePrev, next)) return safePrev
+
+      return next
+    })
   }, [
     isAdmin,
     useListScopedMenu,
@@ -227,11 +262,13 @@ const FilterModalChildren = ({
 
   useEffect(() => {
     setCompanyStockFilterMap((prev) => {
+      const safePrev = toCompanyStockMap(prev)
       const allowed = new Set(availableCompany)
       const next: typeof prev = {}
-      for (const [company, ranges] of Object.entries(toCompanyStockMap(prev))) {
+      for (const [company, ranges] of Object.entries(safePrev)) {
         if (allowed.has(company)) next[company] = ranges
       }
+      if (sameCompanyStockMap(safePrev, next)) return safePrev
 
       return next
     })
