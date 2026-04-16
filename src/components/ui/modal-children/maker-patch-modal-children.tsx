@@ -74,6 +74,7 @@ const MakerPatchModalChildren = ({
   const { data: user } = useGetUserData()
   const saveInFlightRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
+  const saveSucceededRef = useRef(false)
 
   const isSaveBusy = isSaving || mutateIsPending
 
@@ -98,6 +99,7 @@ const MakerPatchModalChildren = ({
       if (!hasPatchChanges(makerData, values)) return
 
       saveInFlightRef.current = true
+      saveSucceededRef.current = false
       setIsSaving(true)
       onSavingChange?.(true)
 
@@ -152,18 +154,21 @@ const MakerPatchModalChildren = ({
       }
       makerDataMutate(patchData, {
         onSuccess: () => {
+          saveSucceededRef.current = true
           toast.success("주주 정보가 수정되었습니다.")
         },
         onError: () => {
           toast.error(
-            "주주 정보 수정에 실패했습니다. 새로고침 혹은 로그아웃 후 다시 시도하세요.",
+            "주주 정보 수정에 실패했습니다. 저장되지 않았습니다. 다시 시도해 주세요.",
           )
         },
         onSettled: () => {
           saveInFlightRef.current = false
           setIsSaving(false)
           onSavingChange?.(false)
-          setMakerDataUpdateIsModalOpen(false)
+          if (saveSucceededRef.current) {
+            setMakerDataUpdateIsModalOpen(false)
+          }
         },
       })
     },

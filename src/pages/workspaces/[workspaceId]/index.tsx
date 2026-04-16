@@ -39,8 +39,10 @@ import StatsCard from "@/components/StatsCard"
 import { toast } from "react-toastify"
 import { getMapStorageKeys } from "@/constants/map-storage"
 import { ROUTES } from "@/constants/routes"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 
 const WorkspaceMapPage = () => {
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const router = useRouter()
   const { workspaceId } = router.query as { workspaceId: string }
   const mapRef = useRef<kakao.maps.Map>(null)
@@ -423,7 +425,10 @@ const WorkspaceMapPage = () => {
             </MenuItem>
           </SideMenu>
 
-          <Modal open={isFilterModalOpen} setOpen={setIsFilterModalOpen}>
+          <Modal
+            open={isFilterModalOpen}
+            setOpen={setIsFilterModalOpen}
+            position={isMobile ? "bottom" : "center"}>
             <FilterModalChildren
               handleClose={() => setIsFilterModalOpen(false)}
               handleApplyFilters={handleApplyFilters}
@@ -450,26 +455,40 @@ const SpinnerFrame = styled.div`
 
 const MenuButton = styled.button`
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: max(1rem, env(safe-area-inset-top));
+  left: max(1rem, env(safe-area-inset-left));
   z-index: 10;
   background-color: white;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 12px;
   border-radius: 12px;
   border: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background-color: ${COLORS.gray[50]};
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
+
+  @media (max-width: 768px) {
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: max(0.75rem, env(safe-area-inset-left));
+  }
 `
 
 const MenuOverlay = styled.div<{ isVisible: boolean }>`
-  display: none;
+  display: ${(p) => (p.isVisible ? "block" : "none")};
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: rgba(15, 23, 42, 0.35);
+  pointer-events: ${(p) => (p.isVisible ? "auto" : "none")};
+  -webkit-tap-highlight-color: transparent;
 `
 
 const SideMenu = styled.div<{ isVisible: boolean }>`
@@ -479,9 +498,11 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   width: 320px;
   height: auto;
   max-height: calc(100vh - 100px);
+  max-height: calc(100dvh - 100px);
   background: white;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   padding: 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
   border-radius: 16px;
   opacity: ${(props) => (props.isVisible ? 1 : 0)};
   visibility: ${(props) => (props.isVisible ? "visible" : "hidden")};
@@ -491,10 +512,21 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
 
   @media (max-width: 768px) {
-    width: 260px;
+    top: auto;
+    left: max(0.5rem, env(safe-area-inset-left));
+    right: max(0.5rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: auto;
+    max-height: min(88vh, calc(100dvh - env(safe-area-inset-top) - 1rem));
+    border-radius: 16px 16px 12px 12px;
+    transform: translateY(${(props) => (props.isVisible ? "0" : "110%")});
+    padding: 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   }
 `
 
@@ -516,9 +548,15 @@ const CloseButton = styled.button`
   border: none;
   color: ${COLORS.gray[500]};
   cursor: pointer;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 8px;
   border-radius: 8px;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${COLORS.gray[100]};
@@ -527,7 +565,7 @@ const CloseButton = styled.button`
 `
 
 const MenuItem = styled.div`
-  padding: 0px;
+  padding: 0.5rem 0.25rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -535,16 +573,29 @@ const MenuItem = styled.div`
   cursor: pointer;
   transition: all 0.2s ease;
   color: ${COLORS.gray[700]};
-  margin-top: 4px;
-  margin-bottom: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${COLORS.gray[50]};
     color: ${COLORS.gray[900]};
   }
 
+  &:active {
+    background: ${COLORS.gray[100]};
+  }
+
   svg {
     font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    min-height: 3rem;
+    padding: 0.625rem 0.375rem;
   }
 `
 

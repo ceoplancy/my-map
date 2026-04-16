@@ -177,13 +177,45 @@ const DialogFrame = styled.div<DialogFrameProps>`
     max-height: 80vh;
   }
   @media (max-width: 600px) {
-    width: 400px;
-    max-height: 80vh;
+    width: min(100%, 100vw);
+    max-width: 100vw;
+    max-height: min(90vh, 100dvh);
+    margin-left: env(safe-area-inset-left);
+    margin-right: env(safe-area-inset-right);
   }
   @media (max-width: 450px) {
-    width: 450px;
-    max-height: 100vh;
-    width: 100%;
-    height: 100%;
+    ${(props) =>
+      props.position === "bottom"
+        ? `
+      left: max(0.5rem, env(safe-area-inset-left));
+      right: max(0.5rem, env(safe-area-inset-right));
+      bottom: max(0.5rem, env(safe-area-inset-bottom));
+      top: auto;
+      width: auto;
+      max-width: none;
+      height: auto;
+      max-height: min(90vh, calc(100dvh - env(safe-area-inset-top) - 1rem));
+      min-height: 0;
+      transform: none;
+      border-radius: 16px;
+      padding: 0;
+    `
+        : `
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-width: none;
+      height: 100%;
+      max-height: none;
+      min-height: 0;
+      transform: none;
+      border-radius: 0;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    `}
   }
 `

@@ -20,12 +20,17 @@ import { useCurrentWorkspace } from "@/store/workspaceState"
 
 const SidebarContainer = styled.div`
   width: 16rem;
+  max-width: 100%;
   background-color: ${COLORS.white};
   box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.1);
   height: 100%;
   border-right: 1px solid #e5e7eb;
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 `
 
 const LogoContainer = styled.div`
@@ -57,6 +62,7 @@ const NavLink = styled(Link)`
   cursor: pointer;
   min-height: 2.75rem;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background-color: ${COLORS.gray[100]};
@@ -64,6 +70,11 @@ const NavLink = styled(Link)`
 
   &.active {
     background-color: ${COLORS.gray[100]};
+  }
+
+  @media (max-width: 899px) {
+    min-height: 3rem;
+    padding: 0.875rem 1.25rem;
   }
 `
 
@@ -129,11 +140,13 @@ function NavItems({
   pathname,
   pathPrefix = "",
   useSubStyle = false,
+  onNavigate,
 }: {
   items: NavItem[]
   pathname: string
   pathPrefix?: string
   useSubStyle?: boolean
+  onNavigate?: () => void
 }) {
   const LinkComponent = useSubStyle ? NavLinkSub : NavLink
 
@@ -150,7 +163,8 @@ function NavItems({
               normalizePathname(pathname) === normalizePathname(fullPath)
                 ? "active"
                 : ""
-            }>
+            }
+            onClick={() => onNavigate?.()}>
             <NavIcon>{item.icon}</NavIcon>
             <NavText>{item.title}</NavText>
           </LinkComponent>
@@ -164,10 +178,12 @@ function SingleNavLink({
   item,
   pathname,
   pathPrefix,
+  onNavigate,
 }: {
   item: NavItem
   pathname: string
   pathPrefix: string
+  onNavigate?: () => void
 }) {
   const fullPath = pathPrefix + item.path
 
@@ -178,14 +194,20 @@ function SingleNavLink({
         normalizePathname(pathname) === normalizePathname(fullPath)
           ? "active"
           : ""
-      }>
+      }
+      onClick={() => onNavigate?.()}>
       <NavIcon>{item.icon}</NavIcon>
       <NavText>{item.title}</NavText>
     </NavLink>
   )
 }
 
-export default function Sidebar() {
+/** 모바일 드로어에서 링크 이동 시 패널을 닫기 위해 사용 */
+type SidebarProps = {
+  onNavigate?: () => void
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const [currentWorkspace] = useCurrentWorkspace()
   const { data: adminStatus } = useAdminStatus()
@@ -204,7 +226,11 @@ export default function Sidebar() {
           isServiceAdmin && (
             <Section>
               <SectionLabel>통합 관리</SectionLabel>
-              <NavItems items={INTEGRATED_MENU_ITEMS} pathname={pathname} />
+              <NavItems
+                items={INTEGRATED_MENU_ITEMS}
+                pathname={pathname}
+                onNavigate={onNavigate}
+              />
             </Section>
           )
         ) : (
@@ -215,7 +241,8 @@ export default function Sidebar() {
                   href={`/workspaces/${currentWorkspace.id}/admin`}
                   className={
                     isWorkspaceAdminDashboardRoute(pathname) ? "active" : ""
-                  }>
+                  }
+                  onClick={() => onNavigate?.()}>
                   <NavIcon>
                     <Dashboard />
                   </NavIcon>
@@ -229,6 +256,7 @@ export default function Sidebar() {
                     item={WORKSPACE_SHAREHOLDER_ITEM}
                     pathname={pathname}
                     pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                    onNavigate={onNavigate}
                   />
                 </>
               )}
@@ -237,6 +265,7 @@ export default function Sidebar() {
                   item={WORKSPACE_USERS}
                   pathname={pathname}
                   pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                  onNavigate={onNavigate}
                 />
               )}
             </Section>

@@ -16,10 +16,13 @@ import styled from "@emotion/styled"
 import { toast } from "react-toastify"
 import { reportError } from "@/lib/reportError"
 import Select from "@/components/ui/select"
+import { Menu as MenuIcon } from "@mui/icons-material"
 
 const HeaderContainer = styled.header`
   background-color: white;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  padding-top: env(safe-area-inset-top);
 `
 
 const HeaderContent = styled.div`
@@ -27,18 +30,77 @@ const HeaderContent = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 899px) {
+    padding: 0.75rem 1rem;
+    align-items: flex-start;
+  }
+`
+
+const TitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+`
+
+const MobileMenuButton = styled.button`
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.75rem;
+  background: ${COLORS.gray[100]};
+  color: ${COLORS.gray[800]};
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    background: ${COLORS.gray[200]};
+  }
+
+  @media (max-width: 899px) {
+    display: inline-flex;
+  }
 `
 
 const PageTitle = styled.h2`
   font-size: 1.25rem;
   font-weight: 600;
   color: #1f2937;
+  margin: 0;
+  min-width: 0;
+  line-height: 1.3;
+
+  @media (max-width: 899px) {
+    font-size: 1.0625rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 `
 
 const RightSection = styled.div`
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  min-width: 0;
+
+  @media (max-width: 899px) {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.5rem 0.75rem;
+  }
 `
 
 const _IconButton = styled.button`
@@ -105,6 +167,13 @@ const BreadcrumbContainer = styled.div`
   background-color: #fff;
   border-bottom: 1px solid #e5e7eb;
   border-top: 1px solid #e5e7eb;
+
+  @media (max-width: 899px) {
+    padding: 0.5rem 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
 `
 
 const BreadcrumbText = styled.div`
@@ -117,11 +186,6 @@ const _BreadcrumbLink = styled.span`
   &:hover {
     color: #374151;
   }
-`
-
-const FlexContainer = styled.div`
-  display: flex;
-  align-items: center;
 `
 
 const _NotificationIcon = styled.svg`
@@ -166,6 +230,14 @@ const UserEmail = styled.span`
   font-size: 0.875rem;
   font-weight: 500;
   color: ${COLORS.gray[700]};
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @media (max-width: 899px) {
+    display: none;
+  }
 `
 
 const DropdownIcon = styled.svg`
@@ -194,6 +266,12 @@ const BreadcrumbCurrent = styled.span`
 
 const WorkspaceSelectWrapper = styled(Select)`
   min-width: 160px;
+
+  @media (max-width: 899px) {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
 `
 
 const WorkspaceChangeButton = styled.button`
@@ -222,7 +300,15 @@ const MapLink = styled(Link)`
   }
 `
 
-export default function Header() {
+type HeaderProps = {
+  onMobileMenuToggle?: () => void
+  mobileMenuOpen?: boolean
+}
+
+export default function Header({
+  onMobileMenuToggle,
+  mobileMenuOpen = false,
+}: HeaderProps) {
   const { data: user } = useGetUserData()
   const { data: workspaces = [] } = useMyWorkspaces()
   const [currentWorkspace, setCurrentWorkspace] = useCurrentWorkspace()
@@ -258,7 +344,18 @@ export default function Header() {
   return (
     <HeaderContainer>
       <HeaderContent>
-        <FlexContainer>
+        <TitleRow>
+          {onMobileMenuToggle && (
+            <MobileMenuButton
+              type="button"
+              aria-label={
+                mobileMenuOpen ? "사이드 메뉴 닫기" : "사이드 메뉴 열기"
+              }
+              aria-expanded={mobileMenuOpen}
+              onClick={onMobileMenuToggle}>
+              <MenuIcon sx={{ fontSize: 24 }} />
+            </MobileMenuButton>
+          )}
           <PageTitle>
             {router.pathname === ADMIN.INTEGRATED && "통합 대시보드"}
             {router.pathname === ADMIN.SIGNUP_REQUESTS && "가입 승인"}
@@ -276,7 +373,7 @@ export default function Header() {
                 return WORKSPACE_ADMIN_SEGMENT_LABELS[seg] ?? seg
               })()}
           </PageTitle>
-        </FlexContainer>
+        </TitleRow>
 
         <RightSection>
           {!isIntegratedRoute(router.pathname) && workspaces.length > 1 && (

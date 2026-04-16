@@ -279,6 +279,12 @@ const FilterContainer = styled.div`
   position: relative;
   height: 100%;
   overflow-y: auto;
+  padding-bottom: 88px;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
 `
 
 const ModalHeader = styled.div`
@@ -305,6 +311,9 @@ const CloseButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${COLORS.gray[100]};
@@ -325,6 +334,10 @@ const SectionTitle = styled.h3`
   font-weight: 600;
   color: ${COLORS.gray[900]};
   margin-bottom: 4px;
+
+  @media (max-width: 768px) {
+    margin-bottom: 8px;
+  }
 `
 
 const ChipsWrapper = styled.div`
@@ -343,6 +356,8 @@ const FilterChip = styled.button<{ isSelected: boolean }>`
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 2.5rem;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${(props) =>
@@ -371,6 +386,8 @@ const StockRangeButton = styled.button<{ isSelected: boolean }>`
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 2.75rem;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${(props) =>
@@ -379,10 +396,21 @@ const StockRangeButton = styled.button<{ isSelected: boolean }>`
 `
 
 const ButtonGroup = styled.div`
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   margin-top: 24px;
+  padding-top: 0.75rem;
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #fff 28%);
+
+  @media (max-width: 768px) {
+    margin-top: 16px;
+  }
 `
 
 const ResetButton = styled.button`
@@ -394,6 +422,8 @@ const ResetButton = styled.button`
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
+  min-height: 2.75rem;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${COLORS.gray[100]};
@@ -411,6 +441,9 @@ const ApplyButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 2.75rem;
+  min-width: 6rem;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${COLORS.blue[600]};

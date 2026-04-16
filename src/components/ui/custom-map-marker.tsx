@@ -13,6 +13,7 @@ import MakerPatchModalChildren from "./modal-children/maker-patch-modal-children
 import MarkerDetailTable from "./marker-detail-table"
 import GlobalSpinner from "./global-spinner"
 import Portal from "./portal"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { toast } from "react-toastify"
 import { ContentCopy, Edit, Close } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
@@ -20,32 +21,44 @@ import { COLORS } from "@/styles/global-style"
 export type { MapMarkerData } from "@/types/map"
 const isShareholder = isShareholderMarker
 
-// 기본(미방문) 마커: #2868ED + 흰색 테두리(겹침/검은색 방지). SVG 내부는 # 사용 후 encodeURIComponent로 인코딩.
-const DEFAULT_MARKER_SVG = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="#2868ED" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0zm0 17c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/></svg>',
-)}`
+const buildPinMarkerDataUrl = (fill: string) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="${fill}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0zm0 17c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/></svg>`
 
-// status에 따른 마커 색상
-export const STATUS_MARKERS = {
-  미방문: DEFAULT_MARKER_SVG,
-  보류: "/svg/pending.svg",
-  완료: "/svg/complete.svg",
-  실패: "/svg/fail.svg",
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+const STATUS_MARKER_COLORS = {
+  미방문: "#2868ED",
+  보류: "#FFD939",
+  완료: "#4DD664",
+  실패: "#000000",
 } as const
 
-// 회사별 마커 색상 (10가지)
-export const COMPANY_MARKERS = [
-  "/svg/maker1.svg",
-  "/svg/maker2.svg",
-  "/svg/maker3.svg",
-  "/svg/maker4.svg",
-  "/svg/maker5.svg",
-  "/svg/maker6.svg",
-  "/svg/maker7.svg",
-  "/svg/maker8.svg",
-  "/svg/maker9.svg",
-  "/svg/maker10.svg",
+// 상태 마커도 정적 파일 대신 코드 기반 SVG(data URL)로 생성
+export const STATUS_MARKERS = {
+  미방문: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.미방문),
+  보류: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.보류),
+  완료: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.완료),
+  실패: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.실패),
+} as const
+
+// 회사 마커 색상 팔레트 (10가지) -> 동일한 핀 SVG에 fill만 적용
+const COMPANY_MARKER_COLORS = [
+  "#DC2626",
+  "#EA580C",
+  "#CA8A04",
+  "#16A34A",
+  "#0D9488",
+  "#2563EB",
+  "#7C3AED",
+  "#C026D3",
+  "#DB2777",
+  "#4B5563",
 ] as const
+
+export const COMPANY_MARKERS = COMPANY_MARKER_COLORS.map((color) =>
+  buildPinMarkerDataUrl(color),
+)
 
 export const getMarkerImage = (
   status: string | null,
@@ -73,12 +86,12 @@ const normalizeVisitStatus = (s: string | null | undefined): string => {
   return t === "" ? "미방문" : t
 }
 
-/** 클러스터 핀 채우기 — `public/svg/pending.svg`, `complete.svg`, `fail.svg`, 기본 핀과 동일한 path fill */
+/** 클러스터 핀 채우기 — 상태별 마커와 동일 색상 계열 */
 const GROUP_CLUSTER_FILL: Record<keyof typeof STATUS_MARKERS, string> = {
-  미방문: "#2868ED",
-  보류: "#FFD939",
-  완료: "#4DD664",
-  실패: "#000000",
+  미방문: STATUS_MARKER_COLORS.미방문,
+  보류: STATUS_MARKER_COLORS.보류,
+  완료: STATUS_MARKER_COLORS.완료,
+  실패: STATUS_MARKER_COLORS.실패,
 }
 
 /** 같은 좌표에 보류·실패·완료 등 상태가 섞인 경우 — 단일 상태 색과 구분 */
@@ -143,6 +156,7 @@ const CustomMapMarker = ({
   initialInfoWindowOpen = false,
   forceKeepOpen = false,
 }: CustomMapMarkerProps) => {
+  const isMobile = useMediaQuery("(max-width: 768px)")
   const { data: filterMenu } = useGetFilterMenu()
   const isGroupMarker = markers && markers.length > 1
   const groupClusterVariant =
@@ -269,41 +283,39 @@ const CustomMapMarker = ({
           size: { width: 30, height: 40 },
         }}
       />
-      {/* 인포윈도우 */}
-      {isOpen && (
-        <Portal>
-          <CustomOverlayMap
-            position={{
-              lat: marker.lat || 0,
-              lng: marker.lng || 0,
-            }}
-            clickable={true}
-            yAnchor={1.1}
-            zIndex={100}>
-            <InfoWindowContainer
+      {/* 인포윈도우(데스크톱) / 바텀 시트(모바일) */}
+      {isOpen &&
+        (isMobile ? (
+          <Portal>
+            <MobileSheetBackdrop
+              onClick={() => {
+                setIsOpen(false)
+                onMarkerSelect?.(null)
+              }}
+            />
+            <MobileSheet
               onClick={(e) => e.stopPropagation()}
-              onWheel={(e) => e.stopPropagation()}
-              onTouchMove={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="info-window-persistent">
+              onTouchMove={(e) => e.stopPropagation()}>
+              <MobileSheetHandle />
               <InfoWindowHeader>
                 <HeaderTitle>주주 정보</HeaderTitle>
                 <CloseButton
                   onClick={(e) => {
                     e.stopPropagation()
                     setIsOpen(false)
+                    onMarkerSelect?.(null)
                   }}>
                   <Close fontSize="small" />
                 </CloseButton>
               </InfoWindowHeader>
-
-              <MarkerDetailTable
-                data={marker}
-                history={isShareholderMarker ? mapHistory : undefined}
-                historyLoading={isShareholderMarker && historyLoading}
-              />
-
-              <InfoWindowFooter>
+              <MobileSheetBody>
+                <MarkerDetailTable
+                  data={marker}
+                  history={isShareholderMarker ? mapHistory : undefined}
+                  historyLoading={isShareholderMarker && historyLoading}
+                />
+              </MobileSheetBody>
+              <MobileSheetFooter>
                 <ActionButton
                   variant="success"
                   onClick={(e) => {
@@ -329,11 +341,73 @@ const CustomMapMarker = ({
                   <Close fontSize="small" />
                   <span>닫기</span>
                 </ActionButton>
-              </InfoWindowFooter>
-            </InfoWindowContainer>
-          </CustomOverlayMap>
-        </Portal>
-      )}
+              </MobileSheetFooter>
+            </MobileSheet>
+          </Portal>
+        ) : (
+          <Portal>
+            <CustomOverlayMap
+              position={{
+                lat: marker.lat || 0,
+                lng: marker.lng || 0,
+              }}
+              clickable={true}
+              yAnchor={1.1}
+              zIndex={100}>
+              <InfoWindowContainer
+                onClick={(e) => e.stopPropagation()}
+                onWheel={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="info-window-persistent">
+                <InfoWindowHeader>
+                  <HeaderTitle>주주 정보</HeaderTitle>
+                  <CloseButton
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsOpen(false)
+                    }}>
+                    <Close fontSize="small" />
+                  </CloseButton>
+                </InfoWindowHeader>
+
+                <MarkerDetailTable
+                  data={marker}
+                  history={isShareholderMarker ? mapHistory : undefined}
+                  historyLoading={isShareholderMarker && historyLoading}
+                />
+
+                <InfoWindowFooter>
+                  <ActionButton
+                    variant="success"
+                    onClick={(e) => {
+                      handleAddressCopy(e)
+                    }}>
+                    <ContentCopy fontSize="small" />
+                    <span>주소 복사</span>
+                  </ActionButton>
+                  <ActionButton
+                    variant="primary"
+                    onClick={(_e) => {
+                      setMakerDataUpdateIsModalOpen(true)
+                    }}>
+                    <Edit fontSize="small" />
+                    <span>수정하기</span>
+                  </ActionButton>
+                  <ActionButton
+                    variant="close"
+                    onClick={(_e) => {
+                      setIsOpen(false)
+                      onMarkerSelect?.(null)
+                    }}>
+                    <Close fontSize="small" />
+                    <span>닫기</span>
+                  </ActionButton>
+                </InfoWindowFooter>
+              </InfoWindowContainer>
+            </CustomOverlayMap>
+          </Portal>
+        ))}
       {/* 마커 데이터 수정하기 모달 */}
       <Modal
         position="center"
@@ -436,6 +510,59 @@ const InfoWindowContainer = styled.div`
     min-width: 260px;
     padding: 12px;
   }
+`
+
+const MobileSheetBackdrop = styled.button`
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(15, 23, 42, 0.4);
+  -webkit-tap-highlight-color: transparent;
+`
+
+const MobileSheet = styled.div`
+  position: fixed;
+  left: max(0.5rem, env(safe-area-inset-left));
+  right: max(0.5rem, env(safe-area-inset-right));
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  z-index: 101;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, calc(100dvh - env(safe-area-inset-top) - 1rem));
+  overflow: hidden;
+`
+
+const MobileSheetHandle = styled.div`
+  width: 3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: ${COLORS.gray[300]};
+  margin: 0.625rem auto 0;
+`
+
+const MobileSheetBody = styled.div`
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 1rem;
+  max-height: min(56vh, calc(100dvh - 16rem));
+`
+
+const MobileSheetFooter = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  position: sticky;
+  bottom: 0;
+  margin-top: 0;
+  padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+  background: white;
+  border-top: 1px solid ${COLORS.gray[200]};
 `
 
 const InfoWindowHeader = styled.div`

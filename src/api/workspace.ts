@@ -731,10 +731,8 @@ export const usePatchShareholder = () => {
         queryKey: ["shareholderChangeHistory", variables.patch.id],
       })
     },
-    onError: (e: unknown) => {
-      const msg =
-        e instanceof Error && e.message ? e.message : "저장에 실패했습니다."
-      toast.error(msg)
+    onError: () => {
+      // 호출부에서 화면 맥락에 맞는 에러 메시지를 직접 표시한다.
     },
   })
 }
