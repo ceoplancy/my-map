@@ -1,31 +1,72 @@
+import { useMemo } from "react"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useShareholderStats } from "@/api/workspace"
+import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
 import { useFilterStore } from "@/store/filterState"
+import {
+  PRIMARY_STATUS_OPTIONS,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
 
 export type StatsCardProps = {
   /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계 (shareholders) */
   listIds: string[]
 }
 
+const emptyByPrimary = () => {
+  const o: Record<
+    (typeof PRIMARY_STATUS_OPTIONS)[number],
+    { count: number; stocks: number }
+  > = {} as Record<
+    (typeof PRIMARY_STATUS_OPTIONS)[number],
+    { count: number; stocks: number }
+  >
+  for (const p of PRIMARY_STATUS_OPTIONS) {
+    o[p] = { count: 0, stocks: 0 }
+  }
+
+  return o
+}
+
+const PRIMARY_ACCENT: Record<PrimaryStatus, string> = {
+  미방문: COLORS.gray[400],
+  완료: COLORS.green[500],
+  보류: COLORS.yellow[700],
+  실패: COLORS.red[500],
+  전자투표: COLORS.blue[500],
+  주주총회: COLORS.purple[500],
+}
+
 const StatsCard = ({ listIds }: StatsCardProps) => {
   const {
     statusFilter,
+    statusPrimaryFilter,
     companyFilter,
     cityFilter,
     stocks,
     companyStockFilterMap,
+    companyFilterProfiles,
   } = useFilterStore()
 
   const hasLists = listIds.length > 0
   const { data: shareholderStats, isLoading: shareholderLoading } =
     useShareholderStats({
       listIds: hasLists ? listIds : null,
-      status: statusFilter?.length ? statusFilter : undefined,
+      status:
+        statusFilter?.length && !statusPrimaryFilter?.length
+          ? statusFilter
+          : undefined,
+      statusPrimaryFilter:
+        statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
       company: companyFilter?.length ? companyFilter : undefined,
       city: cityFilter || undefined,
       stocks: stocks?.length ? stocks : undefined,
       companyStockFilterMap,
+      companyFilterProfiles:
+        companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
+          ? companyFilterProfiles
+          : undefined,
     })
 
   const stats = shareholderStats ?? {
@@ -33,45 +74,112 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
     totalStocks: 0,
     completedShareholders: 0,
     completedStocks: 0,
+    byPrimary: emptyByPrimary(),
   }
+  const byPrimary = stats.byPrimary ?? emptyByPrimary()
   const isLoading = hasLists ? shareholderLoading : false
+
+  const totalH = stats.totalShareholders ?? 0
+  const totalS = stats.totalStocks ?? 0
+  const doneH = stats.completedShareholders ?? 0
+  const doneS = stats.completedStocks ?? 0
+
+  const completionPct =
+    !isLoading && totalH > 0
+      ? Math.min(100, Math.round((doneH / totalH) * 1000) / 10)
+      : null
+
+  const filterChips = useMemo(
+    () =>
+      getFilterSummaryChips({
+        cityFilter,
+        statusPrimaryFilter,
+        companyFilter,
+        companyFilterProfiles,
+        stocks,
+        companyStockFilterMap,
+      }),
+    [
+      cityFilter,
+      statusPrimaryFilter,
+      companyFilter,
+      companyFilterProfiles,
+      stocks,
+      companyStockFilterMap,
+    ],
+  )
 
   return (
     <Container>
       <HeaderSection>
         <Title>의결권 현황</Title>
-        <InfoText>- 지도 위치가 아닌 필터 설정에 따른 정보입니다.</InfoText>
+        <InfoText>
+          아래 숫자는 현재 지도 필터가 적용된 집계입니다. 필터를 바꾼 뒤
+          적용하면 함께 갱신됩니다.
+        </InfoText>
       </HeaderSection>
-      <StatItem>
-        <StatLabel>총 주주 수</StatLabel>
-        <StatValue>
-          {isLoading
-            ? "-"
-            : `${(stats?.totalShareholders ?? 0).toLocaleString()}명`}
-        </StatValue>
-      </StatItem>
-      <StatItem>
-        <StatLabel>총 주식 수</StatLabel>
-        <StatValue>
-          {isLoading ? "-" : `${(stats?.totalStocks ?? 0).toLocaleString()}주`}
-        </StatValue>
-      </StatItem>
-      <StatItem>
-        <StatLabel>완료 주주 수</StatLabel>
-        <StatValue>
-          {isLoading
-            ? "-"
-            : `${(stats?.completedShareholders ?? 0).toLocaleString()}명`}
-        </StatValue>
-      </StatItem>
-      <StatItem>
-        <StatLabel>완료 주식 수</StatLabel>
-        <StatValue>
-          {isLoading
-            ? "-"
-            : `${(stats?.completedStocks ?? 0).toLocaleString()}주`}
-        </StatValue>
-      </StatItem>
+
+      {filterChips.length > 0 ? (
+        <FilterChipRow aria-label="적용 중인 필터">
+          {filterChips.map((text) => (
+            <FilterChip key={text}>{text}</FilterChip>
+          ))}
+        </FilterChipRow>
+      ) : (
+        <FilterHint>적용 중인 필터 없음 · 명부 전체 기준</FilterHint>
+      )}
+
+      <KpiRow>
+        <KpiCard $variant="neutral">
+          <KpiLabel>총 주주</KpiLabel>
+          <KpiValue>
+            {isLoading ? "—" : `${totalH.toLocaleString()}명`}
+          </KpiValue>
+          <KpiSub>{isLoading ? "—" : `${totalS.toLocaleString()}주`}</KpiSub>
+        </KpiCard>
+        <KpiCard $variant="success">
+          <KpiLabel>완료</KpiLabel>
+          <KpiValue>{isLoading ? "—" : `${doneH.toLocaleString()}명`}</KpiValue>
+          <KpiSub>{isLoading ? "—" : `${doneS.toLocaleString()}주`}</KpiSub>
+        </KpiCard>
+      </KpiRow>
+
+      {completionPct != null && (
+        <ProgressBlock>
+          <ProgressTop>
+            <span>완료율</span>
+            <ProgressPct>{completionPct}%</ProgressPct>
+          </ProgressTop>
+          <ProgressTrack
+            role="progressbar"
+            aria-valuenow={completionPct}
+            aria-valuemin={0}
+            aria-valuemax={100}>
+            <ProgressFill $pct={completionPct} />
+          </ProgressTrack>
+        </ProgressBlock>
+      )}
+
+      <PrimarySection>
+        <PrimaryTitle>1차 상태</PrimaryTitle>
+        <PrimaryScroll>
+          {PRIMARY_STATUS_OPTIONS.map((p) => (
+            <PrimaryCell key={p} $accent={PRIMARY_ACCENT[p]}>
+              <PrimaryName>{p}</PrimaryName>
+              <PrimaryCount>
+                {isLoading
+                  ? "—"
+                  : `${(byPrimary[p]?.count ?? 0).toLocaleString()}명`}
+              </PrimaryCount>
+              <PrimaryStocks>
+                {isLoading
+                  ? "—"
+                  : `${(byPrimary[p]?.stocks ?? 0).toLocaleString()}주`}
+              </PrimaryStocks>
+            </PrimaryCell>
+          ))}
+        </PrimaryScroll>
+      </PrimarySection>
     </Container>
   )
 }
@@ -81,53 +189,200 @@ export default StatsCard
 const Container = styled.div`
   background: ${COLORS.blue[50]};
   border-radius: 12px;
-  padding: 20px;
-  margin: 12px 0;
+  padding: 16px;
+  margin: 0 0 12px;
 
   @media (max-width: 768px) {
-    padding: 16px;
-    margin: 8px 0;
+    padding: 14px;
+    margin: 0 0 10px;
   }
 `
 
 const HeaderSection = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 `
 
 const Title = styled.h3`
-  font-size: 0.875rem;
-  color: ${COLORS.blue[700]};
+  font-size: 0.9375rem;
+  color: ${COLORS.blue[800]};
+  font-weight: 700;
+  margin: 0 0 6px;
+`
+
+const InfoText = styled.p`
+  margin: 0;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[600]};
+  line-height: 1.45;
+`
+
+const FilterChipRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+`
+
+const FilterChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
   font-weight: 600;
+  color: ${COLORS.blue[800]};
+  background: #fff;
+  border: 1px solid ${COLORS.blue[200]};
+  max-width: 100%;
+`
+
+const FilterHint = styled.p`
+  margin: 0 0 12px;
+  font-size: 0.6875rem;
+  color: ${COLORS.gray[500]};
+`
+
+const KpiRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+`
+
+const KpiCard = styled.div<{ $variant: "neutral" | "success" }>`
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 10px;
+  border: 1px solid
+    ${(p) => (p.$variant === "success" ? COLORS.green[200] : COLORS.gray[200])};
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+`
+
+const KpiLabel = styled.div`
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: ${COLORS.gray[500]};
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   margin-bottom: 4px;
 `
 
-const InfoText = styled.div`
-  display: flex;
-  align-items: center;
-  font-size: 0.75rem;
-  color: ${COLORS.gray[500]};
-  border-radius: 4px;
-  width: fit-content;
+const KpiValue = styled.div`
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: ${COLORS.gray[900]};
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 `
 
-const StatItem = styled.div`
+const KpiSub = styled.div`
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: ${COLORS.gray[600]};
+  font-variant-numeric: tabular-nums;
+`
+
+const ProgressBlock = styled.div`
+  margin-bottom: 14px;
+`
+
+const ProgressTop = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[600]};
+  margin-bottom: 6px;
+`
 
-  &:last-child {
-    margin-bottom: 0;
+const ProgressPct = styled.span`
+  font-weight: 700;
+  color: ${COLORS.green[700]};
+  font-variant-numeric: tabular-nums;
+`
+
+const ProgressTrack = styled.div`
+  height: 8px;
+  border-radius: 999px;
+  background: ${COLORS.gray[200]};
+  overflow: hidden;
+`
+
+const ProgressFill = styled.div<{ $pct: number }>`
+  height: 100%;
+  width: ${(p) => p.$pct}%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    ${COLORS.green[400]},
+    ${COLORS.green[600]}
+  );
+  transition: width 0.35s ease;
+`
+
+const PrimarySection = styled.div`
+  padding-top: 12px;
+  border-top: 1px solid ${COLORS.blue[100]};
+`
+
+const PrimaryTitle = styled.div`
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: ${COLORS.blue[900]};
+  margin-bottom: 8px;
+`
+
+const PrimaryScroll = styled.div`
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin: 0 -4px;
+  padding-left: 4px;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${COLORS.gray[300]};
+    border-radius: 4px;
   }
 `
 
-const StatLabel = styled.span`
-  color: ${COLORS.gray[600]};
-  font-size: 0.875rem;
+const PrimaryCell = styled.div<{ $accent: string }>`
+  flex: 0 0 auto;
+  min-width: 108px;
+  scroll-snap-align: start;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid ${COLORS.gray[100]};
+  border-left: 4px solid ${(p) => p.$accent};
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 `
 
-const StatValue = styled.span`
+const PrimaryName = styled.div`
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: ${COLORS.gray[700]};
+  margin-bottom: 4px;
+`
+
+const PrimaryCount = styled.div`
+  font-size: 0.8125rem;
+  font-weight: 800;
   color: ${COLORS.gray[900]};
+  font-variant-numeric: tabular-nums;
+`
+
+const PrimaryStocks = styled.div`
+  margin-top: 2px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  font-size: 0.875rem;
+  color: ${COLORS.gray[500]};
+  font-variant-numeric: tabular-nums;
 `

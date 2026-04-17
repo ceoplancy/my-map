@@ -110,10 +110,12 @@ const WorkspaceMapPage = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
   const {
     statusFilter,
+    statusPrimaryFilter,
     companyFilter,
     cityFilter,
     stocks,
     companyStockFilterMap,
+    companyFilterProfiles,
   } = useFilterStore()
   const [currCenter, setCurrCenter] = useState<{ lat: number; lng: number }>({
     lat: 37.5665,
@@ -143,10 +145,19 @@ const WorkspaceMapPage = () => {
     isLoading: shareholdersLoading,
   } = useShareholders({
     listIds: visibleListIds.length > 0 ? visibleListIds : null,
-    status: statusFilter?.length ? statusFilter : undefined,
+    status:
+      statusFilter?.length && !statusPrimaryFilter?.length
+        ? statusFilter
+        : undefined,
+    statusPrimaryFilter:
+      statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
     company: companyFilter?.length ? companyFilter : undefined,
     stocks: stocks?.length ? stocks : undefined,
     companyStockFilterMap,
+    companyFilterProfiles:
+      companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
+        ? companyFilterProfiles
+        : undefined,
     city: cityFilter || undefined,
     lat: currCenter.lat,
     lng: currCenter.lng,
@@ -348,14 +359,6 @@ const WorkspaceMapPage = () => {
                 <ClearIcon />
               </CloseButton>
             </MenuHeader>
-            <MenuItem onClick={handleReset} style={{ color: COLORS.red[600] }}>
-              <RestartAlt />
-              초기화
-            </MenuItem>
-            <MenuItem onClick={() => setIsFilterModalOpen(true)}>
-              <FilterAlt />
-              필터 설정
-            </MenuItem>
             <StatsCard listIds={visibleListIds} />
             {hasWorkspace && visibleListIds.length === 0 && (
               <EmptyWorkspaceHint>
@@ -363,6 +366,14 @@ const WorkspaceMapPage = () => {
                 명부를 추가·노출해 주세요.
               </EmptyWorkspaceHint>
             )}
+            <MenuHighlightItem onClick={() => setIsFilterModalOpen(true)}>
+              <FilterAlt />
+              필터 설정
+            </MenuHighlightItem>
+            <MenuItem onClick={handleReset} style={{ color: COLORS.red[600] }}>
+              <RestartAlt />
+              초기화
+            </MenuItem>
             {hasWorkspace && (
               <MenuItem
                 onClick={async () => {
@@ -442,6 +453,7 @@ const WorkspaceMapPage = () => {
             setOpen={setIsFilterModalOpen}
             position={isMobile ? "top" : "center"}>
             <FilterModalChildren
+              modalOpen={isFilterModalOpen}
               handleClose={() => setIsFilterModalOpen(false)}
               handleApplyFilters={handleApplyFilters}
               listIds={visibleListIds.length > 0 ? visibleListIds : null}
@@ -608,6 +620,28 @@ const MenuItem = styled.div`
   @media (max-width: 768px) {
     min-height: 3rem;
     padding: 0.625rem 0.375rem;
+  }
+`
+
+const MenuHighlightItem = styled(MenuItem)`
+  background: ${COLORS.blue[50]};
+  color: ${COLORS.blue[800]};
+  font-weight: 600;
+  border: 1px solid ${COLORS.blue[100]};
+  margin-top: 6px;
+  margin-bottom: 4px;
+
+  &:hover {
+    background: ${COLORS.blue[100]};
+    color: ${COLORS.blue[900]};
+  }
+
+  &:active {
+    background: ${COLORS.blue[100]};
+  }
+
+  svg {
+    color: ${COLORS.blue[600]};
   }
 `
 

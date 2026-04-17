@@ -28,7 +28,16 @@ import { reportError } from "@/lib/reportError"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
 import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
 import { getCoordinateRanges } from "@/lib/utils"
-import type { CompanyStockFilterMap, StockRange } from "@/store/filterState"
+import type {
+  CompanyFilterProfiles,
+  CompanyStockFilterMap,
+  StockRange,
+} from "@/store/filterState"
+import {
+  getPrimaryStatusCategory,
+  PRIMARY_STATUS_OPTIONS,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
 
 type ShareholderList = Tables<"shareholder_lists">
 type Shareholder = Tables<"shareholders">
@@ -246,6 +255,9 @@ type ShareholdersParams = {
   listId?: string | null
   listIds?: string[] | null
   status?: string[]
+
+  /** 1차 상태 필터(지도). 설정 시 서버 status.in 대신 조회 후 클라이언트에서 매칭 */
+  statusPrimaryFilter?: PrimaryStatus[]
   company?: string[]
   maker?: string | null
   city?: string
@@ -254,6 +266,9 @@ type ShareholdersParams = {
   lng?: number
   mapLevel?: number
   companyStockFilterMap?: CompanyStockFilterMap
+
+  /** 회사별 상세(상태·지역·주식수). 설정된 회사는 여기 우선 */
+  companyFilterProfiles?: CompanyFilterProfiles
 }
 
 type CompanyStockStats = Record<
@@ -292,16 +307,61 @@ function matchesRange(stocks: number, range: StockRange): boolean {
   return stocks >= range.start && stocks <= range.end
 }
 
-function applyCompanyStockFilter<
-  T extends { company: string | null; stocks: number | null },
->(rows: T[], map: CompanyStockFilterMap): T[] {
+function hasCompanyFilterProfiles(
+  p: CompanyFilterProfiles | undefined,
+): p is CompanyFilterProfiles {
+  return !!p && Object.keys(p).length > 0
+}
+
+/** 지도 필터: 1차 상태·회사별 프로필·주식(프로필 우선) */
+function applyShareholderPostFilters<
+  T extends {
+    status: string | null
+    company: string | null
+    stocks: number | null
+    address: string | null
+  },
+>(rows: T[], params: ShareholdersParams): T[] {
+  const profiles = params.companyFilterProfiles ?? {}
+
   return rows.filter((row) => {
     const company = row.company ?? ""
-    const ranges = map[company]
-    if (!ranges || ranges.length === 0) return true
-    const stocks = Number(row.stocks ?? 0)
+    const prof = profiles[company]
 
-    return ranges.some((range) => matchesRange(stocks, range))
+    if (prof?.statusPrimary !== undefined) {
+      if (prof.statusPrimary.length > 0) {
+        const cat = getPrimaryStatusCategory(row.status)
+        if (!prof.statusPrimary.includes(cat)) return false
+      }
+    } else if (params.statusPrimaryFilter?.length) {
+      const cat = getPrimaryStatusCategory(row.status)
+      if (!params.statusPrimaryFilter.includes(cat)) return false
+    } else if (params.status?.length) {
+      if (!params.status.includes(row.status ?? "")) return false
+    }
+
+    let cityRule: string | undefined
+    if (prof?.city !== undefined) {
+      cityRule = prof.city || undefined
+    } else if (params.city) {
+      cityRule = params.city
+    }
+    if (cityRule && !(row.address ?? "").includes(cityRule)) return false
+
+    const stocks = Number(row.stocks ?? 0)
+    if (prof?.stockRanges?.length) {
+      if (!prof.stockRanges.some((r) => matchesRange(stocks, r))) return false
+    } else {
+      if (params.stocks?.length) {
+        if (!params.stocks.some((r) => matchesRange(stocks, r))) return false
+      }
+      if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
+        const cr = params.companyStockFilterMap?.[company]
+        if (cr?.length && !cr.some((r) => matchesRange(stocks, r))) return false
+      }
+    }
+
+    return true
   })
 }
 
@@ -365,7 +425,14 @@ const getShareholders = async (params: ShareholdersParams) => {
   } else {
     query = query.in("list_id", listIds)
   }
-  if (params.status?.length) {
+  const useClientStatusOrProfiles =
+    (params.statusPrimaryFilter?.length ?? 0) > 0 ||
+    hasCompanyFilterProfiles(params.companyFilterProfiles)
+  const useClientCityForProfiles = hasCompanyFilterProfiles(
+    params.companyFilterProfiles,
+  )
+
+  if (params.status?.length && !useClientStatusOrProfiles) {
     query = query.in("status", params.status)
   }
   if (params.company?.length) {
@@ -374,7 +441,7 @@ const getShareholders = async (params: ShareholdersParams) => {
   if (params.maker) {
     query = query.eq("maker", params.maker)
   }
-  if (params.city) {
+  if (params.city && !useClientCityForProfiles) {
     query = query.like("address", `%${params.city}%`)
   }
   if (params.stocks?.length) {
@@ -404,9 +471,7 @@ const getShareholders = async (params: ShareholdersParams) => {
   }
 
   let rows = data ?? []
-  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
-    rows = applyCompanyStockFilter(rows, params.companyStockFilterMap)
-  }
+  rows = applyShareholderPostFilters(rows, params)
 
   return rows
 }
@@ -416,6 +481,21 @@ export type ShareholderStats = {
   totalStocks: number
   completedShareholders: number
   completedStocks: number
+
+  /** 필터 적용 후 1차 상태별 집계 */
+  byPrimary: Record<PrimaryStatus, { count: number; stocks: number }>
+}
+
+const emptyByPrimary = (): Record<
+  PrimaryStatus,
+  { count: number; stocks: number }
+> => {
+  const o = {} as Record<PrimaryStatus, { count: number; stocks: number }>
+  for (const p of PRIMARY_STATUS_OPTIONS) {
+    o[p] = { count: 0, stocks: 0 }
+  }
+
+  return o
 }
 
 const getShareholderStats = async (
@@ -432,22 +512,32 @@ const getShareholderStats = async (
       totalStocks: 0,
       completedShareholders: 0,
       completedStocks: 0,
+      byPrimary: emptyByPrimary(),
     }
   }
 
-  let query = supabase.from("shareholders").select("status, stocks, company")
+  let query = supabase
+    .from("shareholders")
+    .select("status, stocks, company, address")
   if (listIds.length === 1) {
     query = query.eq("list_id", listIds[0])
   } else {
     query = query.in("list_id", listIds)
   }
-  if (params.status?.length) {
+  const useClientStatusOrProfiles =
+    (params.statusPrimaryFilter?.length ?? 0) > 0 ||
+    hasCompanyFilterProfiles(params.companyFilterProfiles)
+  const useClientCityForProfiles = hasCompanyFilterProfiles(
+    params.companyFilterProfiles,
+  )
+
+  if (params.status?.length && !useClientStatusOrProfiles) {
     query = query.in("status", params.status)
   }
   if (params.company?.length) {
     query = query.in("company", params.company)
   }
-  if (params.city) {
+  if (params.city && !useClientCityForProfiles) {
     query = query.like("address", `%${params.city}%`)
   }
   if (params.stocks?.length) {
@@ -469,21 +559,29 @@ const getShareholderStats = async (
     throw new Error(error.message)
   }
   let rows = data ?? []
-  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
-    rows = applyCompanyStockFilter(rows, params.companyStockFilterMap)
-  }
+  rows = applyShareholderPostFilters(rows, params)
   const totalStocks = rows.reduce((sum, r) => sum + (Number(r.stocks) || 0), 0)
-  const completedRows = rows.filter((r) => r.status === "완료")
+  const completedRows = rows.filter(
+    (r) => getPrimaryStatusCategory(r.status) === "완료",
+  )
   const completedStocks = completedRows.reduce(
     (sum, r) => sum + (Number(r.stocks) || 0),
     0,
   )
+
+  const byPrimary = emptyByPrimary()
+  for (const r of rows) {
+    const primary = getPrimaryStatusCategory(r.status)
+    byPrimary[primary].count += 1
+    byPrimary[primary].stocks += Number(r.stocks) || 0
+  }
 
   return {
     totalShareholders: rows.length,
     totalStocks,
     completedShareholders: completedRows.length,
     completedStocks,
+    byPrimary,
   }
 }
 
@@ -496,10 +594,12 @@ export const useShareholderStats = (params: ShareholdersParams) => {
       params.listId,
       params.listIds,
       params.status,
+      params.statusPrimaryFilter,
       params.company,
       params.city,
       params.stocks,
       params.companyStockFilterMap,
+      params.companyFilterProfiles,
     ],
     queryFn: () => getShareholderStats(params),
     enabled,
@@ -558,11 +658,13 @@ export const useShareholders = (params: ShareholdersParams) => {
       params.listId,
       params.listIds,
       params.status,
+      params.statusPrimaryFilter,
       params.company,
       params.maker,
       params.city,
       params.stocks,
       params.companyStockFilterMap,
+      params.companyFilterProfiles,
       params.lat,
       params.lng,
       params.mapLevel,
