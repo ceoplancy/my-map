@@ -1,13 +1,16 @@
 import styled from "@emotion/styled"
 import type { MapMarkerData } from "@/types/map"
 import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
-import { toast } from "react-toastify"
-import { ContentCopy, Close } from "@mui/icons-material"
+import { Close, Directions } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
 import { nanoid } from "nanoid"
 import { useState } from "react"
 import ModalComponent from "./modal"
-import { getPrimaryStatusCategory } from "@/lib/shareholderStatus"
+import {
+  getShareholderStatusChipBackground,
+  getShareholderStatusChipColor,
+} from "@/lib/shareholderStatus"
+import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
 
 export type HistoryChange = {
   memo?: { original: string; modified: string }
@@ -28,6 +31,10 @@ interface MarkerDetailTableProps {
   historyLoading?: boolean
   mobileScrollable?: boolean
   hideShareholderId?: boolean
+  hideSummaryFields?: boolean
+
+  /** 지도 요약과 함께 쓸 때: 주소·메모 등 행에서 왼쪽 제목 칸 생략 */
+  hideRowLabels?: boolean
 }
 
 const MarkerDetailTable = ({
@@ -36,6 +43,8 @@ const MarkerDetailTable = ({
   historyLoading = false,
   mobileScrollable = true,
   hideShareholderId = false,
+  hideSummaryFields = false,
+  hideRowLabels = false,
 }: MarkerDetailTableProps) => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const history =
@@ -44,81 +53,132 @@ const MarkerDetailTable = ({
       ? (data as unknown as { history: HistoryItem[] }).history
       : [])
 
-  const handleAddressCopy = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation()
-    navigator.clipboard.writeText(data.address ?? "")
-    toast.success("주소가 클립보드에 복사되었습니다")
-  }
-
   if (!data) return null
 
+  const kakaoMapUrl = getKakaoMapLinkUrl({
+    name: data.name,
+    address: data.address,
+    lat: data.lat ?? null,
+    lng: data.lng ?? null,
+  })
+  const addressDisplay =
+    data.address?.trim() || (kakaoMapUrl ? "카카오맵 길찾기" : "-")
+
+  const addressRow = (
+    <TableRow key="addr" $hideLabels={hideRowLabels}>
+      {!hideRowLabels && <TableHeader>주소</TableHeader>}
+      <AddressLinkCell
+        colSpan={hideRowLabels ? 2 : undefined}
+        $hideLabels={hideRowLabels}>
+        {kakaoMapUrl ? (
+          <AddressAnchor
+            $hideLabels={hideRowLabels}
+            href={kakaoMapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="카카오맵에서 열기">
+            <AddressText>{addressDisplay}</AddressText>
+            <MapLinkIcon>
+              <Directions fontSize="small" />
+            </MapLinkIcon>
+          </AddressAnchor>
+        ) : (
+          <AddressPlain $hideLabels={hideRowLabels}>
+            {addressDisplay}
+          </AddressPlain>
+        )}
+      </AddressLinkCell>
+    </TableRow>
+  )
+
+  const memoRow = (
+    <TableRow key="memo" $hideLabels={hideRowLabels}>
+      {!hideRowLabels && <TableHeader>메모</TableHeader>}
+      <TableCell
+        colSpan={hideRowLabels ? 2 : undefined}
+        $hideLabels={hideRowLabels}>
+        {data.memo}
+      </TableCell>
+    </TableRow>
+  )
+
+  const historyRow = (
+    <TableRow key="hist" $hideLabels={hideRowLabels}>
+      {!hideRowLabels && <TableHeader>변경이력</TableHeader>}
+      <TableCell
+        colSpan={hideRowLabels ? 2 : undefined}
+        $hideLabels={hideRowLabels}>
+        {historyLoading ? (
+          <HistorySkeleton>
+            <SkeletonBar style={{ width: "60%" }} />
+          </HistorySkeleton>
+        ) : history.length > 0 ? (
+          <HistoryButton
+            type="button"
+            onClick={() => setIsHistoryModalOpen(true)}>
+            변경 이력 보기 ({history.length}건)
+          </HistoryButton>
+        ) : (
+          <HistoryEmptyText>변경 이력 없음</HistoryEmptyText>
+        )}
+
+        {isHistoryModalOpen && (
+          <HistoryModal
+            open={isHistoryModalOpen}
+            onClose={() => setIsHistoryModalOpen(false)}
+            history={history}
+          />
+        )}
+      </TableCell>
+    </TableRow>
+  )
+
   return (
-    <TableContainer $mobileScrollable={mobileScrollable}>
-      <Table>
+    <TableContainer
+      $mobileScrollable={mobileScrollable}
+      $hideRowLabels={hideRowLabels}>
+      <Table $hideRowLabels={hideRowLabels}>
         <tbody>
           {!hideShareholderId && (
-            <TableRow>
-              <TableHeader>주주번호</TableHeader>
-              <TableCell>{String(data.id)}</TableCell>
+            <TableRow $hideLabels={hideRowLabels}>
+              {!hideRowLabels && <TableHeader>주주번호</TableHeader>}
+              <TableCell
+                colSpan={hideRowLabels ? 2 : undefined}
+                $hideLabels={hideRowLabels}>
+                {String(data.id)}
+              </TableCell>
             </TableRow>
           )}
-          <TableRow>
-            <TableHeader>이름</TableHeader>
-            <TableCell>{data.name}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableHeader>주식수</TableHeader>
-            <TableCell>{data.stocks?.toLocaleString()}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableHeader>주소</TableHeader>
-            <CopyableCell onClick={handleAddressCopy}>
-              <div>{data.address}</div>
-              <CopyIcon>
-                <ContentCopy fontSize="small" />
-              </CopyIcon>
-            </CopyableCell>
-          </TableRow>
-          <TableRow>
-            <TableHeader>상태</TableHeader>
-            <TableCell>
-              <StatusBadge status={data.status}>{data.status}</StatusBadge>
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableHeader>회사명(구분1)</TableHeader>
-            <TableCell>{data.company}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableHeader>메모</TableHeader>
-            <TableCell>{data.memo}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableHeader>변경이력</TableHeader>
-            <TableCell>
-              {historyLoading ? (
-                <HistorySkeleton>
-                  <SkeletonBar style={{ width: "60%" }} />
-                </HistorySkeleton>
-              ) : history.length > 0 ? (
-                <HistoryButton
-                  type="button"
-                  onClick={() => setIsHistoryModalOpen(true)}>
-                  변경 이력 보기 ({history.length}건)
-                </HistoryButton>
-              ) : (
-                <HistoryEmptyText>변경 이력 없음</HistoryEmptyText>
-              )}
-
-              {isHistoryModalOpen && (
-                <HistoryModal
-                  open={isHistoryModalOpen}
-                  onClose={() => setIsHistoryModalOpen(false)}
-                  history={history}
-                />
-              )}
-            </TableCell>
-          </TableRow>
+          {!hideSummaryFields && (
+            <TableRow $hideLabels={hideRowLabels}>
+              <TableHeader>이름</TableHeader>
+              <TableCell>{data.name}</TableCell>
+            </TableRow>
+          )}
+          {!hideSummaryFields && (
+            <TableRow $hideLabels={hideRowLabels}>
+              <TableHeader>주식수</TableHeader>
+              <TableCell>{data.stocks?.toLocaleString()}</TableCell>
+            </TableRow>
+          )}
+          {addressRow}
+          {!hideSummaryFields && (
+            <TableRow $hideLabels={hideRowLabels}>
+              <TableHeader>상태</TableHeader>
+              <TableCell>
+                <StatusBadge status={data.status}>{data.status}</StatusBadge>
+              </TableCell>
+            </TableRow>
+          )}
+          {!hideSummaryFields && (
+            <TableRow $hideLabels={hideRowLabels}>
+              <TableHeader>회사명(구분1)</TableHeader>
+              <TableCell>{data.company}</TableCell>
+            </TableRow>
+          )}
+          {memoRow}
+          {historyRow}
         </tbody>
       </Table>
     </TableContainer>
@@ -127,12 +187,22 @@ const MarkerDetailTable = ({
 
 export default MarkerDetailTable
 
-const TableContainer = styled.div<{ $mobileScrollable: boolean }>`
+const TableContainer = styled.div<{
+  $mobileScrollable: boolean
+  $hideRowLabels?: boolean
+}>`
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   width: 100%;
+
+  ${(p) =>
+    p.$hideRowLabels &&
+    `
+    box-shadow: none;
+    border-radius: 0;
+  `}
 
   @media screen and (max-width: 768px) {
     border-radius: 0;
@@ -142,7 +212,7 @@ const TableContainer = styled.div<{ $mobileScrollable: boolean }>`
   }
 `
 
-const Table = styled.table`
+const Table = styled.table<{ $hideRowLabels?: boolean }>`
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -157,7 +227,7 @@ const Table = styled.table`
   }
 `
 
-const TableRow = styled.tr`
+const TableRow = styled.tr<{ $hideLabels?: boolean }>`
   &:not(:last-child) {
     border-bottom: 1px solid ${COLORS.gray[100]};
   }
@@ -165,7 +235,7 @@ const TableRow = styled.tr`
   @media screen and (max-width: 768px) {
     display: flex;
     flex-direction: column;
-    padding: 16px 0;
+    padding: ${(p) => (p.$hideLabels ? "12px 0" : "16px 0")};
   }
 `
 
@@ -191,8 +261,8 @@ const TableHeader = styled.td`
   }
 `
 
-const TableCell = styled.td`
-  padding: 16px 20px;
+const TableCell = styled.td<{ $hideLabels?: boolean }>`
+  padding: ${(p) => (p.$hideLabels ? "10px 0" : "16px 20px")};
   font-size: 14px;
   color: ${COLORS.gray[900]};
   line-height: 1.5;
@@ -200,43 +270,78 @@ const TableCell = styled.td`
   white-space: pre-wrap;
 
   @media screen and (max-width: 768px) {
-    padding: 0 16px;
+    padding: ${(p) => (p.$hideLabels ? "0" : "0 16px")};
     font-size: 15px;
   }
 `
 
-const CopyableCell = styled(TableCell)`
-  cursor: pointer;
+const AddressLinkCell = styled(TableCell)`
+  padding: 0;
+  vertical-align: middle;
+
+  @media screen and (max-width: 768px) {
+    padding: 0;
+  }
+`
+
+const AddressAnchor = styled.a<{ $hideLabels?: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
+  padding: ${(p) => (p.$hideLabels ? "10px 0" : "16px 20px")};
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 4px;
 
   @media screen and (max-width: 768px) {
-    padding: 0 16px;
-
-    &:hover {
-      background: none;
-    }
+    padding: ${(p) => (p.$hideLabels ? "0" : "0 16px")};
   }
 
   &:hover {
     background: ${COLORS.blue[50]};
 
     svg {
-      opacity: 1;
+      color: ${COLORS.blue[600]};
     }
   }
 `
 
-const CopyIcon = styled.div`
-  color: ${COLORS.blue[500]};
-  opacity: 0;
-  transition: opacity 0.2s ease;
+const AddressText = styled.div`
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 14px;
+  color: ${COLORS.gray[900]};
 
-  &:hover {
-    color: ${COLORS.blue[600]};
+  @media screen and (max-width: 768px) {
+    font-size: 15px;
   }
+`
+
+const AddressPlain = styled.div<{ $hideLabels?: boolean }>`
+  padding: ${(p) => (p.$hideLabels ? "10px 0" : "16px 20px")};
+  font-size: 14px;
+  color: ${COLORS.gray[900]};
+  line-height: 1.5;
+  word-break: break-all;
+  white-space: pre-wrap;
+
+  @media screen and (max-width: 768px) {
+    padding: ${(p) => (p.$hideLabels ? "0" : "0 16px")};
+    font-size: 15px;
+  }
+`
+
+const MapLinkIcon = styled.span`
+  flex-shrink: 0;
+  color: ${COLORS.blue[500]};
+  display: flex;
+  align-items: center;
+  margin-top: 1px;
 `
 
 const StatusBadge = styled.span<{ status: string | null }>`
@@ -251,48 +356,8 @@ const StatusBadge = styled.span<{ status: string | null }>`
     font-size: 14px;
   }
 
-  background: ${({ status }) => {
-    const primary = getPrimaryStatusCategory(status)
-    switch (primary) {
-      case "전자투표":
-        return COLORS.purple[50]
-      case "주주총회":
-        return COLORS.purple[100]
-      default:
-        break
-    }
-    switch (primary) {
-      case "완료":
-        return COLORS.green[50]
-      case "미방문":
-        return COLORS.blue[50]
-      case "보류":
-        return COLORS.yellow[50]
-      case "실패":
-        return COLORS.red[50]
-      default:
-        return COLORS.gray[50]
-    }
-  }};
-  color: ${({ status }) => {
-    const primary = getPrimaryStatusCategory(status)
-    switch (primary) {
-      case "완료":
-        return COLORS.green[700]
-      case "미방문":
-        return COLORS.blue[700]
-      case "보류":
-        return COLORS.yellow[700]
-      case "실패":
-        return COLORS.red[700]
-      case "전자투표":
-        return COLORS.purple[700]
-      case "주주총회":
-        return COLORS.purple[800]
-      default:
-        return COLORS.gray[700]
-    }
-  }};
+  background: ${({ status }) => getShareholderStatusChipBackground(status)};
+  color: ${({ status }) => getShareholderStatusChipColor(status)};
 `
 
 const HistoryEmptyText = styled.span`

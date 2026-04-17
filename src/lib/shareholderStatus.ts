@@ -1,3 +1,5 @@
+import { COLORS } from "@/styles/global-style"
+
 export const PRIMARY_STATUS_OPTIONS = [
   "미방문",
   "완료",
@@ -73,4 +75,54 @@ export function getPrimaryStatusCategory(
   raw: string | null | undefined,
 ): PrimaryStatus {
   return splitShareholderStatus(raw).primary
+}
+
+/** 상세 표·지도 요약 등에서 동일한 톤으로 쓰는 상태 칩 배경색 */
+export function getShareholderStatusChipBackground(
+  raw: string | null | undefined,
+): string {
+  const primary = getPrimaryStatusCategory(raw)
+  switch (primary) {
+    case "전자투표":
+      return COLORS.purple[50]
+    case "주주총회":
+      return COLORS.purple[100]
+    default:
+      break
+  }
+  switch (primary) {
+    case "완료":
+      return COLORS.green[50]
+    case "미방문":
+      return COLORS.blue[50]
+    case "보류":
+      return COLORS.yellow[50]
+    case "실패":
+      return COLORS.red[50]
+    default:
+      return COLORS.gray[50]
+  }
+}
+
+/** 상세 표·지도 요약 등에서 동일한 톤으로 쓰는 상태 칩 글자색 */
+export function getShareholderStatusChipColor(
+  raw: string | null | undefined,
+): string {
+  const primary = getPrimaryStatusCategory(raw)
+  switch (primary) {
+    case "완료":
+      return COLORS.green[700]
+    case "미방문":
+      return COLORS.blue[700]
+    case "보류":
+      return COLORS.yellow[700]
+    case "실패":
+      return COLORS.red[700]
+    case "전자투표":
+      return COLORS.purple[700]
+    case "주주총회":
+      return COLORS.purple[800]
+    default:
+      return COLORS.gray[700]
+  }
 }

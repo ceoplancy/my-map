@@ -4,10 +4,7 @@ import { COLORS } from "@/styles/global-style"
 import { useShareholderStats } from "@/api/workspace"
 import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
 import { useFilterStore } from "@/store/filterState"
-import {
-  PRIMARY_STATUS_OPTIONS,
-  type PrimaryStatus,
-} from "@/lib/shareholderStatus"
+import { PRIMARY_STATUS_OPTIONS } from "@/lib/shareholderStatus"
 
 export type StatsCardProps = {
   /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계 (shareholders) */
@@ -27,15 +24,6 @@ const emptyByPrimary = () => {
   }
 
   return o
-}
-
-const PRIMARY_ACCENT: Record<PrimaryStatus, string> = {
-  미방문: COLORS.gray[400],
-  완료: COLORS.green[500],
-  보류: COLORS.yellow[700],
-  실패: COLORS.red[500],
-  전자투표: COLORS.blue[500],
-  주주총회: COLORS.purple[500],
 }
 
 const StatsCard = ({ listIds }: StatsCardProps) => {
@@ -121,8 +109,8 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
 
       {filterChips.length > 0 ? (
         <FilterChipRow aria-label="적용 중인 필터">
-          {filterChips.map((text) => (
-            <FilterChip key={text}>{text}</FilterChip>
+          {filterChips.map((text, i) => (
+            <FilterChip key={`${text}-${i}`}>{text}</FilterChip>
           ))}
         </FilterChipRow>
       ) : (
@@ -164,7 +152,7 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
         <PrimaryTitle>1차 상태</PrimaryTitle>
         <PrimaryScroll>
           {PRIMARY_STATUS_OPTIONS.map((p) => (
-            <PrimaryCell key={p} $accent={PRIMARY_ACCENT[p]}>
+            <PrimaryCell key={p}>
               <PrimaryName>{p}</PrimaryName>
               <PrimaryCount>
                 {isLoading
@@ -187,10 +175,12 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
 export default StatsCard
 
 const Container = styled.div`
-  background: ${COLORS.blue[50]};
+  background: #fff;
+  border: 1px solid ${COLORS.gray[100]};
   border-radius: 12px;
   padding: 16px;
   margin: 0 0 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 
   @media (max-width: 768px) {
     padding: 14px;
@@ -204,7 +194,7 @@ const HeaderSection = styled.div`
 
 const Title = styled.h3`
   font-size: 0.9375rem;
-  color: ${COLORS.blue[800]};
+  color: ${COLORS.gray[900]};
   font-weight: 700;
   margin: 0 0 6px;
 `
@@ -230,9 +220,9 @@ const FilterChip = styled.span`
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 600;
-  color: ${COLORS.blue[800]};
-  background: #fff;
-  border: 1px solid ${COLORS.blue[200]};
+  color: ${COLORS.gray[700]};
+  background: ${COLORS.gray[50]};
+  border: 1px solid ${COLORS.gray[200]};
   max-width: 100%;
 `
 
@@ -323,13 +313,13 @@ const ProgressFill = styled.div<{ $pct: number }>`
 
 const PrimarySection = styled.div`
   padding-top: 12px;
-  border-top: 1px solid ${COLORS.blue[100]};
+  border-top: 1px solid ${COLORS.gray[100]};
 `
 
 const PrimaryTitle = styled.div`
   font-size: 0.75rem;
   font-weight: 700;
-  color: ${COLORS.blue[900]};
+  color: ${COLORS.gray[800]};
   margin-bottom: 8px;
 `
 
@@ -353,16 +343,14 @@ const PrimaryScroll = styled.div`
   }
 `
 
-const PrimaryCell = styled.div<{ $accent: string }>`
+const PrimaryCell = styled.div`
   flex: 0 0 auto;
   min-width: 108px;
   scroll-snap-align: start;
-  background: #fff;
+  background: ${COLORS.gray[50]};
   border-radius: 10px;
   padding: 8px 10px;
-  border: 1px solid ${COLORS.gray[100]};
-  border-left: 4px solid ${(p) => p.$accent};
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid ${COLORS.gray[200]};
 `
 
 const PrimaryName = styled.div`

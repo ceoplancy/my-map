@@ -220,6 +220,13 @@ const WorkspaceMapPage = () => {
   }
 
   const handleReset = useCallback(() => {
+    if (
+      !window.confirm(
+        "필터와 지도 위치를 초기화하고 페이지를 새로고침할까요? 이 작업은 취소할 수 없습니다.",
+      )
+    ) {
+      return
+    }
     if (wsId) {
       const keys = getMapStorageKeys(wsId)
       localStorage.setItem(keys.level, "6")

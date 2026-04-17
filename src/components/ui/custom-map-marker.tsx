@@ -17,9 +17,13 @@ import GlobalSpinner from "./global-spinner"
 import Portal from "./portal"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { toast } from "react-toastify"
-import { ContentCopy, Edit, Close } from "@mui/icons-material"
+import { ContentCopy, Edit, Close, Navigation } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
-import { getPrimaryStatusCategory } from "@/lib/shareholderStatus"
+import {
+  getPrimaryStatusCategory,
+  getShareholderStatusChipBackground,
+  getShareholderStatusChipColor,
+} from "@/lib/shareholderStatus"
 
 export type { MapMarkerData } from "@/types/map"
 const isShareholder = isShareholderMarker
@@ -237,6 +241,39 @@ const CustomMapMarker = ({
     toast.success("주소가 클립보드에 복사되었습니다")
   }
 
+  const handleOpenDirections = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const lat = Number(markerForDetail.lat)
+    const lng = Number(markerForDetail.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      toast.error("유효한 위치 정보가 없어 길찾기를 열 수 없습니다.")
+
+      return
+    }
+
+    const destinationName = encodeURIComponent(
+      markerForDetail.name ?? markerForDetail.company ?? "목적지",
+    )
+    const kakaoAppUrl = `kakaomap://route?ep=${lat},${lng}&by=CAR`
+    const kakaoWebUrl = `https://map.kakao.com/link/to/${destinationName},${lat},${lng}`
+    const isMobileClient = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
+    if (!isMobileClient) {
+      window.open(kakaoWebUrl, "_blank", "noopener,noreferrer")
+
+      return
+    }
+
+    const startedAt = Date.now()
+    window.location.href = kakaoAppUrl
+    window.setTimeout(() => {
+      // 앱 전환이 되지 않으면 웹 지도로 폴백
+      if (Date.now() - startedAt < 1700) {
+        window.open(kakaoWebUrl, "_blank", "noopener,noreferrer")
+      }
+    }, 900)
+  }
+
   const handleMarkerClick = () => {
     void prefetchShareholderChangeHistoryForMap(
       queryClient,
@@ -349,54 +386,47 @@ const CustomMapMarker = ({
               </MobileSheetHandleButton>
               {isMobileSheetCollapsed ? (
                 <CollapsedSummary>
-                  <CollapsedTitle>
-                    {markerForDetail.name ?? "주주"}
-                  </CollapsedTitle>
-                  <CollapsedSubTitle>
-                    {markerForDetail.company ?? "회사 미지정"}
-                  </CollapsedSubTitle>
-                  <CollapsedMetaRow>
+                  <CollapsedLineScroll>
+                    <CollapsedNameStrong>
+                      {markerForDetail.name ?? "주주"}
+                    </CollapsedNameStrong>
+                    <CollapsedSep aria-hidden>·</CollapsedSep>
+                    <CollapsedMetaInline>
+                      {markerForDetail.company ?? "회사 미지정"}
+                    </CollapsedMetaInline>
+                    <CollapsedSep aria-hidden>·</CollapsedSep>
+                    <CollapsedMetaInline>
+                      {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
+                    </CollapsedMetaInline>
+                    <CollapsedSep aria-hidden>·</CollapsedSep>
                     <CollapsedStatusBadge
                       status={String(markerForDetail.status ?? "미방문")}>
                       {String(markerForDetail.status ?? "미방문")}
                     </CollapsedStatusBadge>
-                    <CollapsedStocks>
-                      {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
-                    </CollapsedStocks>
-                  </CollapsedMetaRow>
+                  </CollapsedLineScroll>
                 </CollapsedSummary>
               ) : (
                 <>
                   <MobileSheetBody>
-                    <MobileExpandedSummary>
-                      <MobileExpandedItem>
-                        <SummaryKey>주주명</SummaryKey>
-                        <SummaryValue>
-                          {markerForDetail.name ?? "-"}
-                        </SummaryValue>
-                      </MobileExpandedItem>
-                      <MobileExpandedItem>
-                        <SummaryKey>주식수</SummaryKey>
-                        <SummaryValue>
-                          {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
-                        </SummaryValue>
-                      </MobileExpandedItem>
-                      <MobileExpandedItem>
-                        <SummaryKey>회사구분</SummaryKey>
-                        <SummaryValue>
+                    <MarkerSummary>
+                      <SummaryName>{markerForDetail.name ?? "-"}</SummaryName>
+                      <SummaryMetaRow>
+                        <SummaryMetaText>
                           {markerForDetail.company ?? "-"}
-                        </SummaryValue>
-                      </MobileExpandedItem>
-                      <MobileExpandedItem>
-                        <SummaryKey>상태</SummaryKey>
-                        <SummaryStatus>
+                        </SummaryMetaText>
+                        <SummaryMetaDot>·</SummaryMetaDot>
+                        <SummaryMetaText>
+                          {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
+                        </SummaryMetaText>
+                        <SummaryMetaDot>·</SummaryMetaDot>
+                        <SummaryStatus
+                          status={String(markerForDetail.status ?? "미방문")}>
                           {String(markerForDetail.status ?? "미방문")}
                         </SummaryStatus>
-                      </MobileExpandedItem>
-                    </MobileExpandedSummary>
+                      </SummaryMetaRow>
+                    </MarkerSummary>
                     {isGroupMarker && markers.length > 1 && (
                       <>
-                        <GroupSelectTitle>주주 선택</GroupSelectTitle>
                         <MobileMarkerTabs>
                           {markers.map((m) => (
                             <MobileMarkerTab
@@ -415,16 +445,18 @@ const CustomMapMarker = ({
                       historyLoading={isShareholderMarker && historyLoading}
                       mobileScrollable={false}
                       hideShareholderId
+                      hideSummaryFields
+                      hideRowLabels
                     />
                   </MobileSheetBody>
                   <MobileSheetFooter>
                     <ActionButton
                       variant="success"
                       onClick={(e) => {
-                        handleAddressCopy(e)
+                        handleOpenDirections(e)
                       }}>
-                      <ContentCopy fontSize="small" />
-                      <span>주소 복사</span>
+                      <Navigation fontSize="small" />
+                      <span>길찾기</span>
                     </ActionButton>
                     <ActionButton
                       variant="primary"
@@ -456,7 +488,6 @@ const CustomMapMarker = ({
                 onMouseDown={(e) => e.stopPropagation()}
                 className="info-window-persistent">
                 <InfoWindowHeader>
-                  <HeaderTitle>주주 정보</HeaderTitle>
                   <CloseButton
                     onClick={(e) => {
                       e.stopPropagation()
@@ -466,10 +497,31 @@ const CustomMapMarker = ({
                   </CloseButton>
                 </InfoWindowHeader>
 
+                <MarkerSummary>
+                  <SummaryName>{markerForDetail.name ?? "-"}</SummaryName>
+                  <SummaryMetaRow>
+                    <SummaryMetaText>
+                      {markerForDetail.company ?? "-"}
+                    </SummaryMetaText>
+                    <SummaryMetaDot>·</SummaryMetaDot>
+                    <SummaryMetaText>
+                      {`${Number(markerForDetail.stocks ?? 0).toLocaleString()}주`}
+                    </SummaryMetaText>
+                    <SummaryMetaDot>·</SummaryMetaDot>
+                    <SummaryStatus
+                      status={String(markerForDetail.status ?? "미방문")}>
+                      {String(markerForDetail.status ?? "미방문")}
+                    </SummaryStatus>
+                  </SummaryMetaRow>
+                </MarkerSummary>
+
                 <MarkerDetailTable
                   data={markerForDetail}
                   history={isShareholderMarker ? mapHistory : undefined}
                   historyLoading={isShareholderMarker && historyLoading}
+                  hideShareholderId
+                  hideSummaryFields
+                  hideRowLabels
                 />
 
                 <InfoWindowFooter>
@@ -620,7 +672,7 @@ const MobileSheet = styled.div<{ $collapsed: boolean }>`
   flex-direction: column;
   max-height: ${(p) =>
     p.$collapsed
-      ? "4.5rem"
+      ? "min(7.25rem, 36vh)"
       : "min(86vh, calc(100dvh - env(safe-area-inset-top) - 1rem))"};
   overflow: hidden;
   transition: max-height 0.24s ease;
@@ -651,110 +703,129 @@ const MobileSheetBody = styled.div`
 `
 
 const CollapsedSummary = styled.div`
-  padding: 0.35rem 1rem 0.75rem;
+  padding: 0.1rem 1rem 0.85rem;
   min-width: 0;
 `
 
-const CollapsedTitle = styled.div`
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: ${COLORS.gray[900]};
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`
-
-const CollapsedSubTitle = styled.div`
-  font-size: 0.8125rem;
-  color: ${COLORS.gray[600]};
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`
-
-const CollapsedMetaRow = styled.div`
-  margin-top: 0.375rem;
+/** 접힌 시트: 주주명 · 회사 · 주식수 · 상태를 한 줄(가로 스크롤)로 표시 */
+const CollapsedLineScroll = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  background: ${COLORS.gray[50]};
+  border: 1px solid ${COLORS.gray[200]};
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: ${COLORS.gray[800]};
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: ${COLORS.gray[300]};
+  }
+`
+
+const CollapsedNameStrong = styled.span`
+  flex-shrink: 0;
+  font-weight: 700;
+  color: ${COLORS.gray[900]};
+  white-space: nowrap;
+`
+
+const CollapsedMetaInline = styled.span`
+  flex-shrink: 0;
+  font-weight: 600;
+  color: ${COLORS.gray[700]};
+  white-space: nowrap;
+`
+
+const CollapsedSep = styled.span`
+  flex-shrink: 0;
+  color: ${COLORS.gray[400]};
+  font-weight: 700;
 `
 
 const CollapsedStatusBadge = styled.span<{ status: string }>`
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   min-height: 1.5rem;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: ${({ status }) => {
-    const primary = getPrimaryStatusCategory(status)
-    if (primary === "완료") return COLORS.green[50]
-    if (primary === "보류") return COLORS.yellow[50]
-    if (primary === "실패") return COLORS.red[50]
-    if (primary === "전자투표") return COLORS.purple[50]
-    if (primary === "주주총회") return "#E0F2FE"
-
-    return COLORS.gray[100]
-  }};
-  color: ${({ status }) => {
-    const primary = getPrimaryStatusCategory(status)
-    if (primary === "완료") return COLORS.green[700]
-    if (primary === "보류") return COLORS.yellow[700]
-    if (primary === "실패") return COLORS.red[700]
-    if (primary === "전자투표") return COLORS.purple[700]
-    if (primary === "주주총회") return "#0369A1"
-
-    return COLORS.gray[700]
-  }};
-`
-
-const CollapsedStocks = styled.span`
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: ${COLORS.gray[800]};
+  line-height: 1.25;
   white-space: nowrap;
+  max-width: min(70vw, 16rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: ${({ status }) => getShareholderStatusChipBackground(status)};
+  color: ${({ status }) => getShareholderStatusChipColor(status)};
 `
 
-const GroupSelectTitle = styled.h4`
-  margin: 0 0 0.625rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: ${COLORS.gray[700]};
-`
-
-const MobileExpandedSummary = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+const MarkerSummary = styled.div`
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  margin-bottom: 0.875rem;
-  padding: 0.625rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
   background: ${COLORS.gray[50]};
-  border-radius: 10px;
+  border-radius: 12px;
 `
 
-const MobileExpandedItem = styled.div`
-  min-width: 0;
-`
-
-const SummaryKey = styled.div`
-  font-size: 0.6875rem;
-  color: ${COLORS.gray[500]};
-  margin-bottom: 0.15rem;
-`
-
-const SummaryValue = styled.div`
-  font-size: 0.8125rem;
-  color: ${COLORS.gray[800]};
-  font-weight: 600;
+const SummaryName = styled.div`
+  font-size: 1rem;
+  font-weight: 700;
+  color: ${COLORS.gray[900]};
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `
 
-const SummaryStatus = styled(SummaryValue)`
-  color: ${COLORS.blue[700]};
+const SummaryMetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+`
+
+const SummaryMetaText = styled.span`
+  font-size: 0.875rem;
+  color: ${COLORS.gray[700]};
+  font-weight: 600;
+`
+
+const SummaryMetaDot = styled.span`
+  color: ${COLORS.gray[400]};
+  font-weight: 600;
+`
+
+const SummaryStatus = styled.span<{ status: string }>`
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+  background: ${({ status }) => getShareholderStatusChipBackground(status)};
+  color: ${({ status }) => getShareholderStatusChipColor(status)};
 `
 
 const MobileMarkerTabs = styled.div`
@@ -793,9 +864,9 @@ const MobileSheetFooter = styled.div`
 
 const InfoWindowHeader = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 `
 
 const HeaderTitle = styled.h3`

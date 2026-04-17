@@ -19,10 +19,13 @@ import Select from "@/components/ui/select"
 import { Menu as MenuIcon } from "@mui/icons-material"
 
 const HeaderContainer = styled.header`
+  position: relative;
+  z-index: 20;
   background-color: white;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   flex-shrink: 0;
   padding-top: env(safe-area-inset-top);
+  border-bottom: 1px solid ${COLORS.gray[100]};
 `
 
 const HeaderContent = styled.div`
@@ -31,11 +34,19 @@ const HeaderContent = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 
   @media (max-width: 899px) {
-    padding: 0.75rem 1rem;
-    align-items: flex-start;
+    padding: 0.625rem 1rem 0.75rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "menu title profile"
+      "toolbar toolbar toolbar";
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    flex-wrap: nowrap;
   }
 `
 
@@ -45,6 +56,11 @@ const TitleRow = styled.div`
   gap: 0.5rem;
   min-width: 0;
   flex: 1 1 auto;
+
+  @media (max-width: 899px) {
+    grid-area: title;
+    min-width: 0;
+  }
 `
 
 const MobileMenuButton = styled.button`
@@ -68,6 +84,7 @@ const MobileMenuButton = styled.button`
 
   @media (max-width: 899px) {
     display: inline-flex;
+    grid-area: menu;
   }
 `
 
@@ -80,14 +97,16 @@ const PageTitle = styled.h2`
   line-height: 1.3;
 
   @media (max-width: 899px) {
-    font-size: 1.0625rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 `
 
-const RightSection = styled.div`
+const ToolbarSection = styled.div`
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -97,9 +116,27 @@ const RightSection = styled.div`
   min-width: 0;
 
   @media (max-width: 899px) {
+    grid-area: toolbar;
     width: 100%;
+    flex: none;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: flex-start;
-    gap: 0.5rem 0.75rem;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    margin-top: 0;
+    border-top: 1px solid ${COLORS.gray[100]};
+    flex-wrap: nowrap;
+  }
+`
+
+const ProfileSlot = styled.div`
+  position: relative;
+  flex-shrink: 0;
+
+  @media (max-width: 899px) {
+    grid-area: profile;
+    justify-self: end;
   }
 `
 
@@ -144,10 +181,11 @@ const DropdownMenu = styled.div`
   margin-top: 0.5rem;
   width: 12rem;
   background-color: white;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   padding: 0.25rem;
-  z-index: 10;
+  z-index: 50;
+  border: 1px solid ${COLORS.gray[100]};
 `
 
 const DropdownButton = styled.button<{ isRed?: boolean }>`
@@ -164,12 +202,11 @@ const DropdownButton = styled.button<{ isRed?: boolean }>`
 
 const BreadcrumbContainer = styled.div`
   padding: 0.5rem 1.5rem;
-  background-color: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  border-top: 1px solid #e5e7eb;
+  background-color: ${COLORS.gray[50]};
+  border-bottom: 1px solid ${COLORS.gray[100]};
 
   @media (max-width: 899px) {
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1rem 0.625rem;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     white-space: nowrap;
@@ -177,8 +214,12 @@ const BreadcrumbContainer = styled.div`
 `
 
 const BreadcrumbText = styled.div`
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
 `
 
 const _BreadcrumbLink = styled.span`
@@ -194,10 +235,6 @@ const _NotificationIcon = styled.svg`
   color: ${COLORS.gray[600]};
 `
 
-const ProfileDropdown = styled.div`
-  position: relative;
-`
-
 const ProfileButtonContainer = styled(ProfileButton)`
   display: flex;
   align-items: center;
@@ -207,6 +244,11 @@ const ProfileButtonContainer = styled(ProfileButton)`
 
   &:hover {
     background-color: ${COLORS.gray[100]};
+  }
+
+  @media (max-width: 899px) {
+    padding: 0.35rem;
+    gap: 0;
   }
 `
 
@@ -244,6 +286,10 @@ const DropdownIcon = styled.svg`
   width: 1rem;
   height: 1rem;
   color: ${COLORS.gray[500]};
+
+  @media (max-width: 899px) {
+    display: none;
+  }
 `
 
 const BreadcrumbItem = styled.span`
@@ -268,9 +314,10 @@ const WorkspaceSelectWrapper = styled(Select)`
   min-width: 160px;
 
   @media (max-width: 899px) {
-    flex: 1 1 100%;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
+    flex: none;
   }
 `
 
@@ -287,6 +334,19 @@ const WorkspaceChangeButton = styled.button`
   &:hover {
     text-decoration: underline;
   }
+
+  @media (max-width: 899px) {
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    background: ${COLORS.white};
+    border: 1px solid ${COLORS.gray[200]};
+    border-radius: 0.625rem;
+    text-decoration: none;
+    font-weight: 600;
+    flex: 1 1 auto;
+    min-height: 2.5rem;
+    text-align: center;
+  }
 `
 
 const MapLink = styled(Link)`
@@ -297,6 +357,21 @@ const MapLink = styled(Link)`
 
   &:hover {
     text-decoration: underline;
+  }
+
+  @media (max-width: 899px) {
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    background: ${COLORS.blue[50]};
+    border: 1px solid ${COLORS.blue[100]};
+    border-radius: 0.625rem;
+    text-decoration: none;
+    font-weight: 600;
+    flex: 1 1 auto;
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 `
 
@@ -344,18 +419,18 @@ export default function Header({
   return (
     <HeaderContainer>
       <HeaderContent>
+        {onMobileMenuToggle && (
+          <MobileMenuButton
+            type="button"
+            aria-label={
+              mobileMenuOpen ? "사이드 메뉴 닫기" : "사이드 메뉴 열기"
+            }
+            aria-expanded={mobileMenuOpen}
+            onClick={onMobileMenuToggle}>
+            <MenuIcon sx={{ fontSize: 24 }} />
+          </MobileMenuButton>
+        )}
         <TitleRow>
-          {onMobileMenuToggle && (
-            <MobileMenuButton
-              type="button"
-              aria-label={
-                mobileMenuOpen ? "사이드 메뉴 닫기" : "사이드 메뉴 열기"
-              }
-              aria-expanded={mobileMenuOpen}
-              onClick={onMobileMenuToggle}>
-              <MenuIcon sx={{ fontSize: 24 }} />
-            </MobileMenuButton>
-          )}
           <PageTitle>
             {router.pathname === ADMIN.INTEGRATED && "통합 대시보드"}
             {router.pathname === ADMIN.SIGNUP_REQUESTS && "가입 승인"}
@@ -375,7 +450,7 @@ export default function Header({
           </PageTitle>
         </TitleRow>
 
-        <RightSection>
+        <ToolbarSection>
           {!isIntegratedRoute(router.pathname) && workspaces.length > 1 && (
             <WorkspaceSelectWrapper
               value={currentWorkspace?.id ?? ""}
@@ -403,57 +478,43 @@ export default function Header({
                 지도로 이동
               </MapLink>
             )}
-          {/* 알림 아이콘 */}
-          {/* <IconButton>
-            <NotificationIcon
+        </ToolbarSection>
+
+        <ProfileSlot ref={dropdownRef}>
+          <ProfileButtonContainer
+            onClick={() => setIsProfileOpen(!isProfileOpen)}>
+            <AvatarContainer>
+              <AvatarText>
+                {user?.user?.email?.[0]?.toUpperCase() ?? "?"}
+              </AvatarText>
+            </AvatarContainer>
+            <UserEmail>{user?.user?.email}</UserEmail>
+            <DropdownIcon
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
               viewBox="0 0 24 24"
               stroke="currentColor">
-              <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-            </NotificationIcon>
-          </IconButton> */}
+              <path d="M19 9l-7 7-7-7"></path>
+            </DropdownIcon>
+          </ProfileButtonContainer>
 
-          {/* 프로필 드롭다운 */}
-          <ProfileDropdown ref={dropdownRef}>
-            <ProfileButtonContainer
-              onClick={() => setIsProfileOpen(!isProfileOpen)}>
-              <AvatarContainer>
-                <AvatarText>
-                  {user?.user?.email?.[0]?.toUpperCase() ?? "?"}
-                </AvatarText>
-              </AvatarContainer>
-              <UserEmail>{user?.user?.email}</UserEmail>
-              <DropdownIcon
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path d="M19 9l-7 7-7-7"></path>
-              </DropdownIcon>
-            </ProfileButtonContainer>
-
-            {isProfileOpen && (
-              <DropdownMenu>
-                <DropdownButton
-                  onClick={() => {
-                    setIsProfileOpen(false)
-                    // router.push("/admin/profile")
-                    toast.info("준비 중인 기능입니다.")
-                  }}>
-                  프로필 설정
-                </DropdownButton>
-                <DropdownButton isRed onClick={handleLogout}>
-                  로그아웃
-                </DropdownButton>
-              </DropdownMenu>
-            )}
-          </ProfileDropdown>
-        </RightSection>
+          {isProfileOpen && (
+            <DropdownMenu>
+              <DropdownButton
+                onClick={() => {
+                  setIsProfileOpen(false)
+                  toast.info("준비 중인 기능입니다.")
+                }}>
+                프로필 설정
+              </DropdownButton>
+              <DropdownButton isRed onClick={handleLogout}>
+                로그아웃
+              </DropdownButton>
+            </DropdownMenu>
+          )}
+        </ProfileSlot>
       </HeaderContent>
 
       {/* 현재 경로 표시 (Breadcrumb) */}

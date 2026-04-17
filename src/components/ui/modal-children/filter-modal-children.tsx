@@ -701,17 +701,46 @@ const FilterModalChildren = ({
           <FilterSection>
             <SectionTitle>주식수 (전체 공통)</SectionTitle>
             <HintText>
-              선택한 회사 범위가 있으면 그 회사들의 분포로 구간을 만듭니다. 회사
-              탭에서 회사별 구간을 따로 둘 수 있습니다.
+              선택한 회사 범위가 있으면 그 회사들의 분포로 추천 구간을 만듭니다.
+              회사 탭에서 회사별 구간을 따로 둘 수 있습니다.
             </HintText>
             {!isAdmin && !useListScopedMenu && (
               <HintText style={{ marginTop: "0.35rem" }}>
                 * 현장요원 권한에 따라 회사·상태 목록이 다르게 보일 수 있습니다.
               </HintText>
             )}
+
+            <ManualBlock $first>
+              <ManualTitle>직접 입력</ManualTitle>
+              <ManualRow>
+                <ManualInput
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="최소"
+                  value={manualMin}
+                  onChange={(e) => setManualMin(e.target.value)}
+                />
+                <ManualSep>~</ManualSep>
+                <ManualInput
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="최대"
+                  value={manualMax}
+                  onChange={(e) => setManualMax(e.target.value)}
+                />
+                <ManualAddButton type="button" onClick={addGlobalManualRange}>
+                  구간 추가
+                </ManualAddButton>
+              </ManualRow>
+              <ManualHint>
+                상한을 크게 두려면 최대에 큰 숫자를 입력하세요.
+              </ManualHint>
+            </ManualBlock>
+
             {globalStockRanges.length === 0 ? (
-              <HintText style={{ marginTop: "0.5rem" }}>
-                현재 조건에서 사용할 수 있는 주식수 데이터가 없습니다.
+              <HintText style={{ marginTop: "0.75rem" }}>
+                현재 조건에서 사용할 수 있는 추천 주식수 구간이 없습니다. 위에서
+                직접 구간을 추가해 보세요.
               </HintText>
             ) : (
               <CompanyStockSection>
@@ -752,33 +781,6 @@ const FilterModalChildren = ({
                 </StockRangeWrapper>
               </CompanyStockSection>
             )}
-
-            <ManualBlock>
-              <ManualTitle>직접 입력</ManualTitle>
-              <ManualRow>
-                <ManualInput
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="최소"
-                  value={manualMin}
-                  onChange={(e) => setManualMin(e.target.value)}
-                />
-                <ManualSep>~</ManualSep>
-                <ManualInput
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="최대"
-                  value={manualMax}
-                  onChange={(e) => setManualMax(e.target.value)}
-                />
-                <ManualAddButton type="button" onClick={addGlobalManualRange}>
-                  구간 추가
-                </ManualAddButton>
-              </ManualRow>
-              <ManualHint>
-                상한을 크게 두려면 최대에 큰 숫자를 입력하세요.
-              </ManualHint>
-            </ManualBlock>
           </FilterSection>
         </>
       ) : (
@@ -858,35 +860,8 @@ const FilterModalChildren = ({
                 여기서 고르면 이 회사에는 전체 탭 주식 필터 대신 이 구간만
                 적용됩니다.
               </HintText>
-              {companySpecificRanges.length === 0 ? (
-                <HintText style={{ marginTop: "0.5rem" }}>
-                  이 회사의 주식수 분포를 불러오지 못했습니다.
-                </HintText>
-              ) : (
-                <CompanyStockSection>
-                  <CompanyStockTitle>추천 구간</CompanyStockTitle>
-                  <StockRangeWrapper>
-                    {companySpecificRanges.map((range) => (
-                      <StockRangeButton
-                        key={`${activeCompany}-${range.label}`}
-                        isSelected={profileStockRanges.some(
-                          (s) => s.start === range.start && s.end === range.end,
-                        )}
-                        onClick={() =>
-                          handleCompanyRangeSelect(
-                            activeCompany,
-                            range.start,
-                            range.end,
-                          )
-                        }>
-                        {range.label}
-                      </StockRangeButton>
-                    ))}
-                  </StockRangeWrapper>
-                </CompanyStockSection>
-              )}
 
-              <ManualBlock>
+              <ManualBlock $first>
                 <ManualTitle>직접 입력</ManualTitle>
                 <ManualRow>
                   <ManualInput
@@ -911,6 +886,35 @@ const FilterModalChildren = ({
                   </ManualAddButton>
                 </ManualRow>
               </ManualBlock>
+
+              {companySpecificRanges.length === 0 ? (
+                <HintText style={{ marginTop: "0.75rem" }}>
+                  이 회사의 주식수 분포를 불러오지 못했습니다. 위에서 직접
+                  구간을 추가할 수 있습니다.
+                </HintText>
+              ) : (
+                <CompanyStockSection>
+                  <CompanyStockTitle>추천 구간</CompanyStockTitle>
+                  <StockRangeWrapper>
+                    {companySpecificRanges.map((range) => (
+                      <StockRangeButton
+                        key={`${activeCompany}-${range.label}`}
+                        isSelected={profileStockRanges.some(
+                          (s) => s.start === range.start && s.end === range.end,
+                        )}
+                        onClick={() =>
+                          handleCompanyRangeSelect(
+                            activeCompany,
+                            range.start,
+                            range.end,
+                          )
+                        }>
+                        {range.label}
+                      </StockRangeButton>
+                    ))}
+                  </StockRangeWrapper>
+                </CompanyStockSection>
+              )}
               {profileStockRanges.length > 0 && (
                 <GhostButton
                   type="button"
@@ -930,6 +934,13 @@ const FilterModalChildren = ({
           <ResetButton
             type="button"
             onClick={() => {
+              if (
+                !window.confirm(
+                  "필터 미리보기를 초기화할까요? (지도·대시보드에는 적용하기를 눌러야 반영됩니다.)",
+                )
+              ) {
+                return
+              }
               if (workspaceId) {
                 const keys = getMapStorageKeys(workspaceId)
                 localStorage.setItem(keys.level, "6")
@@ -958,9 +969,9 @@ const FilterModalChildren = ({
 
 const SummarySection = styled.div`
   margin-bottom: 18px;
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 10px;
-  background: ${COLORS.gray[50]};
+  background: #fff;
   border: 1px solid ${COLORS.gray[100]};
 `
 
@@ -1041,11 +1052,11 @@ const FilterContainer = styled.div`
   position: relative;
   height: 100%;
   overflow-y: auto;
-  padding-bottom: 120px;
+  padding-bottom: 28px;
 
   @media (max-width: 768px) {
     padding: 16px;
-    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
   }
 `
 
@@ -1206,8 +1217,8 @@ const StockRangeButton = styled.button<{ isSelected: boolean }>`
   }
 `
 
-const ManualBlock = styled.div`
-  margin-top: 1rem;
+const ManualBlock = styled.div<{ $first?: boolean }>`
+  margin-top: ${(p) => (p.$first ? "0.5rem" : "1rem")};
   padding: 12px;
   border-radius: 10px;
   background: ${COLORS.gray[50]};
@@ -1291,20 +1302,29 @@ const GhostButton = styled.button`
 `
 
 const FooterBar = styled.div`
-  position: sticky;
-  bottom: 0;
-  z-index: 6;
-  margin: 8px -24px -24px;
-  padding: 14px 24px 18px;
-  padding-bottom: max(18px, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #fff 18%);
+  position: relative;
+  z-index: 0;
+  margin: 20px -24px -24px;
+  padding: 16px 24px 20px;
+  background: ${COLORS.gray[50]};
   border-top: 1px solid ${COLORS.gray[100]};
-  box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.06);
+
+  @media (min-width: 769px) {
+    margin-bottom: 0;
+    border-radius: 0 0 8px 8px;
+    box-shadow: none;
+  }
 
   @media (max-width: 768px) {
-    margin: 8px -16px -16px;
-    padding-left: 16px;
-    padding-right: 16px;
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    margin: 12px -16px -16px;
+    padding: 14px 16px 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, #fff 18%);
+    border-top: 1px solid ${COLORS.gray[100]};
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
   }
 `
 

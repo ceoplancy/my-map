@@ -8,6 +8,7 @@ import { useGetUserData, useMyWorkspaces } from "@/api/auth"
 import { toast } from "react-toastify"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
+import { COLORS } from "@/styles/global-style"
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -19,7 +20,7 @@ const LayoutContainer = styled.div`
   display: flex;
   height: 100vh;
   height: 100dvh;
-  background-color: #fff;
+  background-color: ${COLORS.gray[50]};
   position: relative;
 `
 
@@ -34,13 +35,13 @@ const MainContent = styled.main`
   flex: 1;
   overflow-x: hidden;
   overflow-y: auto;
-  background-color: #fff;
+  background-color: ${COLORS.gray[50]};
   padding: 1.5rem;
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 
   @media (max-width: 899px) {
-    padding: 1rem;
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    padding: 1rem 1rem 1.25rem;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
   }
 `
 
@@ -66,11 +67,13 @@ const SidebarShell = styled.aside<{ $mobile: boolean; $open: boolean }>`
     top: 0;
     height: 100%;
     height: 100dvh;
-    max-width: min(18rem, 88vw);
+    max-width: min(19rem, 90vw);
     transform: translateX(${p.$open ? "0" : "-100%"});
-    transition: transform 0.28s ease;
-    box-shadow: ${p.$open ? "8px 0 32px rgba(0,0,0,0.12)" : "none"};
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: ${p.$open ? "12px 0 40px rgba(15, 23, 42, 0.15)" : "none"};
     padding-top: env(safe-area-inset-top);
+    border-radius: 0 1rem 1rem 0;
+    overflow: hidden;
   `
       : `
     position: relative;

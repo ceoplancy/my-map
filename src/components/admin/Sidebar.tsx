@@ -31,14 +31,28 @@ const SidebarContainer = styled.div`
   flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+
+  @media (max-width: 899px) {
+    box-shadow: none;
+    border-right: none;
+    background: linear-gradient(180deg, ${COLORS.gray[50]} 0%, #fff 9rem);
+  }
 `
 
 const LogoContainer = styled.div`
   padding: 1.5rem;
+
+  @media (max-width: 899px) {
+    padding: 1rem 1rem 0.5rem;
+  }
 `
 
 const LogoSection = styled.div`
   padding: 1.5rem;
+
+  @media (max-width: 899px) {
+    padding: 0.75rem 0.5rem;
+  }
 `
 
 const LogoText = styled.h1`
@@ -46,10 +60,22 @@ const LogoText = styled.h1`
   font-weight: 700;
   text-align: center;
   color: ${COLORS.gray[900]};
+
+  @media (max-width: 899px) {
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
 `
 
 const Navigation = styled.nav`
   margin-top: 1.5rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+
+  @media (max-width: 899px) {
+    margin-top: 0.75rem;
+    padding: 0 0.75rem 1rem;
+  }
 `
 
 const NavLink = styled(Link)`
@@ -58,23 +84,35 @@ const NavLink = styled(Link)`
   padding: 0.75rem 1.5rem;
   color: ${COLORS.gray[700]};
   text-decoration: none;
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
   cursor: pointer;
   min-height: 2.75rem;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  border-radius: 0.5rem;
 
   &:hover {
     background-color: ${COLORS.gray[100]};
   }
 
   &.active {
-    background-color: ${COLORS.gray[100]};
+    background-color: ${COLORS.blue[50]};
+    color: ${COLORS.blue[700]};
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 ${COLORS.blue[500]};
   }
 
   @media (max-width: 899px) {
     min-height: 3rem;
-    padding: 0.875rem 1.25rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    margin-bottom: 0.25rem;
+
+    &.active {
+      box-shadow: inset 3px 0 0 ${COLORS.blue[500]};
+    }
   }
 `
 
@@ -90,6 +128,10 @@ const NavIcon = styled.span`
 const NavText = styled.span`
   font-size: 0.875rem;
   font-weight: 500;
+
+  @media (max-width: 899px) {
+    font-size: 0.9375rem;
+  }
 `
 
 const SectionLabel = styled.div`
@@ -99,6 +141,12 @@ const SectionLabel = styled.div`
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: ${COLORS.gray[500]};
+
+  @media (max-width: 899px) {
+    padding: 0.75rem 1rem 0.375rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+  }
 `
 
 const Section = styled.div`
@@ -109,6 +157,11 @@ const Section = styled.div`
 const NavLinkSub = styled(NavLink)`
   padding-left: 2.25rem;
   min-height: 2.25rem;
+
+  @media (max-width: 899px) {
+    padding-left: 1.75rem;
+    min-height: 2.875rem;
+  }
 `
 
 /** 통합 관리(서비스 최고 관리자 전용): 플랫폼 전체 */
