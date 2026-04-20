@@ -177,11 +177,17 @@ const RightSection = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 2rem;
+  min-width: 0;
+  padding: max(2rem, env(safe-area-inset-top))
+    max(2rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom))
+    max(2rem, env(safe-area-inset-left));
   background-color: #ffffff;
 
   @media (max-width: 768px) {
-    padding: 1rem;
+    padding: max(1rem, env(safe-area-inset-top))
+      max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom))
+      max(1rem, env(safe-area-inset-left));
   }
 `
 
@@ -191,6 +197,7 @@ const LoginContainer = styled.div`
   max-width: 400px;
   height: 100%;
   padding: 2rem;
+  box-sizing: border-box;
 
   display: flex;
   flex-direction: column;
@@ -271,6 +278,7 @@ const StyledDotSpinner = styled(DotSpinner)`
 const Footer = styled.footer`
   text-align: center;
   padding: 2rem 0;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
 `
 
 const FooterLinks = styled.div`

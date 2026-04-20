@@ -19,8 +19,18 @@ import { isPlatformAdminMetadata } from "@/lib/auth/platformRole"
 
 const Page = styled.div`
   min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
   background: ${COLORS.background.light};
-  padding: 2rem;
+  padding: max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+
+  @media (min-width: 601px) {
+    padding: 2rem;
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
 `
 
 const Container = styled.div`
