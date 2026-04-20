@@ -1,13 +1,22 @@
-import { useMemo } from "react"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { type ShareholdersParams, useShareholderStats } from "@/api/workspace"
-import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
-import { useFilterStore } from "@/store/filterState"
-import { PRIMARY_STATUS_OPTIONS } from "@/lib/shareholderStatus"
+import {
+  PRIMARY_STATUS_OPTIONS,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
+
+const PRIMARY_HEADER_SHORT: Record<PrimaryStatus, string> = {
+  미방문: "미방문",
+  완료: "완료",
+  보류: "보류",
+  실패: "실패",
+  전자투표: "전자",
+  주주총회: "주총",
+}
 
 export type StatsCardProps = {
-  /** 주주 집계용 파라미터(필터·명부). 지도 뷰포트는 포함하지 않는 것을 권장 */
+  /** 주주 집계용 파라미터. 대시보드는 보통 `listIds`만 넘겨 명부 전체 현황을 봅니다 */
   statsParams: ShareholdersParams
 }
 
@@ -27,15 +36,6 @@ const emptyByPrimary = () => {
 }
 
 const StatsCard = ({ statsParams }: StatsCardProps) => {
-  const {
-    statusPrimaryFilter,
-    companyFilter,
-    cityFilter,
-    stocks,
-    companyStockFilterMap,
-    companyFilterProfiles,
-  } = useFilterStore()
-
   const hasLists = !!(
     statsParams.listId || (statsParams.listIds?.length ?? 0) > 0
   )
@@ -48,8 +48,10 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
     completedShareholders: 0,
     completedStocks: 0,
     byPrimary: emptyByPrimary(),
+    byCompanyPrimary: [],
   }
   const byPrimary = stats.byPrimary ?? emptyByPrimary()
+  const byCompanyPrimary = stats.byCompanyPrimary ?? []
   const isLoading = hasLists ? shareholderLoading : false
 
   const totalH = stats.totalShareholders ?? 0
@@ -62,48 +64,16 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
       ? Math.min(100, Math.round((doneH / totalH) * 1000) / 10)
       : null
 
-  const filterChips = useMemo(
-    () =>
-      getFilterSummaryChips({
-        cityFilter,
-        statusPrimaryFilter,
-        companyFilter,
-        companyFilterProfiles,
-        stocks,
-        companyStockFilterMap,
-      }),
-    [
-      cityFilter,
-      statusPrimaryFilter,
-      companyFilter,
-      companyFilterProfiles,
-      stocks,
-      companyStockFilterMap,
-    ],
-  )
-
   return (
     <Container>
       <HeaderSection>
         <Title>의결권 현황</Title>
         <InfoText>
-          숫자는 선택한 명부 전체를 기준으로 하며, 상단 필터(상태·회사·지역·주식
-          등)만 반영합니다. 지도에 보이는 마커(현재 위치·줌 범위)와 다를 수
-          있습니다. 주주 검색은 지도용이며 집계에는 포함되지 않습니다.
+          노출된 주주명부 전체를 기준으로 합니다. 지도 위치·줌·필터·검색과
+          무관하게 같은 숫자가 유지됩니다. 회사별 표는 1차 상태(미방문·완료 등)
+          인원·주식수입니다.
         </InfoText>
       </HeaderSection>
-
-      {filterChips.length > 0 ? (
-        <FilterChipRow aria-label="적용 중인 필터">
-          {filterChips.map((text, i) => (
-            <FilterChip key={`${text}-${i}`}>{text}</FilterChip>
-          ))}
-        </FilterChipRow>
-      ) : (
-        <FilterHint>
-          적용 중인 필터 없음 · 조건 미선택 = 명부 전체 집계
-        </FilterHint>
-      )}
 
       <KpiRow>
         <KpiCard $variant="neutral">
@@ -137,7 +107,7 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
       )}
 
       <PrimarySection>
-        <PrimaryTitle>1차 상태</PrimaryTitle>
+        <PrimaryTitle>전체 1차 상태</PrimaryTitle>
         <PrimaryScroll>
           {PRIMARY_STATUS_OPTIONS.map((p) => (
             <PrimaryCell key={p}>
@@ -156,6 +126,51 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
           ))}
         </PrimaryScroll>
       </PrimarySection>
+
+      <CompanySection>
+        <CompanyTitle>회사별 1차 상태</CompanyTitle>
+        {!hasLists ? (
+          <CompanyEmpty>노출된 명부가 없습니다.</CompanyEmpty>
+        ) : isLoading ? (
+          <CompanyEmpty>불러오는 중…</CompanyEmpty>
+        ) : byCompanyPrimary.length === 0 ? (
+          <CompanyEmpty>집계할 주주가 없습니다.</CompanyEmpty>
+        ) : (
+          <CompanyTableWrap>
+            <CompanyTable>
+              <thead>
+                <tr>
+                  <Th scope="col">회사</Th>
+                  {PRIMARY_STATUS_OPTIONS.map((p) => (
+                    <Th key={p} scope="col" title={p}>
+                      {PRIMARY_HEADER_SHORT[p]}
+                    </Th>
+                  ))}
+                  <Th scope="col">합(명)</Th>
+                  <Th scope="col">합(주)</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {byCompanyPrimary.map((row) => (
+                  <tr key={row.company}>
+                    <Td $strong>{row.company}</Td>
+                    {PRIMARY_STATUS_OPTIONS.map((p) => (
+                      <Td key={p}>
+                        {(row.byPrimary[p]?.count ?? 0).toLocaleString()}
+                        <CellStocks>
+                          {(row.byPrimary[p]?.stocks ?? 0).toLocaleString()}주
+                        </CellStocks>
+                      </Td>
+                    ))}
+                    <Td $strong>{row.totalShareholders.toLocaleString()}</Td>
+                    <Td $strong>{row.totalStocks.toLocaleString()}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </CompanyTable>
+          </CompanyTableWrap>
+        )}
+      </CompanySection>
     </Container>
   )
 }
@@ -192,32 +207,6 @@ const InfoText = styled.p`
   font-size: 0.75rem;
   color: ${COLORS.gray[600]};
   line-height: 1.45;
-`
-
-const FilterChipRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-`
-
-const FilterChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: ${COLORS.gray[700]};
-  background: ${COLORS.gray[50]};
-  border: 1px solid ${COLORS.gray[200]};
-  max-width: 100%;
-`
-
-const FilterHint = styled.p`
-  margin: 0 0 12px;
-  font-size: 0.6875rem;
-  color: ${COLORS.gray[500]};
 `
 
 const KpiRow = styled.div`
@@ -361,4 +350,95 @@ const PrimaryStocks = styled.div`
   font-weight: 600;
   color: ${COLORS.gray[500]};
   font-variant-numeric: tabular-nums;
+`
+
+const CompanySection = styled.div`
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid ${COLORS.gray[100]};
+`
+
+const CompanyTitle = styled.div`
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: ${COLORS.gray[800]};
+  margin-bottom: 8px;
+`
+
+const CompanyEmpty = styled.p`
+  margin: 0;
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.45;
+`
+
+const CompanyTableWrap = styled.div`
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+  border-radius: 10px;
+`
+
+const CompanyTable = styled.table`
+  width: max(100%, 640px);
+  border-collapse: collapse;
+  font-size: 0.6875rem;
+  background: ${COLORS.gray[50]};
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 10px;
+  overflow: hidden;
+
+  th,
+  td {
+    padding: 6px 5px;
+    text-align: right;
+    border-bottom: 1px solid ${COLORS.gray[200]};
+    vertical-align: top;
+  }
+
+  th:first-of-type,
+  td:first-of-type {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: ${COLORS.gray[50]};
+    box-shadow: 2px 0 4px rgba(15, 23, 42, 0.04);
+    min-width: 6.5rem;
+    max-width: 8.5rem;
+  }
+
+  thead th:first-of-type {
+    z-index: 2;
+    background: ${COLORS.gray[100]};
+  }
+
+  thead th {
+    background: ${COLORS.gray[100]};
+    font-weight: 700;
+    color: ${COLORS.gray[700]};
+    white-space: nowrap;
+    border-bottom: 1px solid ${COLORS.gray[300]};
+  }
+
+  tbody tr:last-of-type td {
+    border-bottom: none;
+  }
+`
+
+const Th = styled.th``
+
+const Td = styled.td<{ $strong?: boolean }>`
+  font-weight: ${(p) => (p.$strong ? 700 : 500)};
+  color: ${(p) => (p.$strong ? COLORS.gray[900] : COLORS.gray[700])};
+  font-variant-numeric: tabular-nums;
+`
+
+const CellStocks = styled.div`
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: ${COLORS.gray[500]};
+  margin-top: 1px;
+  line-height: 1.2;
 `

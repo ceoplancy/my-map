@@ -594,6 +594,13 @@ const getShareholders = async (params: ShareholdersParams) => {
   return rows
 }
 
+export type CompanyPrimaryStatsRow = {
+  company: string
+  byPrimary: Record<PrimaryStatus, { count: number; stocks: number }>
+  totalShareholders: number
+  totalStocks: number
+}
+
 export type ShareholderStats = {
   totalShareholders: number
   totalStocks: number
@@ -602,6 +609,9 @@ export type ShareholderStats = {
 
   /** 필터 적용 후 1차 상태별 집계 */
   byPrimary: Record<PrimaryStatus, { count: number; stocks: number }>
+
+  /** 회사명 기준 1차 상태(동일 필터·쿼리 범위) */
+  byCompanyPrimary: CompanyPrimaryStatsRow[]
 }
 
 const emptyByPrimary = (): Record<
@@ -631,6 +641,7 @@ const getShareholderStats = async (
       completedShareholders: 0,
       completedStocks: 0,
       byPrimary: emptyByPrimary(),
+      byCompanyPrimary: [],
     }
   }
 
@@ -723,11 +734,41 @@ const getShareholderStats = async (
   )
 
   const byPrimary = emptyByPrimary()
+  const companyBuckets = new Map<
+    string,
+    Record<PrimaryStatus, { count: number; stocks: number }>
+  >()
+
   for (const r of rows) {
     const primary = getPrimaryStatusCategory(r.status)
     byPrimary[primary].count += 1
     byPrimary[primary].stocks += Number(r.stocks) || 0
+
+    const companyLabel = (r.company ?? "").trim() || "회사 미입력"
+    if (!companyBuckets.has(companyLabel)) {
+      companyBuckets.set(companyLabel, emptyByPrimary())
+    }
+    const cb = companyBuckets.get(companyLabel)!
+    cb[primary].count += 1
+    cb[primary].stocks += Number(r.stocks) || 0
   }
+
+  const byCompanyPrimary: CompanyPrimaryStatsRow[] = [
+    ...companyBuckets.entries(),
+  ]
+    .map(([company, bp]) => ({
+      company,
+      byPrimary: bp,
+      totalShareholders: PRIMARY_STATUS_OPTIONS.reduce(
+        (sum, p) => sum + bp[p].count,
+        0,
+      ),
+      totalStocks: PRIMARY_STATUS_OPTIONS.reduce(
+        (sum, p) => sum + bp[p].stocks,
+        0,
+      ),
+    }))
+    .sort((a, b) => a.company.localeCompare(b.company, "ko"))
 
   return {
     totalShareholders: rows.length,
@@ -735,6 +776,7 @@ const getShareholderStats = async (
     completedShareholders: completedRows.length,
     completedStocks,
     byPrimary,
+    byCompanyPrimary,
   }
 }
 

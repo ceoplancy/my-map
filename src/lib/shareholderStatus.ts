@@ -13,7 +13,22 @@ export type PrimaryStatus = (typeof PRIMARY_STATUS_OPTIONS)[number]
 
 export const STATUS_DETAIL_OPTIONS: Record<PrimaryStatus, readonly string[]> = {
   미방문: ["미방문"],
-  완료: ["의결권 완료", "신분증 확보", "신분증 추후 수령"],
+
+  /** 구 명부·수기 입력에서 쓰이던 표기까지 포함 (형식 없이 한 줄만 들어온 경우) */
+  완료: [
+    "의결권 완료",
+    "신분증 확보",
+    "신분증 추후 수령",
+    "방문완료",
+    "수집완료",
+    "처리완료",
+    "진행완료",
+    "위임완료",
+    "서명완료",
+    "직접서명완료",
+    "의결완료",
+    "결의완료",
+  ],
   보류: ["거부", "재방문 요청", "부재중"],
   실패: ["완강한 거부", "방문 실패", "주소 오류"],
   전자투표: ["전자투표 완료", "전자투표 의사", "전자투표 의향"],
@@ -54,6 +69,29 @@ export function splitShareholderStatus(raw: string | null | undefined): {
     const detailList = STATUS_DETAIL_OPTIONS[primary]
     if (detailList.includes(status)) {
       return { primary, detail: status }
+    }
+  }
+
+  /** 한 줄 자유 텍스트(구 데이터) — 알려진 세부값 목록에 없을 때만 키워드로 추정 */
+  if (/완강한\s*거부|방문\s*실패|주소\s*오류/.test(status)) {
+    return { primary: "실패", detail: STATUS_DETAIL_OPTIONS["실패"][0] }
+  }
+  if (/전자투표/.test(status)) {
+    return { primary: "전자투표", detail: STATUS_DETAIL_OPTIONS["전자투표"][0] }
+  }
+  if (/주주총회|주총/.test(status)) {
+    return { primary: "주주총회", detail: STATUS_DETAIL_OPTIONS["주주총회"][0] }
+  }
+  if (/(거부|부재중|재방문)/.test(status) && !/완강한\s*거부/.test(status)) {
+    return { primary: "보류", detail: STATUS_DETAIL_OPTIONS["보류"][0] }
+  }
+  if (!/미\s*완료|미완료|미\s*수집/.test(status)) {
+    if (
+      /(의결|위임|신분증|방문|수집|처리|진행|서명|결의|의결권).*완료|완료.*(의결|위임|신분증)/.test(
+        status,
+      )
+    ) {
+      return { primary: "완료", detail: STATUS_DETAIL_OPTIONS["완료"][0] }
     }
   }
 

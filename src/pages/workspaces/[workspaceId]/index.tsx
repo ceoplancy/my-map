@@ -199,35 +199,12 @@ const WorkspaceMapPage = () => {
     debouncedMapSearch,
   ])
 
-  /** 지도 뷰포트·검색 제외: 대시보드 집계는 명부 전체(필터만 동일) */
+  /** 대시보드 의결권·명부 현황: 노출 명부 전체(지도·필터와 무관) */
   const mapStatsParams = useMemo((): ShareholdersParams => {
     return {
       listIds: visibleListIds.length > 0 ? visibleListIds : null,
-      status:
-        statusFilter?.length && !statusPrimaryFilter?.length
-          ? statusFilter
-          : undefined,
-      statusPrimaryFilter:
-        statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
-      company: companyFilter?.length ? companyFilter : undefined,
-      stocks: stocks?.length ? stocks : undefined,
-      companyStockFilterMap,
-      companyFilterProfiles:
-        companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
-          ? companyFilterProfiles
-          : undefined,
-      city: cityFilter || undefined,
     }
-  }, [
-    visibleListIds,
-    statusFilter,
-    statusPrimaryFilter,
-    companyFilter,
-    stocks,
-    companyStockFilterMap,
-    companyFilterProfiles,
-    cityFilter,
-  ])
+  }, [visibleListIds])
 
   const {
     data: shareholderData,
