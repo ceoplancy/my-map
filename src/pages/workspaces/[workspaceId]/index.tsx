@@ -500,8 +500,8 @@ const WorkspaceMapPage = () => {
           onClick={handleMapClick}
           onZoomChanged={handleZoomChange}
           onDragEnd={handleDragEnd}>
-          <MapTypeControl position={"TOPRIGHT"} />
-          <ZoomControl position={"TOPRIGHT"} />
+          <MapTypeControl position={"BOTTOMRIGHT"} />
+          <ZoomControl position={"BOTTOMRIGHT"} />
           {mapMarkers.length > 0 && user && (
             <MultipleMapMarker
               markers={mapMarkers}

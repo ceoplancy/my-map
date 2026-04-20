@@ -87,16 +87,22 @@ export default function RulesAcceptanceGate({ listIds, userId }: Props) {
     queryKey: ["pendingListRules", listIds, userId],
     enabled: !!userId && listIds.length > 0,
     queryFn: async () => {
+      const ids = [
+        ...new Set(listIds.filter((id) => typeof id === "string" && id)),
+      ]
+      if (ids.length === 0) {
+        return null
+      }
       const { data: lists, error: e1 } = await supabase
         .from("shareholder_lists")
         .select("id, name, rules_version")
-        .in("id", listIds)
+        .in("id", ids)
       if (e1) throw e1
       const { data: acc, error: e2 } = await supabase
         .from("list_rules_acceptances")
         .select("list_id, rules_version")
         .eq("user_id", userId as string)
-        .in("list_id", listIds)
+        .in("list_id", ids)
       if (e2) throw e2
       const accepted = new Map(
         (acc ?? []).map((r) => [r.list_id, r.rules_version]),

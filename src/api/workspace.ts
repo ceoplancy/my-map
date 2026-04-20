@@ -63,6 +63,21 @@ function escapePostgrestLikePattern(input: string): string {
   return input.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
 }
 
+/**
+ * 뷰포트 bbox를 PostgREST `and(lat...,lat...,lng...,lng...)` 조각으로 만든다.
+ * `lat=gte&lat=lte`처럼 동일 컬럼 키를 URL에 반복하면 게이트웨이/PostgREST에서 400이 날 수 있어
+ * 단일 `or(and(...))`로 합친다.
+ */
+function viewportBBoxPostgrestFragment(
+  lat: number,
+  lng: number,
+  mapLevel: number,
+): string {
+  const { latRange, lngRange } = getCoordinateRanges(mapLevel)
+
+  return `lat.gte.${lat - latRange},lat.lte.${lat + latRange},lng.gte.${lng - lngRange},lng.lte.${lng + lngRange}`
+}
+
 const getShareholderLists = async (workspaceId: string) => {
   const { data, error } = await supabase
     .from("shareholder_lists")
@@ -524,11 +539,33 @@ const getShareholders = async (params: ShareholdersParams) => {
   if (params.city && !useClientCityForProfiles) {
     query = query.like("address", `%${params.city}%`)
   }
+
+  const searchTrim = params.search?.trim()
+  const bboxFragment =
+    !searchTrim &&
+    params.lat != null &&
+    params.lng != null &&
+    params.mapLevel != null
+      ? viewportBBoxPostgrestFragment(params.lat, params.lng, params.mapLevel)
+      : null
+
   if (params.stocks?.length) {
-    const conditions = params.stocks
-      .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
-      .join(",")
-    query = query.or(conditions)
+    if (bboxFragment) {
+      const conditions = params.stocks
+        .map(
+          (r) =>
+            `and(stocks.gte.${r.start},stocks.lte.${r.end},${bboxFragment})`,
+        )
+        .join(",")
+      query = query.or(conditions)
+    } else {
+      const conditions = params.stocks
+        .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
+        .join(",")
+      query = query.or(conditions)
+    }
+  } else if (bboxFragment) {
+    query = query.or(`and(${bboxFragment})`)
   }
   if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
     const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
@@ -538,7 +575,6 @@ const getShareholders = async (params: ShareholdersParams) => {
     }
   }
 
-  const searchTrim = params.search?.trim()
   if (searchTrim) {
     const q = escapePostgrestLikePattern(searchTrim)
     query = query.or(
@@ -546,18 +582,6 @@ const getShareholders = async (params: ShareholdersParams) => {
     )
   }
 
-  if (
-    !searchTrim &&
-    params.lat != null &&
-    params.lng != null &&
-    params.mapLevel != null
-  ) {
-    const { latRange, lngRange } = getCoordinateRanges(params.mapLevel)
-    query = query.gte("lat", params.lat - latRange)
-    query = query.lte("lat", params.lat + latRange)
-    query = query.gte("lng", params.lng - lngRange)
-    query = query.lte("lng", params.lng + lngRange)
-  }
   const { data, error } = await query
   if (error) {
     reportError(error)
@@ -639,11 +663,33 @@ const getShareholderStats = async (
   if (params.city && !useClientCityForProfiles) {
     query = query.like("address", `%${params.city}%`)
   }
+
+  const statsSearchTrim = params.search?.trim()
+  const statsBboxFragment =
+    !statsSearchTrim &&
+    params.lat != null &&
+    params.lng != null &&
+    params.mapLevel != null
+      ? viewportBBoxPostgrestFragment(params.lat, params.lng, params.mapLevel)
+      : null
+
   if (params.stocks?.length) {
-    const conditions = params.stocks
-      .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
-      .join(",")
-    query = query.or(conditions)
+    if (statsBboxFragment) {
+      const conditions = params.stocks
+        .map(
+          (r) =>
+            `and(stocks.gte.${r.start},stocks.lte.${r.end},${statsBboxFragment})`,
+        )
+        .join(",")
+      query = query.or(conditions)
+    } else {
+      const conditions = params.stocks
+        .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
+        .join(",")
+      query = query.or(conditions)
+    }
+  } else if (statsBboxFragment) {
+    query = query.or(`and(${statsBboxFragment})`)
   }
   if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
     const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
@@ -653,25 +699,11 @@ const getShareholderStats = async (
     }
   }
 
-  const statsSearchTrim = params.search?.trim()
   if (statsSearchTrim) {
     const q = escapePostgrestLikePattern(statsSearchTrim)
     query = query.or(
       `name.ilike.%${q}%,company.ilike.%${q}%,address.ilike.%${q}%,address_original.ilike.%${q}%,latlngaddress.ilike.%${q}%`,
     )
-  }
-
-  if (
-    !statsSearchTrim &&
-    params.lat != null &&
-    params.lng != null &&
-    params.mapLevel != null
-  ) {
-    const { latRange, lngRange } = getCoordinateRanges(params.mapLevel)
-    query = query.gte("lat", params.lat - latRange)
-    query = query.lte("lat", params.lat + latRange)
-    query = query.gte("lng", params.lng - lngRange)
-    query = query.lte("lng", params.lng + lngRange)
   }
 
   const { data, error } = await query
