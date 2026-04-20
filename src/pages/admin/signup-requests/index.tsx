@@ -4,6 +4,7 @@ import styled from "@emotion/styled"
 import {
   fetchAdminSignupRequests,
   patchAdminSignupRequest,
+  deleteAdminUserAccount,
   type AdminSignupRequestRow,
 } from "@/api/nextApi"
 import { getAccessToken } from "@/lib/auth/clientAuth"
@@ -81,13 +82,17 @@ const Badge = styled.span<{ status: string }>`
       ? "#fef3c7"
       : p.status === "approved"
         ? "#d1fae5"
-        : "#fee2e2"};
+        : p.status === "revoked"
+          ? "#e0e7ff"
+          : "#fee2e2"};
   color: ${(p) =>
     p.status === "pending"
       ? "#92400e"
       : p.status === "approved"
         ? "#065f46"
-        : "#991b1b"};
+        : p.status === "revoked"
+          ? "#3730a3"
+          : "#991b1b"};
 `
 
 const EmptyState = styled.p`
@@ -149,7 +154,10 @@ export function SignupRequestsContent({
     fetchRequests()
   }, [fetchRequests])
 
-  const handleAction = async (id: string, action: "approve" | "reject") => {
+  const handleAction = async (
+    id: string,
+    action: "approve" | "reject" | "revoke",
+  ) => {
     const token = await getAccessToken()
     if (!token) return
     setActing(id)
@@ -160,7 +168,37 @@ export function SignupRequestsContent({
 
       return
     }
-    toast.success(action === "approve" ? "승인했습니다." : "반려했습니다.")
+    toast.success(
+      action === "approve"
+        ? "승인했습니다."
+        : action === "reject"
+          ? "반려했습니다."
+          : "승인을 철회했습니다.",
+    )
+    setActing(null)
+    fetchRequests()
+  }
+
+  const handleDeleteUser = async (r: AdminSignupRequestRow) => {
+    if (
+      !r.user_id ||
+      !window.confirm(
+        "이 사용자의 Auth 계정을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?",
+      )
+    ) {
+      return
+    }
+    const token = await getAccessToken()
+    if (!token) return
+    setActing(r.id)
+    const result = await deleteAdminUserAccount(token, r.user_id)
+    if (!result.ok) {
+      toast.error(result.message)
+      setActing(null)
+
+      return
+    }
+    toast.success("계정을 삭제했습니다.")
     setActing(null)
     fetchRequests()
   }
@@ -218,7 +256,9 @@ export function SignupRequestsContent({
                           ? "대기"
                           : r.status === "approved"
                             ? "승인"
-                            : "반려"}
+                            : r.status === "revoked"
+                              ? "철회"
+                              : "반려"}
                       </Badge>
                     </Td>
                     <Td>
@@ -239,6 +279,32 @@ export function SignupRequestsContent({
                             onClick={() => handleAction(r.id, "reject")}>
                             반려
                           </SmallButton>
+                        </ButtonGroup>
+                      )}
+                      {r.status === "approved" && (
+                        <ButtonGroup>
+                          <SmallButton
+                            variant="danger"
+                            disabled={acting === r.id}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  "승인을 철회하면 해당 사용자의 워크스페이스 접근 권한이 제거됩니다.",
+                                )
+                              ) {
+                                void handleAction(r.id, "revoke")
+                              }
+                            }}>
+                            승인 철회
+                          </SmallButton>
+                          {r.user_id ? (
+                            <SmallButton
+                              variant="danger"
+                              disabled={acting === r.id}
+                              onClick={() => handleDeleteUser(r)}>
+                              계정 삭제
+                            </SmallButton>
+                          ) : null}
                         </ButtonGroup>
                       )}
                     </Td>

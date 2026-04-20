@@ -1,14 +1,14 @@
 import { useMemo } from "react"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useShareholderStats } from "@/api/workspace"
+import { type ShareholdersParams, useShareholderStats } from "@/api/workspace"
 import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
 import { useFilterStore } from "@/store/filterState"
 import { PRIMARY_STATUS_OPTIONS } from "@/lib/shareholderStatus"
 
 export type StatsCardProps = {
-  /** 지도 페이지: 현재 워크스페이스 노출 명부 기준 집계 (shareholders) */
-  listIds: string[]
+  /** 지도와 동일 파라미터(뷰포트·검색·필터)로 집계 */
+  statsParams: ShareholdersParams
 }
 
 const emptyByPrimary = () => {
@@ -26,9 +26,8 @@ const emptyByPrimary = () => {
   return o
 }
 
-const StatsCard = ({ listIds }: StatsCardProps) => {
+const StatsCard = ({ statsParams }: StatsCardProps) => {
   const {
-    statusFilter,
     statusPrimaryFilter,
     companyFilter,
     cityFilter,
@@ -37,25 +36,11 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
     companyFilterProfiles,
   } = useFilterStore()
 
-  const hasLists = listIds.length > 0
+  const hasLists = !!(
+    statsParams.listId || (statsParams.listIds?.length ?? 0) > 0
+  )
   const { data: shareholderStats, isLoading: shareholderLoading } =
-    useShareholderStats({
-      listIds: hasLists ? listIds : null,
-      status:
-        statusFilter?.length && !statusPrimaryFilter?.length
-          ? statusFilter
-          : undefined,
-      statusPrimaryFilter:
-        statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
-      company: companyFilter?.length ? companyFilter : undefined,
-      city: cityFilter || undefined,
-      stocks: stocks?.length ? stocks : undefined,
-      companyStockFilterMap,
-      companyFilterProfiles:
-        companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
-          ? companyFilterProfiles
-          : undefined,
-    })
+    useShareholderStats(statsParams)
 
   const stats = shareholderStats ?? {
     totalShareholders: 0,
@@ -102,8 +87,9 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
       <HeaderSection>
         <Title>의결권 현황</Title>
         <InfoText>
-          아래 숫자는 현재 지도 필터가 적용된 집계입니다. 필터를 바꾼 뒤
-          적용하면 함께 갱신됩니다.
+          필터를 아무 것도 고르지 않으면 1차 상태·회사·지역 등 제한 없이
+          집계합니다. 지도와 동일하게 현재 지도 중심·줌(또는 주주 검색 시 검색
+          조건)이 반영됩니다. 필터를 바꾼 뒤 적용하면 함께 갱신됩니다.
         </InfoText>
       </HeaderSection>
 
@@ -114,7 +100,9 @@ const StatsCard = ({ listIds }: StatsCardProps) => {
           ))}
         </FilterChipRow>
       ) : (
-        <FilterHint>적용 중인 필터 없음 · 명부 전체 기준</FilterHint>
+        <FilterHint>
+          적용 중인 필터 없음 · 조건 미선택 = 전체(명부·지도 화면과 동일 범위)
+        </FilterHint>
       )}
 
       <KpiRow>

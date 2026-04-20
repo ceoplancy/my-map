@@ -416,6 +416,35 @@ export const useCreateAdminWorkspace = () => {
   })
 }
 
+const deleteAdminWorkspace = async (workspaceId: string): Promise<void> => {
+  await adminJsonOrThrow(
+    (headers) =>
+      apiClient.delete(
+        `/api/admin/workspaces/${encodeURIComponent(workspaceId)}`,
+        {
+          headers,
+        },
+      ),
+    "워크스페이스 삭제에 실패했습니다.",
+  )
+}
+
+export const useDeleteAdminWorkspace = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: deleteAdminWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkspaces"] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.myWorkspaces })
+      toast.success("워크스페이스를 삭제했습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "워크스페이스 삭제에 실패했습니다.")
+    },
+  })
+}
+
 // 사용자 권한 설정 (서버 API 경유, user_metadata.role)
 export const setUserRole = async (
   userId: string,

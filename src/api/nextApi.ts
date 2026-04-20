@@ -108,6 +108,7 @@ export type AdminSignupRequestRow = {
   workspace_name: string
   status: string
   created_at: string
+  user_id?: string | null
 }
 
 export type FetchAdminSignupRequestsResult =
@@ -145,7 +146,7 @@ export async function fetchAdminSignupRequests(
 export async function patchAdminSignupRequest(
   token: string,
   id: string,
-  action: "approve" | "reject",
+  action: "approve" | "reject" | "revoke",
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const res = await axiosWithBearerRetry(token, (t) =>
     apiClient.patch(
@@ -158,6 +159,26 @@ export async function patchAdminSignupRequest(
     return {
       ok: false,
       message: jsonErrorMessageFromResponse(res, "처리에 실패했습니다."),
+    }
+  }
+
+  return { ok: true }
+}
+
+/** DELETE /api/admin/users/:id — 서비스 관리자만 */
+export async function deleteAdminUserAccount(
+  token: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const res = await axiosWithBearerRetry(token, (t) =>
+    apiClient.delete(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      headers: bearerHeaders(t),
+    }),
+  )
+  if (!isHttpOk(res.status)) {
+    return {
+      ok: false,
+      message: jsonErrorMessageFromResponse(res, "삭제에 실패했습니다."),
     }
   }
 

@@ -462,8 +462,11 @@ const getShareholders = async (params: ShareholdersParams) => {
     params.companyFilterProfiles,
   )
 
-  if (params.status?.length && !useClientStatusOrProfiles) {
-    query = query.in("status", params.status)
+  const statusForQueryGet = params.status?.filter(
+    (s) => s != null && String(s).trim() !== "",
+  )
+  if (statusForQueryGet?.length && !useClientStatusOrProfiles) {
+    query = query.in("status", statusForQueryGet)
   }
   if (params.company?.length) {
     query = query.in("company", params.company)
@@ -575,11 +578,16 @@ const getShareholderStats = async (
     params.companyFilterProfiles,
   )
 
-  if (params.status?.length && !useClientStatusOrProfiles) {
-    query = query.in("status", params.status)
+  const statusForQuery =
+    params.status?.filter((s) => s != null && String(s).trim() !== "") ?? []
+  if (statusForQuery.length && !useClientStatusOrProfiles) {
+    query = query.in("status", statusForQuery)
   }
   if (params.company?.length) {
     query = query.in("company", params.company)
+  }
+  if (params.maker) {
+    query = query.eq("maker", params.maker)
   }
   if (params.city && !useClientCityForProfiles) {
     query = query.like("address", `%${params.city}%`)
@@ -604,6 +612,19 @@ const getShareholderStats = async (
     query = query.or(
       `name.ilike.%${q}%,company.ilike.%${q}%,address.ilike.%${q}%,address_original.ilike.%${q}%,latlngaddress.ilike.%${q}%`,
     )
+  }
+
+  if (
+    !statsSearchTrim &&
+    params.lat != null &&
+    params.lng != null &&
+    params.mapLevel != null
+  ) {
+    const { latRange, lngRange } = getCoordinateRanges(params.mapLevel)
+    query = query.gte("lat", params.lat - latRange)
+    query = query.lte("lat", params.lat + latRange)
+    query = query.gte("lng", params.lng - lngRange)
+    query = query.lte("lng", params.lng + lngRange)
   }
 
   const { data, error } = await query
@@ -649,10 +670,14 @@ export const useShareholderStats = (params: ShareholdersParams) => {
       params.status,
       params.statusPrimaryFilter,
       params.company,
+      params.maker,
       params.city,
       params.stocks,
       params.companyStockFilterMap,
       params.companyFilterProfiles,
+      params.lat,
+      params.lng,
+      params.mapLevel,
       params.search,
       params.photoFilter,
       params.geocodeStatusFilter,

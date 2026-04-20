@@ -47,6 +47,13 @@ export default function HomeRedirect() {
     signupStatus &&
     signupStatus.status === "rejected"
 
+  const revokedApproval =
+    user?.user &&
+    !signupStatusLoading &&
+    !legacyAdmin &&
+    signupStatus &&
+    signupStatus.status === "revoked"
+
   useEffect(() => {
     if (isLoading || !router.isReady) return
     if (!user?.user) {
@@ -54,7 +61,7 @@ export default function HomeRedirect() {
 
       return
     }
-    if (pendingApproval || rejectedApproval) return
+    if (pendingApproval || rejectedApproval || revokedApproval) return
     if (!currentWorkspace) {
       router.replace("/workspaces")
 
@@ -68,6 +75,7 @@ export default function HomeRedirect() {
     currentWorkspace,
     pendingApproval,
     rejectedApproval,
+    revokedApproval,
   ])
 
   if (pendingApproval) {
@@ -93,6 +101,21 @@ export default function HomeRedirect() {
           <PendingText>
             가입 신청이 반려되었습니다. 문의가 필요하시면 운영사에 연락해
             주세요.
+          </PendingText>
+          <LogoutButton onClick={() => logout()}>로그아웃</LogoutButton>
+        </PendingCard>
+      </PendingContainer>
+    )
+  }
+
+  if (revokedApproval) {
+    return (
+      <PendingContainer>
+        <PendingCard>
+          <PendingTitle>이용 권한이 철회되었습니다</PendingTitle>
+          <PendingText>
+            관리자에 의해 가입 승인이 철회되었습니다. 계속 이용하려면 운영사에
+            문의해 주세요.
           </PendingText>
           <LogoutButton onClick={() => logout()}>로그아웃</LogoutButton>
         </PendingCard>

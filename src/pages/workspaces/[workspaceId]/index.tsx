@@ -26,6 +26,7 @@ import {
   useVisibleListIds,
   useShareholders,
   useWorkspaceMembers,
+  type ShareholdersParams,
 } from "@/api/workspace"
 import Modal from "@/components/ui/modal"
 import GlobalSpinner from "@/components/ui/global-spinner"
@@ -57,7 +58,6 @@ const WorkspaceMapPage = () => {
     useMySignupStatus()
   const hasWorkspace = Array.isArray(workspaces) && workspaces.length > 0
   const legacyAdmin = String(user?.user_metadata?.role).includes("admin")
-  const isAdmin = legacyAdmin || hasWorkspace
   const { data: adminStatus } = useAdminStatus()
   const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
   const pendingApproval =
@@ -68,6 +68,13 @@ const WorkspaceMapPage = () => {
     !legacyAdmin &&
     signupStatus &&
     signupStatus.status === "pending"
+
+  const revokedApproval =
+    user &&
+    !signupStatusLoading &&
+    !legacyAdmin &&
+    signupStatus &&
+    signupStatus.status === "revoked"
 
   const resolvedWorkspace =
     workspaceId && Array.isArray(workspaces)
@@ -114,6 +121,9 @@ const WorkspaceMapPage = () => {
   const [mapSearchInput, setMapSearchInput] = useState("")
   const [debouncedMapSearch, setDebouncedMapSearch] = useState("")
   const [mapSearchOpen, setMapSearchOpen] = useState(false)
+
+  /** 대시보드에서만 켜는 검색 — 꺼두면 API `search` 미적용(지도 끊김 완화) */
+  const [mapSearchPanelOpen, setMapSearchPanelOpen] = useState(false)
   const [highlightShareholderId, setHighlightShareholderId] = useState<
     string | null
   >(null)
@@ -149,31 +159,52 @@ const WorkspaceMapPage = () => {
     isServiceAdmin ||
     (!!myMember && ["top_admin", "admin"].includes(myMember.role))
 
+  const shareholderParams = useMemo((): ShareholdersParams => {
+    return {
+      listIds: visibleListIds.length > 0 ? visibleListIds : null,
+      status:
+        statusFilter?.length && !statusPrimaryFilter?.length
+          ? statusFilter
+          : undefined,
+      statusPrimaryFilter:
+        statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
+      company: companyFilter?.length ? companyFilter : undefined,
+      stocks: stocks?.length ? stocks : undefined,
+      companyStockFilterMap,
+      companyFilterProfiles:
+        companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
+          ? companyFilterProfiles
+          : undefined,
+      city: cityFilter || undefined,
+      lat: currCenter.lat,
+      lng: currCenter.lng,
+      mapLevel,
+      search:
+        mapSearchPanelOpen && debouncedMapSearch.trim()
+          ? debouncedMapSearch
+          : undefined,
+    }
+  }, [
+    visibleListIds,
+    statusFilter,
+    statusPrimaryFilter,
+    companyFilter,
+    stocks,
+    companyStockFilterMap,
+    companyFilterProfiles,
+    cityFilter,
+    currCenter.lat,
+    currCenter.lng,
+    mapLevel,
+    mapSearchPanelOpen,
+    debouncedMapSearch,
+  ])
+
   const {
     data: shareholderData,
     refetch: shareholderRefetch,
     isLoading: shareholdersLoading,
-  } = useShareholders({
-    listIds: visibleListIds.length > 0 ? visibleListIds : null,
-    status:
-      statusFilter?.length && !statusPrimaryFilter?.length
-        ? statusFilter
-        : undefined,
-    statusPrimaryFilter:
-      statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
-    company: companyFilter?.length ? companyFilter : undefined,
-    stocks: stocks?.length ? stocks : undefined,
-    companyStockFilterMap,
-    companyFilterProfiles:
-      companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
-        ? companyFilterProfiles
-        : undefined,
-    city: cityFilter || undefined,
-    lat: currCenter.lat,
-    lng: currCenter.lng,
-    mapLevel,
-    search: debouncedMapSearch || undefined,
-  })
+  } = useShareholders(shareholderParams)
 
   const mapMarkers = useMemo(() => shareholderData ?? [], [shareholderData])
   const mapMarkersRefetch = shareholderRefetch
@@ -226,13 +257,22 @@ const WorkspaceMapPage = () => {
   )
 
   useEffect(() => {
+    if (!mapSearchPanelOpen) return
     const t = window.setTimeout(
       () => setDebouncedMapSearch(mapSearchInput.trim()),
       400,
     )
 
     return () => window.clearTimeout(t)
-  }, [mapSearchInput])
+  }, [mapSearchInput, mapSearchPanelOpen])
+
+  const closeMapSearchPanel = useCallback(() => {
+    setMapSearchPanelOpen(false)
+    setMapSearchInput("")
+    setDebouncedMapSearch("")
+    setMapSearchOpen(false)
+    setHighlightShareholderId(null)
+  }, [])
 
   const debouncedMapUpdate = useMemo(
     () =>
@@ -370,6 +410,21 @@ const WorkspaceMapPage = () => {
     )
   }
 
+  if (revokedApproval) {
+    return (
+      <PendingContainer>
+        <PendingCard>
+          <PendingTitle>이용 권한이 철회되었습니다</PendingTitle>
+          <PendingText>
+            관리자에 의해 가입 승인이 철회되었습니다. 계속 이용하려면 운영사에
+            문의해 주세요.
+          </PendingText>
+          <LogoutButton onClick={() => logout()}>로그아웃</LogoutButton>
+        </PendingCard>
+      </PendingContainer>
+    )
+  }
+
   const resolvingWorkspace =
     !router.isReady ||
     !workspaceId ||
@@ -415,8 +470,8 @@ const WorkspaceMapPage = () => {
           onClick={handleMapClick}
           onZoomChanged={handleZoomChange}
           onDragEnd={handleDragEnd}>
-          <MapTypeControl position={"BOTTOMRIGHT"} />
-          <ZoomControl position={"BOTTOMRIGHT"} />
+          <MapTypeControl position={"TOPRIGHT"} />
+          <ZoomControl position={"TOPRIGHT"} />
           {mapMarkers.length > 0 && user && (
             <MultipleMapMarker
               markers={mapMarkers}
@@ -424,54 +479,62 @@ const WorkspaceMapPage = () => {
             />
           )}
 
-          <MapSearchWrap data-map-search>
-            <MapSearchInner>
-              <SearchIcon
-                sx={{ color: COLORS.gray[500], fontSize: 20 }}
-                aria-hidden
-              />
-              <MapSearchInput
-                type="search"
-                value={mapSearchInput}
-                onChange={(e) => {
-                  setMapSearchInput(e.target.value)
-                  setMapSearchOpen(true)
-                  if (!e.target.value.trim()) setHighlightShareholderId(null)
-                }}
-                onFocus={() => setMapSearchOpen(true)}
-                placeholder="이름·회사·주소 검색…"
-                aria-label="주주 검색"
-                autoComplete="off"
-              />
-            </MapSearchInner>
-            {mapSearchOpen && debouncedMapSearch.trim() && (
-              <MapSearchResults role="listbox" aria-label="검색 결과">
-                {mapSearchHits.length === 0 ? (
-                  <MapSearchEmpty>검색 결과가 없습니다.</MapSearchEmpty>
-                ) : (
-                  mapSearchHits.map((m) => (
-                    <MapSearchHitRow
-                      key={m.id}
-                      type="button"
-                      role="option"
-                      onClick={() => flyToShareholder(m)}>
-                      <span>
-                        {[m.company, m.name].filter(Boolean).join(" · ") ||
-                          "이름 없음"}
-                      </span>
-                      <small>{m.address ?? m.latlngaddress ?? ""}</small>
-                    </MapSearchHitRow>
-                  ))
-                )}
-                {mapSearchHits.length > 0 ? (
-                  <MapSearchHint>
-                    현재 필터·지도 조건이 적용된 주주 목록에서 최대 40건까지
-                    표시됩니다.
-                  </MapSearchHint>
-                ) : null}
-              </MapSearchResults>
-            )}
-          </MapSearchWrap>
+          {mapSearchPanelOpen ? (
+            <MapSearchWrap data-map-search>
+              <MapSearchInner>
+                <SearchIcon
+                  sx={{ color: COLORS.gray[500], fontSize: 20 }}
+                  aria-hidden
+                />
+                <MapSearchInput
+                  type="search"
+                  value={mapSearchInput}
+                  onChange={(e) => {
+                    setMapSearchInput(e.target.value)
+                    setMapSearchOpen(true)
+                    if (!e.target.value.trim()) setHighlightShareholderId(null)
+                  }}
+                  onFocus={() => setMapSearchOpen(true)}
+                  placeholder="이름·회사·주소 검색…"
+                  aria-label="주주 검색"
+                  autoComplete="off"
+                />
+                <MapSearchClose
+                  type="button"
+                  aria-label="검색 닫기"
+                  onClick={closeMapSearchPanel}>
+                  <ClearIcon sx={{ fontSize: 20 }} />
+                </MapSearchClose>
+              </MapSearchInner>
+              {mapSearchOpen && debouncedMapSearch.trim() && (
+                <MapSearchResults role="listbox" aria-label="검색 결과">
+                  {mapSearchHits.length === 0 ? (
+                    <MapSearchEmpty>검색 결과가 없습니다.</MapSearchEmpty>
+                  ) : (
+                    mapSearchHits.map((m) => (
+                      <MapSearchHitRow
+                        key={m.id}
+                        type="button"
+                        role="option"
+                        onClick={() => flyToShareholder(m)}>
+                        <span>
+                          {[m.company, m.name].filter(Boolean).join(" · ") ||
+                            "이름 없음"}
+                        </span>
+                        <small>{m.address ?? m.latlngaddress ?? ""}</small>
+                      </MapSearchHitRow>
+                    ))
+                  )}
+                  {mapSearchHits.length > 0 ? (
+                    <MapSearchHint>
+                      현재 필터·지도 조건이 적용된 주주 목록에서 최대 40건까지
+                      표시됩니다.
+                    </MapSearchHint>
+                  ) : null}
+                </MapSearchResults>
+              )}
+            </MapSearchWrap>
+          ) : null}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
@@ -485,8 +548,12 @@ const WorkspaceMapPage = () => {
           <SideMenu isVisible={isVisibleMenu}>
             <MenuHeader>
               <MenuTitle>대시보드</MenuTitle>
-              <CloseButton onClick={() => setIsVisibleMenu(false)}>
-                <ClearIcon />
+              <CloseButton
+                type="button"
+                onClick={() => setIsVisibleMenu(false)}
+                aria-label="대시보드 닫기">
+                <ClearIcon sx={{ fontSize: 18 }} />
+                닫기
               </CloseButton>
             </MenuHeader>
             <FilterDashboardSummary aria-label="적용 중인 필터 요약">
@@ -503,7 +570,7 @@ const WorkspaceMapPage = () => {
                 )}
               </FilterSummaryChipsWrap>
             </FilterDashboardSummary>
-            <StatsCard listIds={visibleListIds} />
+            <StatsCard statsParams={shareholderParams} />
             {hasWorkspace && visibleListIds.length === 0 && (
               <EmptyWorkspaceHint>
                 이 워크스페이스에 노출된 주주명부가 없습니다. 관리자 화면에서
@@ -513,6 +580,14 @@ const WorkspaceMapPage = () => {
             <MenuHighlightItem onClick={() => setIsFilterModalOpen(true)}>
               <FilterAlt />
               필터 설정
+            </MenuHighlightItem>
+            <MenuHighlightItem
+              onClick={() => {
+                setMapSearchPanelOpen(true)
+                setIsVisibleMenu(false)
+              }}>
+              <SearchIcon />
+              주주 검색
             </MenuHighlightItem>
             <MenuItem onClick={handleReset} style={{ color: COLORS.red[600] }}>
               <RestartAlt />
@@ -558,10 +633,12 @@ const WorkspaceMapPage = () => {
               <ListIcon />
               활동 기록
             </MenuItem>
-            <MenuItem onClick={() => router.push(ROUTES.workspaces)}>
-              <ListIcon />
-              워크스페이스 목록
-            </MenuItem>
+            {isWorkspaceAdmin && (
+              <MenuItem onClick={() => router.push(ROUTES.workspaces)}>
+                <ListIcon />
+                워크스페이스 목록
+              </MenuItem>
+            )}
             {isWorkspaceAdmin && (
               <MenuItem
                 onClick={() =>
@@ -578,7 +655,7 @@ const WorkspaceMapPage = () => {
                 워크스페이스 관리
               </MenuItem>
             )}
-            {isAdmin && (
+            {isWorkspaceAdmin && (
               <MenuItem
                 onClick={() =>
                   router.push(
@@ -640,8 +717,27 @@ const MapSearchInner = styled.div`
   gap: 0.5rem;
   background: white;
   border-radius: 9999px;
-  padding: 0.35rem 0.75rem 0.35rem 0.65rem;
+  padding: 0.35rem 0.35rem 0.35rem 0.65rem;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+`
+
+const MapSearchClose = styled.button`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: ${COLORS.gray[500]};
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  &:hover {
+    background: ${COLORS.gray[100]};
+    color: ${COLORS.gray[700]};
+  }
 `
 
 const MapSearchInput = styled.input`
@@ -765,41 +861,32 @@ const MenuOverlay = styled.div<{ isVisible: boolean }>`
 
 const SideMenu = styled.div<{ isVisible: boolean }>`
   position: fixed;
-  top: 80px;
-  left: 20px;
-  width: 320px;
-  height: auto;
-  max-height: calc(100vh - 100px);
-  max-height: calc(100dvh - 100px);
+  inset: 0;
+  z-index: 11;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
   background: white;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  padding: 24px;
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
-  border-radius: 16px;
+  box-shadow: none;
+  padding: max(1rem, env(safe-area-inset-top))
+    max(1.25rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
+  border-radius: 0;
   opacity: ${(props) => (props.isVisible ? 1 : 0)};
   visibility: ${(props) => (props.isVisible ? "visible" : "hidden")};
-  transform: translateX(${(props) => (props.isVisible ? "0" : "-20px")});
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 11;
+  transform: ${(props) =>
+    props.isVisible ? "translateY(0)" : "translateY(-10px)"};
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    visibility 0.25s;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
-
-  @media (max-width: 768px) {
-    top: max(3.5rem, calc(env(safe-area-inset-top) + 3rem));
-    bottom: auto;
-    left: max(0.5rem, env(safe-area-inset-left));
-    right: max(0.5rem, env(safe-area-inset-right));
-    width: auto;
-    max-height: min(72vh, calc(100dvh - env(safe-area-inset-top) - 4rem));
-    border-radius: 0 0 16px 16px;
-    transform: translateY(${(props) => (props.isVisible ? "0" : "-120%")});
-    padding: 20px;
-    padding-bottom: max(20px, env(safe-area-inset-bottom));
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
-  }
 `
 
 const FilterDashboardSummary = styled.div`
@@ -865,21 +952,23 @@ const MenuTitle = styled.h2`
 const CloseButton = styled.button`
   background: none;
   border: none;
-  color: ${COLORS.gray[500]};
+  color: ${COLORS.gray[700]};
   cursor: pointer;
-  min-width: 2.75rem;
   min-height: 2.75rem;
-  padding: 8px;
+  padding: 8px 12px;
   border-radius: 8px;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
   -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: ${COLORS.gray[100]};
-    color: ${COLORS.gray[700]};
+    color: ${COLORS.gray[900]};
   }
 `
 

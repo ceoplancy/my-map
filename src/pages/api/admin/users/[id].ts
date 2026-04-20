@@ -3,6 +3,7 @@ import {
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
 import { getAuthUserFromApiRequest, isServiceAdmin } from "@/lib/api-auth"
+import { insertPlatformAuditLog } from "@/lib/server/platformAuditLog"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 async function isRootAdmin(accessToken: string): Promise<boolean> {
@@ -73,6 +74,13 @@ export default withApiHandler(async (req, res) => {
   if (req.method === "DELETE") {
     const { error } = await admin.auth.admin.deleteUser(id)
     if (error) return res.status(500).json({ error: error.message })
+
+    await insertPlatformAuditLog(admin, {
+      actor_user_id: auth.user.id,
+      action: "auth_user.delete",
+      resource_type: "auth_user",
+      resource_id: id,
+    })
 
     return res.status(200).json({ success: true })
   }

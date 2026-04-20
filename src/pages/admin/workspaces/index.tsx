@@ -2,6 +2,7 @@ import AdminLayout from "@/layouts/AdminLayout"
 import {
   useAdminWorkspaces,
   useCreateAdminWorkspace,
+  useDeleteAdminWorkspace,
   type AdminWorkspaceItem,
 } from "@/api/supabase"
 import { useAdminStatus } from "@/api/auth"
@@ -12,6 +13,7 @@ import { useState } from "react"
 import type { AccountType } from "@/types/db"
 import { toast } from "react-toastify"
 import Link from "next/link"
+import { useRouter } from "next/router"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
 
@@ -195,9 +197,11 @@ const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
 }
 
 export default function AdminWorkspacesPage() {
+  const router = useRouter()
   const { data: adminStatus, isLoading: adminStatusLoading } = useAdminStatus()
   const { data: workspaces = [], isLoading } = useAdminWorkspaces()
   const createWorkspace = useCreateAdminWorkspace()
+  const deleteWorkspace = useDeleteAdminWorkspace()
   const [, setCurrentWorkspace] = useCurrentWorkspace()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [name, setName] = useState("")
@@ -215,6 +219,22 @@ export default function AdminWorkspacesPage() {
         </Container>
       </AdminLayout>
     )
+  }
+
+  const handleOpenMap = (ws: AdminWorkspaceItem) => {
+    setCurrentWorkspace(ws)
+    void router.push(`/workspaces/${ws.id}`)
+  }
+
+  const handleDelete = (ws: AdminWorkspaceItem) => {
+    if (
+      !window.confirm(
+        `워크스페이스「${ws.name}」와 연결된 명부·주주 데이터가 함께 삭제됩니다. 계속할까요?`,
+      )
+    ) {
+      return
+    }
+    deleteWorkspace.mutate(ws.id)
   }
 
   const handleCreate = (e: React.FormEvent) => {
@@ -269,6 +289,7 @@ export default function AdminWorkspacesPage() {
                   <Th>이름</Th>
                   <Th>계정 유형</Th>
                   <Th>생성일</Th>
+                  <Th style={{ minWidth: "11rem" }}>작업</Th>
                 </tr>
               </thead>
               <tbody>
@@ -282,6 +303,48 @@ export default function AdminWorkspacesPage() {
                       {ws.created_at
                         ? new Date(ws.created_at).toLocaleDateString("ko-KR")
                         : "-"}
+                    </Td>
+                    <Td>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "0.5rem",
+                          alignItems: "center",
+                        }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenMap(ws)}
+                          style={{
+                            padding: "0.35rem 0.65rem",
+                            borderRadius: "0.5rem",
+                            border: `1px solid ${COLORS.gray[300]}`,
+                            background: "white",
+                            cursor: "pointer",
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color: COLORS.blue[600],
+                          }}>
+                          지도로 열기
+                        </button>
+                        <button
+                          type="button"
+                          disabled={deleteWorkspace.isPending}
+                          onClick={() => handleDelete(ws)}
+                          style={{
+                            padding: "0.35rem 0.65rem",
+                            borderRadius: "0.5rem",
+                            border: "none",
+                            background: COLORS.red[600],
+                            cursor: "pointer",
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color: "white",
+                            opacity: deleteWorkspace.isPending ? 0.6 : 1,
+                          }}>
+                          삭제
+                        </button>
+                      </div>
                     </Td>
                   </tr>
                 ))}

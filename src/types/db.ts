@@ -205,6 +205,36 @@ export type Database = {
           },
         ]
       }
+      platform_audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          resource_id: string | null
+          resource_type: string
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          resource_id?: string | null
+          resource_type: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          resource_id?: string | null
+          resource_type?: string
+        }
+        Relationships: []
+      }
       resource_requests: {
         Row: {
           created_at: string
@@ -521,7 +551,7 @@ export type Database = {
     }
     Enums: {
       account_type: "listed_company" | "proxy_company"
-      signup_request_status: "pending" | "approved" | "rejected"
+      signup_request_status: "pending" | "approved" | "rejected" | "revoked"
       workspace_role: "service_admin" | "top_admin" | "admin" | "field_agent"
     }
     CompositeTypes: {
@@ -651,7 +681,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["listed_company", "proxy_company"],
-      signup_request_status: ["pending", "approved", "rejected"],
+      signup_request_status: ["pending", "approved", "rejected", "revoked"],
       workspace_role: ["service_admin", "top_admin", "admin", "field_agent"],
     },
   },

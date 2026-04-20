@@ -12,6 +12,7 @@ export const ADMIN = {
   SIGNUP_REQUESTS: "/admin/signup-requests",
   USERS: "/admin/users",
   WORKSPACES: "/admin/workspaces",
+  AUDIT_LOG: "/admin/audit-log",
 } as const
 
 /** 통합 관리 경로 접두사 (isIntegratedRoute 등에서 사용) */
@@ -20,6 +21,7 @@ export const INTEGRATED_PATH_PREFIXES: readonly string[] = [
   ADMIN.SIGNUP_REQUESTS,
   ADMIN.USERS,
   ADMIN.WORKSPACES,
+  ADMIN.AUDIT_LOG,
 ]
 
 /** 워크스페이스 관리 하위 세그먼트 (경로 마지막 부분) */

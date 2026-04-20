@@ -12,6 +12,7 @@ import GlobalSpinner from "@/components/ui/global-spinner"
 import { formatDateTimeKo } from "@/lib/formatDateTimeKo"
 import supabase from "@/lib/supabase/supabaseClient"
 import { ROUTES } from "@/constants/routes"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 
 const Page = styled.div`
   min-height: 100vh;
@@ -32,6 +33,41 @@ const TableScroll = styled.div`
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+`
+
+const MobileCardList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const ActivityCard = styled.article`
+  background: white;
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+`
+
+const CardBlock = styled.div`
+  margin-bottom: 0.65rem;
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+`
+
+const CardLabel = styled.div`
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: ${COLORS.gray[500]};
+  margin-bottom: 0.2rem;
+  letter-spacing: 0.02em;
+`
+
+const CardValue = styled.div`
+  font-size: 0.84rem;
+  color: ${COLORS.gray[900]};
+  line-height: 1.45;
+  word-break: break-word;
 `
 
 const Title = styled.h1`
@@ -73,6 +109,7 @@ const Select = styled.select`
 `
 
 export default function WorkspaceActivityPage() {
+  const isMobileLayout = useMediaQuery("(max-width: 768px)")
   const router = useRouter()
   const { workspaceId } = router.query as { workspaceId?: string }
   const { data: session } = useSession()
@@ -163,6 +200,32 @@ export default function WorkspaceActivityPage() {
         <GlobalSpinner width={22} height={22} dotColor="#8536FF" />
       ) : historyQuery.isError ? (
         <p style={{ color: COLORS.red[600] }}>이력을 불러오지 못했습니다.</p>
+      ) : isMobileLayout ? (
+        <MobileCardList aria-label="변경 이력">
+          {sorted.slice(0, 500).map((h) => (
+            <ActivityCard key={h.id}>
+              <CardBlock>
+                <CardLabel>일시</CardLabel>
+                <CardValue>{formatDateTimeKo(h.changed_at)}</CardValue>
+              </CardBlock>
+              <CardBlock>
+                <CardLabel>주주</CardLabel>
+                <CardValue>
+                  {historyQuery.data?.nameById?.[h.shareholder_id] ??
+                    h.shareholder_id}
+                </CardValue>
+              </CardBlock>
+              <CardBlock>
+                <CardLabel>필드</CardLabel>
+                <CardValue>{h.field}</CardValue>
+              </CardBlock>
+              <CardBlock>
+                <CardLabel>변경</CardLabel>
+                <CardValue>{`${h.old_value ?? "—"} → ${h.new_value ?? "—"}`}</CardValue>
+              </CardBlock>
+            </ActivityCard>
+          ))}
+        </MobileCardList>
       ) : (
         <TableScroll>
           <Table>

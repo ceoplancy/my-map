@@ -484,6 +484,40 @@ const ModifierSelect = styled(FilterSelect)`
   min-width: 12rem;
 `
 
+const FilterResultSummary = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0 1rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  background: linear-gradient(135deg, ${COLORS.gray[50]}, #fff);
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[800]};
+
+  strong {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: ${COLORS.gray[900]};
+  }
+
+  @media (max-width: 600px) {
+    margin: 0 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+`
+
+const FieldHint = styled.span`
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: ${COLORS.gray[500]};
+  line-height: 1.35;
+  margin-top: -0.1rem;
+`
+
 type SortField = keyof Shareholder | "history_modifier" | "history_modified_at"
 
 type SortConfig = {
@@ -527,7 +561,7 @@ function describeShareholderListFilters(filters: Filters): string {
   if (filters.search.trim()) {
     parts.push(`검색「${filters.search.trim()}」`)
   }
-  if (filters.status) parts.push(`상태 ${filters.status}`)
+  if (filters.status) parts.push(`업무 상태 ${filters.status}`)
   if (filters.stocksMin.trim() || filters.stocksMax.trim()) {
     parts.push(
       `주식수 ${filters.stocksMin.trim() || "—"} ~ ${filters.stocksMax.trim() || "—"}`,
@@ -544,9 +578,9 @@ function describeShareholderListFilters(filters: Filters): string {
   if (filters.photo === "with") parts.push("사진 있음")
   if (filters.photo === "without") parts.push("사진 없음")
   const geoMap: Record<string, string> = {
-    ok: "지오코딩 성공",
-    pending: "지오코딩 대기",
-    failed: "지오코딩 실패",
+    ok: "주소·좌표 반영됨",
+    pending: "좌표 변환 대기",
+    failed: "좌표 변환 실패",
   }
   if (filters.geocode) parts.push(geoMap[filters.geocode] ?? filters.geocode)
 
@@ -868,6 +902,15 @@ export default function ShareholderList({ listId, listName }: Props) {
     })
   }, [filteredData, sort, getLatestModifier, getLatestModifiedDate])
 
+  const listTotals = useMemo(() => {
+    let totalStocks = 0
+    for (const r of sortedData) {
+      totalStocks += Number(r.stocks) || 0
+    }
+
+    return { count: sortedData.length, totalStocks }
+  }, [sortedData])
+
   const totalPages = Math.max(1, Math.ceil(sortedData.length / ITEMS_PER_PAGE))
 
   /** 정렬·필터 후 결과가 줄었을 때 현재 페이지가 범위를 벗어나면 빈 목록처럼 보이는 문제 방지 */
@@ -1040,7 +1083,10 @@ export default function ShareholderList({ listId, listName }: Props) {
         <FilterWrap>
           <FilterGrid>
             <FormGroup>
-              <Label>상태</Label>
+              <Label title="위임·현장 업무 진행 상태">
+                업무 상태
+                <FieldHint>미방문·완료·보류·실패</FieldHint>
+              </Label>
               <FilterSelect
                 value={filters.status}
                 onChange={(e) => handleFilterChange("status", e.target.value)}>
@@ -1049,6 +1095,27 @@ export default function ShareholderList({ listId, listName }: Props) {
                 <option value="완료">완료</option>
                 <option value="보류">보류</option>
                 <option value="실패">실패</option>
+              </FilterSelect>
+            </FormGroup>
+
+            <FormGroup>
+              <Label title="주소를 지도 좌표로 바꾼 결과(지오코딩)">
+                주소·좌표
+                <FieldHint>지도 표시용 좌표 반영 여부</FieldHint>
+              </Label>
+              <FilterSelect
+                value={filters.geocode}
+                onChange={(e) =>
+                  handleFilterChange(
+                    "geocode",
+                    e.target.value as Filters["geocode"],
+                  )
+                }
+                title="주소를 위도·경도로 바꾼 뒤 지도에 반영할 수 있는지 여부">
+                <option value="">전체</option>
+                <option value="ok">반영됨</option>
+                <option value="pending">변환 대기</option>
+                <option value="failed">변환 실패</option>
               </FilterSelect>
             </FormGroup>
 
@@ -1130,24 +1197,6 @@ export default function ShareholderList({ listId, listName }: Props) {
             </FormGroup>
 
             <FormGroup>
-              <Label>지오코딩</Label>
-              <FilterSelect
-                value={filters.geocode}
-                onChange={(e) =>
-                  handleFilterChange(
-                    "geocode",
-                    e.target.value as Filters["geocode"],
-                  )
-                }
-                title="좌표 변환 성공·대기·실패">
-                <option value="">전체</option>
-                <option value="ok">성공</option>
-                <option value="pending">대기</option>
-                <option value="failed">실패</option>
-              </FilterSelect>
-            </FormGroup>
-
-            <FormGroup>
               <Label>정렬 기준</Label>
               <FilterSelect
                 value={sort.field ?? ""}
@@ -1205,6 +1254,13 @@ export default function ShareholderList({ listId, listName }: Props) {
           </FilterToolbar>
         </FilterWrap>
       </FilterSection>
+
+      <FilterResultSummary role="status" aria-live="polite">
+        현재 조건&nbsp;
+        <strong>{listTotals.count.toLocaleString()}명</strong>
+        &nbsp;· 합계 주식수&nbsp;
+        <strong>{listTotals.totalStocks.toLocaleString()}주</strong>
+      </FilterResultSummary>
 
       <TableWrapper>
         <Table>

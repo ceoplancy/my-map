@@ -3,6 +3,7 @@ import {
   createSupabaseWithToken,
 } from "@/lib/supabase/supabaseServer"
 import { getAuthUserFromApiRequest, isServiceAdmin } from "@/lib/api-auth"
+import { insertPlatformAuditLog } from "@/lib/server/platformAuditLog"
 import { withApiHandler } from "@/lib/withApiHandler"
 
 /** 해당 워크스페이스명에 대한 가입 승인/반려 권한 여부 */
@@ -33,6 +34,16 @@ async function canManageSignupForWorkspaceName(
   return (names ?? []).some((n) => n.name === workspaceName)
 }
 
+async function assertCanManageRequest(
+  token: string,
+  workspaceName: string,
+): Promise<boolean> {
+  const isServiceAdminUser = await isServiceAdmin(token)
+  if (isServiceAdminUser) return true
+
+  return canManageSignupForWorkspaceName(token, workspaceName)
+}
+
 export default withApiHandler(async (req, res) => {
   if (req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" })
@@ -41,7 +52,7 @@ export default withApiHandler(async (req, res) => {
   if (!auth) return res.status(401).json({ error: "Unauthorized" })
   const { token } = auth
   const id = req.query.id as string
-  const body = req.body as { action: "approve" | "reject" }
+  const body = req.body as { action: "approve" | "reject" | "revoke" }
   if (!id || !body?.action) {
     return res.status(400).json({ error: "id and action required" })
   }
@@ -60,16 +71,72 @@ export default withApiHandler(async (req, res) => {
   if (fetchErr || !request) {
     return res.status(404).json({ error: "Request not found" })
   }
+
+  /** 승인 철회: 승인된 건만 */
+  if (body.action === "revoke") {
+    if (request.status !== "approved") {
+      return res
+        .status(400)
+        .json({ error: "승인된 신청만 철회할 수 있습니다." })
+    }
+    const can = await assertCanManageRequest(token, request.workspace_name)
+    if (!can) {
+      return res
+        .status(403)
+        .json({ error: "해당 가입 신청을 처리할 권한이 없습니다." })
+    }
+    if (!request.user_id) {
+      return res
+        .status(400)
+        .json({ error: "user_id 가 없어 철회할 수 없습니다." })
+    }
+
+    const { data: wsList } = await admin
+      .from("workspaces")
+      .select("id")
+      .eq("name", request.workspace_name)
+
+    for (const w of wsList ?? []) {
+      await admin
+        .from("workspace_members")
+        .delete()
+        .eq("workspace_id", w.id)
+        .eq("user_id", request.user_id)
+    }
+
+    const { error: upErr } = await admin
+      .from("signup_requests")
+      .update({
+        status: "revoked",
+        processed_by: currentUser.id,
+        processed_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+    if (upErr) return res.status(500).json({ error: upErr.message })
+
+    await insertPlatformAuditLog(admin, {
+      actor_user_id: currentUser.id,
+      action: "signup_request.revoke",
+      resource_type: "signup_request",
+      resource_id: id,
+      details: {
+        email: request.email,
+        workspace_name: request.workspace_name,
+        target_user_id: request.user_id,
+      },
+    })
+
+    return res.status(200).json({ success: true })
+  }
+
   if (request.status !== "pending") {
     return res.status(400).json({ error: "Request already processed" })
   }
 
-  const isServiceAdminUser = await isServiceAdmin(token)
-  const canManageWorkspace = await canManageSignupForWorkspaceName(
-    token,
-    request.workspace_name,
-  )
-  if (!isServiceAdminUser && !canManageWorkspace) {
+  const canManage =
+    (await isServiceAdmin(token)) ||
+    (await canManageSignupForWorkspaceName(token, request.workspace_name))
+  if (!canManage) {
     return res
       .status(403)
       .json({ error: "해당 가입 신청을 처리할 권한이 없습니다." })
@@ -85,6 +152,14 @@ export default withApiHandler(async (req, res) => {
       })
       .eq("id", id)
     if (upErr) return res.status(500).json({ error: upErr.message })
+
+    await insertPlatformAuditLog(admin, {
+      actor_user_id: currentUser.id,
+      action: "signup_request.reject",
+      resource_type: "signup_request",
+      resource_id: id,
+      details: { email: request.email, workspace_name: request.workspace_name },
+    })
 
     return res.status(200).json({ success: true })
   }
@@ -120,6 +195,19 @@ export default withApiHandler(async (req, res) => {
       })
       .eq("id", id)
     if (upErr) return res.status(500).json({ error: upErr.message })
+
+    await insertPlatformAuditLog(admin, {
+      actor_user_id: currentUser.id,
+      action: "signup_request.approve",
+      resource_type: "signup_request",
+      resource_id: id,
+      details: {
+        email: request.email,
+        workspace_name: request.workspace_name,
+        workspace_id: workspace.id,
+        user_id: request.user_id,
+      },
+    })
 
     return res.status(200).json({ success: true })
   }
