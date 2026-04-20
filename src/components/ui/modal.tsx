@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, type ReactNode } from "react"
 import styled from "@emotion/styled"
 import useOnClickOutside from "@/hooks/useOnClickOutside"
 import Portal from "./portal"
@@ -17,7 +17,7 @@ interface ModalProps {
     | "top-right"
     | "bottom-left"
     | "bottom-right"
-  children: React.ReactNode
+  children: ReactNode
 }
 
 const Modal = ({
@@ -29,6 +29,11 @@ const Modal = ({
 }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null)
   const modalContantref = useRef<HTMLDivElement>(null)
+
+  const setDialogRefs = (el: HTMLDivElement | null) => {
+    modalRef.current = el
+    modalContantref.current = el
+  }
 
   useOnClickOutside({
     inRef: modalRef,
@@ -51,7 +56,7 @@ const Modal = ({
         role="dialog"
         aria-modal="true">
         <DialogFrame
-          ref={modalRef}
+          ref={setDialogRefs}
           className={isOpen ? "slideUp" : "slideDown"}
           isOverflow={isOverflow}
           position={position}>
@@ -63,6 +68,25 @@ const Modal = ({
 }
 
 export default Modal
+
+/** 단일 스크롤 체인용 래퍼 — flex 자식 min-height 0 */
+export function ModalChrome({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return <ModalChromeRoot className={className}>{children}</ModalChromeRoot>
+}
+
+const ModalChromeRoot = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`
 
 const Frame = styled.div`
   position: fixed;

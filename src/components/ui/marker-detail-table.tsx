@@ -64,6 +64,19 @@ const MarkerDetailTable = ({
   const addressDisplay =
     data.address?.trim() || (kakaoMapUrl ? "카카오맵 길찾기" : "-")
 
+  const sh = data as MapMarkerData
+  const gcs =
+    "geocode_status" in sh && sh.geocode_status ? sh.geocode_status : undefined
+  const originalAddr =
+    "address_original" in sh && sh.address_original?.trim()
+      ? sh.address_original.trim()
+      : ""
+  const showOriginalRow =
+    !!originalAddr &&
+    (gcs === "failed" ||
+      gcs === "pending" ||
+      (!!sh.address?.trim() && originalAddr !== sh.address.trim()))
+
   const addressRow = (
     <TableRow key="addr" $hideLabels={hideRowLabels}>
       {!hideRowLabels && <TableHeader>주소</TableHeader>}
@@ -91,6 +104,17 @@ const MarkerDetailTable = ({
       </AddressLinkCell>
     </TableRow>
   )
+
+  const originalAddressRow = showOriginalRow ? (
+    <TableRow key="addr-orig" $hideLabels={hideRowLabels}>
+      {!hideRowLabels && <TableHeader>원본 주소(명부)</TableHeader>}
+      <TableCell
+        colSpan={hideRowLabels ? 2 : undefined}
+        $hideLabels={hideRowLabels}>
+        <AddressPlain $hideLabels={hideRowLabels}>{originalAddr}</AddressPlain>
+      </TableCell>
+    </TableRow>
+  ) : null
 
   const memoRow = (
     <TableRow key="memo" $hideLabels={hideRowLabels}>
@@ -163,6 +187,7 @@ const MarkerDetailTable = ({
             </TableRow>
           )}
           {addressRow}
+          {originalAddressRow}
           {!hideSummaryFields && (
             <TableRow $hideLabels={hideRowLabels}>
               <TableHeader>상태</TableHeader>

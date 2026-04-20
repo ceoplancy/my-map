@@ -13,20 +13,31 @@ import { useFormik } from "formik"
 import { removeTags } from "@/lib/utils"
 import { Close as CloseIcon } from "@mui/icons-material"
 import { COLORS } from "@/styles/global-style"
-import MarkerDetailTable, { type HistoryItem } from "../marker-detail-table"
+import { type HistoryItem } from "../marker-detail-table"
 import { toast } from "react-toastify"
 import { Json } from "@/types/db"
 import { useGetUserData } from "@/api/auth"
 import { format } from "date-fns"
-import Select from "@/components/ui/select"
-import { hasPatchChanges, normalizeStatusForPatch } from "@/lib/makerPatchForm"
+import {
+  hasPatchChanges,
+  normalizeMemoForPatch,
+  normalizeStatusForPatch,
+} from "@/lib/makerPatchForm"
 import {
   composeShareholderStatus,
+  isAllowedStatusDetail,
   PRIMARY_STATUS_OPTIONS,
   splitShareholderStatus,
   STATUS_DETAIL_OPTIONS,
-  type PrimaryStatus,
+  getShareholderStatusChipBackground,
+  getShareholderStatusChipColor,
 } from "@/lib/shareholderStatus"
+import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
+import OpenInNew from "@mui/icons-material/OpenInNew"
+import {
+  removeShareholderPhotoObject,
+  uploadShareholderPhotoAndGetPublicUrl,
+} from "@/lib/shareholderPhotoStorage"
 
 export type MakerDataMutateOptions = {
   onSuccess?: () => void
@@ -42,13 +53,10 @@ interface MakerPatchModalChildrenProps {
   ) => void
   setMakerDataUpdateIsModalOpen: Dispatch<SetStateAction<boolean>>
 
-  /** 지도 주주 마커: API로 불러온 변경 이력 */
+  /** 지도 주주 마커: API로 불러온 변경 이력 (편집 모달에서는 요약만 — 숫자만 표시) */
   history?: HistoryItem[]
 
-  /** 부모 `usePatchShareholder`의 isPending (버튼 로딩 동기화) */
   mutateIsPending?: boolean
-
-  /** 저장 요청 중일 때 true — 모달 바깥 클릭·닫기 방지용 */
   onSavingChange?: (_isSaving: boolean) => void
 }
 
@@ -81,6 +89,7 @@ const MakerPatchModalChildren = ({
   const { data: user } = useGetUserData()
   const saveInFlightRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState(false)
   const saveSucceededRef = useRef(false)
 
   const isSaveBusy = isSaving || mutateIsPending
@@ -108,8 +117,10 @@ const MakerPatchModalChildren = ({
 
       const statusPrimary = values.statusPrimary
       const statusDetail = (values.statusDetail ?? "").trim()
-      if (statusDetail.length === 0) {
-        toast.error("상세 상태를 선택해야 저장할 수 있습니다.")
+      if (!isAllowedStatusDetail(statusPrimary, statusDetail)) {
+        toast.error(
+          "1차 상태를 고른 뒤, 세부 상태까지 선택해야 저장할 수 있습니다.",
+        )
 
         return
       }
@@ -221,27 +232,51 @@ const MakerPatchModalChildren = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- makerData 변경 시만 폼 동기화
   }, [makerData])
 
-  const hasEditableChanges = useMemo(
-    () =>
-      makerData
-        ? hasPatchChanges(makerData, {
-            status: composeShareholderStatus(
-              formik.values.statusPrimary,
-              formik.values.statusDetail ?? "",
-            ),
-            memo: formik.values.memo,
-          })
-        : false,
-    // 편집 가능 필드는 status·memo뿐 — statusPrimary/statusDetail/memo만 추적
-    [
-      makerData,
-      formik.values.statusPrimary,
-      formik.values.statusDetail,
-      formik.values.memo,
-    ],
+  const statusComplete = isAllowedStatusDetail(
+    formik.values.statusPrimary,
+    formik.values.statusDetail,
   )
 
-  const canSubmit = hasEditableChanges && !isSaveBusy
+  const pendingComposedStatus = useMemo(() => {
+    if (!statusComplete) return null
+
+    return composeShareholderStatus(
+      formik.values.statusPrimary,
+      formik.values.statusDetail.trim(),
+    )
+  }, [statusComplete, formik.values.statusPrimary, formik.values.statusDetail])
+
+  const hasEditableChanges = useMemo(() => {
+    if (!makerData) return false
+    const memoChanged =
+      normalizeMemoForPatch(formik.values.memo) !==
+      normalizeMemoForPatch(makerData.memo)
+    if (!statusComplete || pendingComposedStatus === null) {
+      return false
+    }
+    const statusChanged =
+      normalizeStatusForPatch(pendingComposedStatus) !==
+      normalizeStatusForPatch(makerData.status)
+
+    return statusChanged || memoChanged
+  }, [makerData, formik.values.memo, statusComplete, pendingComposedStatus])
+
+  const canSubmit = hasEditableChanges && statusComplete && !isSaveBusy
+
+  const mapLink = makerData
+    ? getKakaoMapLinkUrl({
+        name: makerData.name,
+        address: makerData.address,
+        lat: makerData.lat ?? null,
+        lng: makerData.lng ?? null,
+      })
+    : null
+
+  const submitBlockReason = !statusComplete
+    ? "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
+    : !hasEditableChanges
+      ? "상태 또는 메모를 변경한 뒤 저장할 수 있습니다"
+      : undefined
 
   return (
     <>
@@ -259,165 +294,283 @@ const MakerPatchModalChildren = ({
           <CloseIcon />
         </CloseButton>
       </ModalHeader>
-      <ModalContainer>
-        <ModalContent onSubmit={formik.handleSubmit}>
-          <Section>
-            <SectionTitle>현재 정보</SectionTitle>
-            {makerData && (
-              <MarkerDetailTable data={makerData} history={history} />
-            )}
-          </Section>
 
-          <Section>
-            <SectionTitle>상태 변경</SectionTitle>
-            <SelectWrapper>
-              <StyledSelect
-                name="statusPrimary"
-                value={formik.values.statusPrimary || "미방문"}
-                onChange={(e) => {
-                  const primary = e.target.value as PrimaryStatus
-                  formik.setFieldValue("statusPrimary", primary)
-                  const firstDetail = STATUS_DETAIL_OPTIONS[primary][0] ?? ""
-                  formik.setFieldValue("statusDetail", firstDetail)
-                  formik.setFieldValue(
-                    "status",
-                    normalizeStatusForPatch(
-                      composeShareholderStatus(primary, firstDetail),
-                    ),
-                  )
-                }}
-                onBlur={formik.handleBlur}
-                disabled={isSaveBusy}>
-                {PRIMARY_STATUS_OPTIONS.map((statusOpt) => (
-                  <option key={statusOpt} value={statusOpt}>
-                    {statusOpt}
-                  </option>
+      <ModalBodyColumn>
+        <ModalScrollPane>
+          <ModalForm onSubmit={formik.handleSubmit} noValidate>
+            <Section>
+              <SectionTitle>현재 정보</SectionTitle>
+              {makerData && (
+                <CurrentInfoCard>
+                  <SummaryName>{makerData.name ?? "-"}</SummaryName>
+                  <SummaryMetaRow>
+                    <SummaryMetaText>
+                      {makerData.company ?? "-"}
+                    </SummaryMetaText>
+                    <SummaryMetaDot aria-hidden>·</SummaryMetaDot>
+                    <SummaryMetaText>
+                      {`${Number(makerData.stocks ?? 0).toLocaleString()}주`}
+                    </SummaryMetaText>
+                    <SummaryMetaDot aria-hidden>·</SummaryMetaDot>
+                    <SummaryStatusChip
+                      status={String(makerData.status ?? "미방문")}>
+                      {String(makerData.status ?? "미방문")}
+                    </SummaryStatusChip>
+                  </SummaryMetaRow>
+                  {mapLink ? (
+                    <AddressLinkRow
+                      href={mapLink}
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      <span>
+                        {makerData.address?.trim() || "카카오맵에서 위치 보기"}
+                      </span>
+                      <OpenInNew sx={{ fontSize: 16, flexShrink: 0 }} />
+                    </AddressLinkRow>
+                  ) : (
+                    <AddressPlain>
+                      {makerData.address?.trim() || "주소 없음"}
+                    </AddressPlain>
+                  )}
+                  {history && history.length > 0 && (
+                    <HistoryNote>
+                      변경 이력 {history.length}건 반영 중
+                    </HistoryNote>
+                  )}
+                </CurrentInfoCard>
+              )}
+            </Section>
+
+            <Section>
+              <SectionTitle>상태 변경</SectionTitle>
+              <FieldLabel id="label-primary">1차 · 상태 유형</FieldLabel>
+              <ChipRow role="group" aria-labelledby="label-primary">
+                {PRIMARY_STATUS_OPTIONS.map((opt) => (
+                  <StatusChip
+                    key={opt}
+                    type="button"
+                    $active={formik.values.statusPrimary === opt}
+                    disabled={isSaveBusy}
+                    onClick={() => {
+                      formik.setFieldValue("statusPrimary", opt)
+                      formik.setFieldValue("statusDetail", "")
+                    }}>
+                    {opt}
+                  </StatusChip>
                 ))}
-              </StyledSelect>
-            </SelectWrapper>
-            <SelectWrapper style={{ marginTop: "0.5rem" }}>
-              <StyledSelect
-                name="statusDetail"
-                value={formik.values.statusDetail || ""}
-                onChange={(e) => {
-                  formik.setFieldValue("statusDetail", e.target.value)
-                  formik.setFieldValue(
-                    "status",
-                    normalizeStatusForPatch(
-                      composeShareholderStatus(
-                        formik.values.statusPrimary,
-                        e.target.value,
-                      ),
-                    ),
-                  )
-                }}
-                onBlur={formik.handleBlur}
-                disabled={isSaveBusy}>
+              </ChipRow>
+
+              <FieldLabel id="label-detail" style={{ marginTop: "1rem" }}>
+                2차 · 세부 상태
+                <RequiredMark aria-hidden> (필수)</RequiredMark>
+              </FieldLabel>
+              {!formik.values.statusDetail && formik.values.statusPrimary && (
+                <StepHint>
+                  유형을 바꾼 경우 아래에서 세부 상태를 반드시 선택해 주세요.
+                </StepHint>
+              )}
+              <ChipRow role="group" aria-labelledby="label-detail" $dense>
                 {(STATUS_DETAIL_OPTIONS[formik.values.statusPrimary] ?? []).map(
-                  (detailOpt) => (
-                    <option key={detailOpt} value={detailOpt}>
-                      {detailOpt}
-                    </option>
+                  (opt) => (
+                    <StatusChip
+                      key={opt}
+                      type="button"
+                      $active={formik.values.statusDetail === opt}
+                      disabled={isSaveBusy}
+                      onClick={() => {
+                        formik.setFieldValue("statusDetail", opt)
+                        formik.setFieldValue(
+                          "status",
+                          normalizeStatusForPatch(
+                            composeShareholderStatus(
+                              formik.values.statusPrimary,
+                              opt,
+                            ),
+                          ),
+                        )
+                      }}>
+                      {opt}
+                    </StatusChip>
                   ),
                 )}
-              </StyledSelect>
-            </SelectWrapper>
-          </Section>
-
-          <Section>
-            <SectionTitle>메모</SectionTitle>
-            <StyledTextarea
-              name="memo"
-              value={removeTags(formik.values.memo)}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              placeholder="메모를 입력하세요..."
-              disabled={isSaveBusy}
-            />
-          </Section>
-
-          <ButtonGroup>
-            <ActionButton
-              type="submit"
-              variant="primary"
-              disabled={!canSubmit}
-              aria-busy={isSaveBusy}
-              title={
-                isSaveBusy
-                  ? undefined
-                  : !hasEditableChanges
-                    ? "상태 또는 메모를 변경한 뒤 저장할 수 있습니다"
-                    : undefined
-              }>
-              {isSaveBusy ? (
-                <SubmitInner>
-                  <CircularProgress
-                    size={18}
-                    thickness={5}
-                    sx={{ color: "#fff" }}
-                  />
-                  저장 중…
-                </SubmitInner>
-              ) : (
-                "수정 완료"
+              </ChipRow>
+              {!statusComplete && (
+                <ValidationHint role="status">
+                  세부 상태를 선택해야 저장할 수 있습니다.
+                </ValidationHint>
               )}
-            </ActionButton>
-            <ActionButton
-              type="button"
-              variant="secondary"
-              disabled={isSaveBusy}
-              onClick={() => {
-                if (isSaveBusy) return
-                setMakerDataUpdateIsModalOpen(false)
-              }}>
-              취소
-            </ActionButton>
-          </ButtonGroup>
-        </ModalContent>
-      </ModalContainer>
+            </Section>
+
+            <Section>
+              <SectionTitle>메모</SectionTitle>
+              <StyledTextarea
+                name="memo"
+                value={removeTags(formik.values.memo)}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                placeholder="메모를 입력하세요..."
+                disabled={isSaveBusy}
+              />
+            </Section>
+
+            {makerData && (
+              <Section>
+                <SectionTitle>사진 (1인 1장)</SectionTitle>
+                {formik.values.image ? (
+                  <img
+                    src={formik.values.image}
+                    alt=""
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: 140,
+                      borderRadius: 8,
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <PhotoHint>등록된 사진이 없습니다.</PhotoHint>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={isSaveBusy || photoBusy}
+                  style={{ marginTop: 8 }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ""
+                    if (!file || !makerData) return
+                    setPhotoBusy(true)
+                    try {
+                      const url = await uploadShareholderPhotoAndGetPublicUrl(
+                        file,
+                        makerData.list_id,
+                        String(makerData.id),
+                      )
+                      formik.setFieldValue("image", url)
+                      makerDataMutate(
+                        { ...makerData, image: url },
+                        {
+                          onSuccess: () =>
+                            toast.success("사진을 저장했습니다."),
+                          onError: () =>
+                            toast.error("사진 저장에 실패했습니다."),
+                        },
+                      )
+                    } catch {
+                      toast.error("사진을 올릴 수 없습니다.")
+                    } finally {
+                      setPhotoBusy(false)
+                    }
+                  }}
+                />
+                {formik.values.image ? (
+                  <PhotoRemoveBtn
+                    type="button"
+                    disabled={isSaveBusy || photoBusy}
+                    onClick={async () => {
+                      if (!makerData) return
+                      setPhotoBusy(true)
+                      try {
+                        await removeShareholderPhotoObject(
+                          makerData.list_id,
+                          String(makerData.id),
+                          formik.values.image,
+                        )
+                        formik.setFieldValue("image", "")
+                        makerDataMutate(
+                          { ...makerData, image: null },
+                          {
+                            onSuccess: () =>
+                              toast.success("사진을 삭제했습니다."),
+                            onError: () =>
+                              toast.error("삭제 반영에 실패했습니다."),
+                          },
+                        )
+                      } catch {
+                        toast.error("스토리지에서 삭제하지 못했습니다.")
+                      } finally {
+                        setPhotoBusy(false)
+                      }
+                    }}>
+                    사진 삭제
+                  </PhotoRemoveBtn>
+                ) : null}
+              </Section>
+            )}
+
+            <ButtonGroup>
+              <ActionButton
+                type="submit"
+                variant="primary"
+                disabled={!canSubmit}
+                aria-busy={isSaveBusy}
+                title={submitBlockReason}>
+                {isSaveBusy ? (
+                  <SubmitInner>
+                    <CircularProgress
+                      size={18}
+                      thickness={5}
+                      sx={{ color: "#fff" }}
+                    />
+                    저장 중…
+                  </SubmitInner>
+                ) : (
+                  "수정 완료"
+                )}
+              </ActionButton>
+              <ActionButton
+                type="button"
+                variant="secondary"
+                disabled={isSaveBusy}
+                onClick={() => {
+                  if (isSaveBusy) return
+                  setMakerDataUpdateIsModalOpen(false)
+                }}>
+                취소
+              </ActionButton>
+            </ButtonGroup>
+          </ModalForm>
+        </ModalScrollPane>
+      </ModalBodyColumn>
     </>
   )
 }
 
-const ModalContainer = styled.div`
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  height: 100%;
+const ModalBodyColumn = styled.div`
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`
+
+const ModalScrollPane = styled.div`
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  max-width: 95vw;
-  max-height: 90vh;
-  width: 100%;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+`
 
-  user-select: none;
-  animation: slideUp 0.3s ease-out;
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+const ModalForm = styled.form`
+  padding: 20px 24px 24px;
 
   @media (max-width: 768px) {
-    border-radius: 12px;
+    padding: 16px 16px 20px;
   }
 `
 
 const ModalHeader = styled.div`
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid ${COLORS.gray[100]};
-  position: sticky;
-  top: 0;
   background: white;
-  z-index: 10;
+  z-index: 2;
 
   @media (max-width: 768px) {
     padding: 16px;
@@ -431,6 +584,7 @@ const HeaderTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
 
   &::before {
     content: "";
@@ -467,50 +621,175 @@ const CloseButton = styled.button`
   }
 `
 
-const ModalContent = styled.form`
-  padding: 24px;
-  overflow-y: auto;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
-`
-
 const Section = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 `
 
 const SectionTitle = styled.h3`
   font-size: 15px;
   font-weight: 600;
   color: ${COLORS.gray[700]};
-  margin-bottom: 12px;
+  margin: 0 0 10px;
 `
 
-const SelectWrapper = styled.div`
-  position: relative;
+const CurrentInfoCard = styled.div`
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: ${COLORS.gray[50]};
+  border: 1px solid ${COLORS.gray[200]};
 `
 
-const StyledSelect = styled(Select)`
-  width: 100%;
-  padding: 12px 2rem 12px 16px;
-  font-size: 14px;
-  min-height: 48px;
+const SummaryName = styled.div`
+  font-size: 1rem;
+  font-weight: 700;
   color: ${COLORS.gray[900]};
+  line-height: 1.35;
+  margin-bottom: 6px;
+`
+
+const SummaryMetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+`
+
+const SummaryMetaText = styled.span`
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[700]};
+  font-weight: 600;
+`
+
+const SummaryMetaDot = styled.span`
+  color: ${COLORS.gray[400]};
+  font-weight: 600;
+`
+
+const SummaryStatusChip = styled.span<{ status: string }>`
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+  background: ${({ status }) => getShareholderStatusChipBackground(status)};
+  color: ${({ status }) => getShareholderStatusChipColor(status)};
+`
+
+const AddressLinkRow = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: ${COLORS.blue[700]};
+  text-decoration: none;
+  word-break: break-all;
+  line-height: 1.4;
 
   &:hover {
+    text-decoration: underline;
+  }
+`
+
+const AddressPlain = styled.div`
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[600]};
+  line-height: 1.4;
+  word-break: break-all;
+`
+
+const HistoryNote = styled.p`
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+`
+
+const FieldLabel = styled.div`
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: ${COLORS.gray[700]};
+  margin-bottom: 8px;
+`
+
+const RequiredMark = styled.span`
+  color: ${COLORS.red[600]};
+  font-weight: 700;
+`
+
+const ChipRow = styled.div<{ $dense?: boolean }>`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${(p) => (p.$dense ? "6px" : "8px")};
+`
+
+const StatusChip = styled.button<{ $active: boolean }>`
+  border: 1px solid ${(p) => (p.$active ? COLORS.blue[500] : COLORS.gray[200])};
+  background: ${(p) => (p.$active ? COLORS.blue[50] : "white")};
+  color: ${(p) => (p.$active ? COLORS.blue[800] : COLORS.gray[800])};
+  font-size: 0.8125rem;
+  font-weight: ${(p) => (p.$active ? 700 : 500)};
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  line-height: 1.3;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover:not(:disabled) {
     border-color: ${COLORS.blue[300]};
+    background: ${(p) => (p.$active ? COLORS.blue[50] : COLORS.gray[50])};
   }
 
-  &:focus {
-    outline: none;
-    border-color: ${COLORS.blue[500]};
-    box-shadow: 0 0 0 3px ${COLORS.blue[100]};
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
+`
 
-  @media (max-width: 768px) {
-    padding: 10px 14px;
-    font-size: 13px;
+const StepHint = styled.p`
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[600]};
+  line-height: 1.4;
+`
+
+const ValidationHint = styled.p`
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  color: ${COLORS.red[600]};
+  font-weight: 500;
+`
+
+const PhotoHint = styled.p`
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[600]};
+`
+
+const PhotoRemoveBtn = styled.button`
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  color: ${COLORS.red[700]};
+  background: ${COLORS.red[50]};
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `
 
@@ -523,6 +802,7 @@ const StyledTextarea = styled.textarea`
   border-radius: 8px;
   resize: vertical;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 
   &::placeholder {
     color: ${COLORS.gray[400]};
@@ -543,7 +823,8 @@ const ButtonGroup = styled.div`
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  margin-top: 32px;
+  margin-top: 8px;
+  padding-top: 8px;
 
   @media (max-width: 768px) {
     flex-direction: column;

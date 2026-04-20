@@ -1,10 +1,13 @@
 import CustomMapMarker, { type MapMarkerData } from "./custom-map-marker"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useGetFilterMenu } from "@/api/supabase"
 
 interface MultipleMapMarkerProps {
   markers: MapMarkerData[]
+
+  /** 지도 검색 등에서 선택된 주주 — 해당 마커·인포윈도우로 포커스 */
+  highlightShareholderId?: string | null
 }
 
 interface MarkerGroup {
@@ -12,11 +15,20 @@ interface MarkerGroup {
   markers: MapMarkerData[]
 }
 
-const MultipleMapMarker = ({ markers }: MultipleMapMarkerProps) => {
+const MultipleMapMarker = ({
+  markers,
+  highlightShareholderId,
+}: MultipleMapMarkerProps) => {
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(
     null,
   )
   const { data: filterMenu } = useGetFilterMenu()
+
+  useEffect(() => {
+    if (!highlightShareholderId) return
+    const m = markers.find((mk) => mk.id === highlightShareholderId)
+    if (m) setSelectedMarker(m)
+  }, [highlightShareholderId, markers])
 
   const markerGroups = useMemo(() => {
     const groups: MarkerGroup[] = []

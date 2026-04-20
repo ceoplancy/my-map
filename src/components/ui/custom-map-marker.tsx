@@ -210,9 +210,12 @@ const CustomMapMarker = ({
       },
     ) => {
       if (!isShareholderMarker) return
-      const patch: Partial<{ id: string; status: string; memo: string }> & {
+      const patch: Partial<{
         id: string
-      } = {
+        status: string
+        memo: string
+        image: string | null
+      }> & { id: string } = {
         id: String((patchData as { id: string | number }).id),
       }
       const rawStatus = patchData.status ?? ""
@@ -220,6 +223,10 @@ const CustomMapMarker = ({
         patch.status = rawStatus
       }
       patch.memo = patchData.memo ?? ""
+      if ("image" in patchData) {
+        const im = patchData.image
+        patch.image = im === undefined ? null : im
+      }
       patchShareholder(
         {
           patch,

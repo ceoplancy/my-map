@@ -11,6 +11,7 @@ import {
   RestartAlt,
   Business as BusinessIcon,
   List as ListIcon,
+  Search as SearchIcon,
 } from "@mui/icons-material"
 
 import {
@@ -40,6 +41,9 @@ import { toast } from "react-toastify"
 import { getMapStorageKeys } from "@/constants/map-storage"
 import { ROUTES } from "@/constants/routes"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
+import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
+import RulesAcceptanceGate from "@/components/workspace/RulesAcceptanceGate"
+import type { MapMarkerData } from "@/types/map"
 
 const WorkspaceMapPage = () => {
   const isMobile = useMediaQuery("(max-width: 768px)")
@@ -107,6 +111,12 @@ const WorkspaceMapPage = () => {
 
   const [isVisibleMenu, setIsVisibleMenu] = useState<boolean>(false)
   const [mapLevel, setMapLevel] = useState<number>(6)
+  const [mapSearchInput, setMapSearchInput] = useState("")
+  const [debouncedMapSearch, setDebouncedMapSearch] = useState("")
+  const [mapSearchOpen, setMapSearchOpen] = useState(false)
+  const [highlightShareholderId, setHighlightShareholderId] = useState<
+    string | null
+  >(null)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false)
   const {
     statusFilter,
@@ -162,10 +172,67 @@ const WorkspaceMapPage = () => {
     lat: currCenter.lat,
     lng: currCenter.lng,
     mapLevel,
+    search: debouncedMapSearch || undefined,
   })
 
-  const mapMarkers = shareholderData ?? []
+  const mapMarkers = useMemo(() => shareholderData ?? [], [shareholderData])
   const mapMarkersRefetch = shareholderRefetch
+
+  const mapSearchHits = useMemo((): MapMarkerData[] => {
+    if (!debouncedMapSearch.trim()) {
+      return []
+    }
+
+    return mapMarkers.slice(0, 40)
+  }, [mapMarkers, debouncedMapSearch])
+
+  const flyToShareholder = useCallback(
+    (m: MapMarkerData) => {
+      setHighlightShareholderId(m.id)
+      if (
+        mapRef.current &&
+        m.lat != null &&
+        m.lng != null &&
+        typeof window !== "undefined" &&
+        window.kakao?.maps
+      ) {
+        mapRef.current.setCenter(new window.kakao.maps.LatLng(m.lat, m.lng))
+        mapRef.current.setLevel(4)
+        setMapLevel(4)
+      }
+      setMapSearchOpen(false)
+    },
+    [setMapLevel],
+  )
+
+  const filterSummaryChips = useMemo(
+    () =>
+      getFilterSummaryChips({
+        cityFilter: cityFilter ?? "",
+        statusPrimaryFilter: statusPrimaryFilter ?? [],
+        companyFilter: companyFilter ?? [],
+        companyFilterProfiles: companyFilterProfiles ?? {},
+        stocks: stocks ?? [],
+        companyStockFilterMap: companyStockFilterMap ?? {},
+      }),
+    [
+      cityFilter,
+      statusPrimaryFilter,
+      companyFilter,
+      companyFilterProfiles,
+      stocks,
+      companyStockFilterMap,
+    ],
+  )
+
+  useEffect(() => {
+    const t = window.setTimeout(
+      () => setDebouncedMapSearch(mapSearchInput.trim()),
+      400,
+    )
+
+    return () => window.clearTimeout(t)
+  }, [mapSearchInput])
 
   const debouncedMapUpdate = useMemo(
     () =>
@@ -212,6 +279,7 @@ const WorkspaceMapPage = () => {
 
   const handleMapClick = useCallback(() => {
     window.dispatchEvent(new CustomEvent("workspace-map-interact"))
+    setMapSearchOpen(false)
   }, [])
 
   const handleApplyFilters = () => {
@@ -323,6 +391,9 @@ const WorkspaceMapPage = () => {
 
   return (
     <>
+      {userId && visibleListIds.length > 0 && (
+        <RulesAcceptanceGate listIds={visibleListIds} userId={userId} />
+      )}
       {(isLoading ||
         (shareholdersLoading && shareholderData === undefined)) && (
         <SpinnerFrame>
@@ -344,11 +415,63 @@ const WorkspaceMapPage = () => {
           onClick={handleMapClick}
           onZoomChanged={handleZoomChange}
           onDragEnd={handleDragEnd}>
-          <MapTypeControl position={"TOPRIGHT"} />
-          <ZoomControl position={"RIGHT"} />
+          <MapTypeControl position={"BOTTOMRIGHT"} />
+          <ZoomControl position={"BOTTOMRIGHT"} />
           {mapMarkers.length > 0 && user && (
-            <MultipleMapMarker markers={mapMarkers} />
+            <MultipleMapMarker
+              markers={mapMarkers}
+              highlightShareholderId={highlightShareholderId}
+            />
           )}
+
+          <MapSearchWrap data-map-search>
+            <MapSearchInner>
+              <SearchIcon
+                sx={{ color: COLORS.gray[500], fontSize: 20 }}
+                aria-hidden
+              />
+              <MapSearchInput
+                type="search"
+                value={mapSearchInput}
+                onChange={(e) => {
+                  setMapSearchInput(e.target.value)
+                  setMapSearchOpen(true)
+                  if (!e.target.value.trim()) setHighlightShareholderId(null)
+                }}
+                onFocus={() => setMapSearchOpen(true)}
+                placeholder="이름·회사·주소 검색…"
+                aria-label="주주 검색"
+                autoComplete="off"
+              />
+            </MapSearchInner>
+            {mapSearchOpen && debouncedMapSearch.trim() && (
+              <MapSearchResults role="listbox" aria-label="검색 결과">
+                {mapSearchHits.length === 0 ? (
+                  <MapSearchEmpty>검색 결과가 없습니다.</MapSearchEmpty>
+                ) : (
+                  mapSearchHits.map((m) => (
+                    <MapSearchHitRow
+                      key={m.id}
+                      type="button"
+                      role="option"
+                      onClick={() => flyToShareholder(m)}>
+                      <span>
+                        {[m.company, m.name].filter(Boolean).join(" · ") ||
+                          "이름 없음"}
+                      </span>
+                      <small>{m.address ?? m.latlngaddress ?? ""}</small>
+                    </MapSearchHitRow>
+                  ))
+                )}
+                {mapSearchHits.length > 0 ? (
+                  <MapSearchHint>
+                    현재 필터·지도 조건이 적용된 주주 목록에서 최대 40건까지
+                    표시됩니다.
+                  </MapSearchHint>
+                ) : null}
+              </MapSearchResults>
+            )}
+          </MapSearchWrap>
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
@@ -366,6 +489,20 @@ const WorkspaceMapPage = () => {
                 <ClearIcon />
               </CloseButton>
             </MenuHeader>
+            <FilterDashboardSummary aria-label="적용 중인 필터 요약">
+              <FilterSummaryLabel>필터</FilterSummaryLabel>
+              <FilterSummaryChipsWrap>
+                {filterSummaryChips.length === 0 ? (
+                  <FilterSummaryEmpty>전체 (조건 없음)</FilterSummaryEmpty>
+                ) : (
+                  filterSummaryChips.map((text, i) => (
+                    <FilterSummaryChip key={`${text}-${i}`}>
+                      {text}
+                    </FilterSummaryChip>
+                  ))
+                )}
+              </FilterSummaryChipsWrap>
+            </FilterDashboardSummary>
             <StatsCard listIds={visibleListIds} />
             {hasWorkspace && visibleListIds.length === 0 && (
               <EmptyWorkspaceHint>
@@ -409,6 +546,18 @@ const WorkspaceMapPage = () => {
               </MenuItem>
             )}
             <div style={{ flex: 1 }} />
+            <MenuItem
+              onClick={() => {
+                if (wsId) void router.push(`/workspaces/${wsId}/activity`)
+              }}
+              style={
+                wsId
+                  ? undefined
+                  : { opacity: 0.45, pointerEvents: "none" as const }
+              }>
+              <ListIcon />
+              활동 기록
+            </MenuItem>
             <MenuItem onClick={() => router.push(ROUTES.workspaces)}>
               <ListIcon />
               워크스페이스 목록
@@ -474,6 +623,98 @@ const WorkspaceMapPage = () => {
 }
 
 export default WorkspaceMapPage
+
+const MapSearchWrap = styled.div`
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  width: min(calc(100vw - 2rem), 22rem);
+  max-width: calc(100vw - 1rem);
+`
+
+const MapSearchInner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem 0.35rem 0.65rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+`
+
+const MapSearchInput = styled.input`
+  flex: 1;
+  min-width: 0;
+  border: none;
+  font-size: 0.875rem;
+  outline: none;
+  background: transparent;
+  &::placeholder {
+    color: ${COLORS.gray[400]};
+  }
+`
+
+const MapSearchResults = styled.div`
+  margin-top: 0.35rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: min(50vh, 280px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+`
+
+const MapSearchHint = styled.div`
+  padding: 0.45rem 0.75rem 0.55rem;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  color: ${COLORS.gray[500]};
+  border-top: 1px solid ${COLORS.gray[100]};
+  background: ${COLORS.gray[50]};
+  border-radius: 0 0 0.75rem 0.75rem;
+`
+
+const MapSearchHitRow = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  min-height: 2.75rem;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[800]};
+  cursor: pointer;
+  border-bottom: 1px solid ${COLORS.gray[100]};
+  -webkit-tap-highlight-color: transparent;
+  &:last-of-type {
+    border-bottom: none;
+  }
+  &:hover {
+    background: ${COLORS.gray[50]};
+  }
+  small {
+    font-size: 0.7rem;
+    color: ${COLORS.gray[500]};
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+`
+
+const MapSearchEmpty = styled.div`
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  color: ${COLORS.gray[500]};
+`
 
 const SpinnerFrame = styled.div`
   position: fixed;
@@ -547,18 +788,65 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
 
   @media (max-width: 768px) {
-    top: auto;
+    top: max(3.5rem, calc(env(safe-area-inset-top) + 3rem));
+    bottom: auto;
     left: max(0.5rem, env(safe-area-inset-left));
     right: max(0.5rem, env(safe-area-inset-right));
-    bottom: max(0.5rem, env(safe-area-inset-bottom));
     width: auto;
-    max-height: min(88vh, calc(100dvh - env(safe-area-inset-top) - 1rem));
-    border-radius: 16px 16px 12px 12px;
-    transform: translateY(${(props) => (props.isVisible ? "0" : "110%")});
+    max-height: min(72vh, calc(100dvh - env(safe-area-inset-top) - 4rem));
+    border-radius: 0 0 16px 16px;
+    transform: translateY(${(props) => (props.isVisible ? "0" : "-120%")});
     padding: 20px;
     padding-bottom: max(20px, env(safe-area-inset-bottom));
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
   }
+`
+
+const FilterDashboardSummary = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: ${COLORS.gray[50]};
+  border: 1px solid ${COLORS.gray[100]};
+`
+
+const FilterSummaryLabel = styled.span`
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: ${COLORS.gray[500]};
+  padding-top: 3px;
+`
+
+const FilterSummaryChipsWrap = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+`
+
+const FilterSummaryEmpty = styled.span`
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.4;
+`
+
+const FilterSummaryChip = styled.span`
+  display: inline-block;
+  max-width: 100%;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: ${COLORS.gray[700]};
+  background: white;
+  border: 1px solid ${COLORS.gray[200]};
+  line-height: 1.3;
+  word-break: break-all;
 `
 
 const MenuHeader = styled.div`
