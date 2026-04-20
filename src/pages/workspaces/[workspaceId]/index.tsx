@@ -120,9 +120,8 @@ const WorkspaceMapPage = () => {
   const [mapLevel, setMapLevel] = useState<number>(6)
   const [mapSearchInput, setMapSearchInput] = useState("")
   const [debouncedMapSearch, setDebouncedMapSearch] = useState("")
-  const [mapSearchOpen, setMapSearchOpen] = useState(false)
 
-  /** 대시보드에서만 켜는 검색 — 꺼두면 API `search` 미적용(지도 끊김 완화) */
+  /** 꺼두면 API `search` 미적용(지도 끊김 완화). 켜면 전체 화면 검색 시트 */
   const [mapSearchPanelOpen, setMapSearchPanelOpen] = useState(false)
   const [highlightShareholderId, setHighlightShareholderId] = useState<
     string | null
@@ -244,8 +243,20 @@ const WorkspaceMapPage = () => {
       return []
     }
 
-    return mapMarkers.slice(0, 40)
+    return mapMarkers.slice(0, 200)
   }, [mapMarkers, debouncedMapSearch])
+
+  const closeMapSearchPanel = useCallback(
+    (options?: { keepHighlight?: boolean }) => {
+      setMapSearchPanelOpen(false)
+      setMapSearchInput("")
+      setDebouncedMapSearch("")
+      if (!options?.keepHighlight) {
+        setHighlightShareholderId(null)
+      }
+    },
+    [],
+  )
 
   const flyToShareholder = useCallback(
     (m: MapMarkerData) => {
@@ -261,9 +272,9 @@ const WorkspaceMapPage = () => {
         mapRef.current.setLevel(4)
         setMapLevel(4)
       }
-      setMapSearchOpen(false)
+      closeMapSearchPanel({ keepHighlight: true })
     },
-    [setMapLevel],
+    [closeMapSearchPanel, setMapLevel],
   )
 
   const filterSummaryChips = useMemo(
@@ -295,14 +306,6 @@ const WorkspaceMapPage = () => {
 
     return () => window.clearTimeout(t)
   }, [mapSearchInput, mapSearchPanelOpen])
-
-  const closeMapSearchPanel = useCallback(() => {
-    setMapSearchPanelOpen(false)
-    setMapSearchInput("")
-    setDebouncedMapSearch("")
-    setMapSearchOpen(false)
-    setHighlightShareholderId(null)
-  }, [])
 
   const debouncedMapUpdate = useMemo(
     () =>
@@ -349,7 +352,6 @@ const WorkspaceMapPage = () => {
 
   const handleMapClick = useCallback(() => {
     window.dispatchEvent(new CustomEvent("workspace-map-interact"))
-    setMapSearchOpen(false)
   }, [])
 
   const handleApplyFilters = () => {
@@ -381,6 +383,16 @@ const WorkspaceMapPage = () => {
     if (!router.isReady || !wsId || !resolvedWorkspace?.id) return
     ensureWorkspaceScope(wsId)
   }, [router.isReady, wsId, resolvedWorkspace?.id, ensureWorkspaceScope])
+
+  useEffect(() => {
+    if (!mapSearchPanelOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [mapSearchPanelOpen])
 
   /** 워크스페이스별로 저장된 지도 중심·줌 복원 (전역 키와 분리해 빈 지도 방지) */
   useEffect(() => {
@@ -508,63 +520,6 @@ const WorkspaceMapPage = () => {
               highlightShareholderId={highlightShareholderId}
             />
           )}
-
-          {mapSearchPanelOpen ? (
-            <MapSearchWrap data-map-search>
-              <MapSearchInner>
-                <SearchIcon
-                  sx={{ color: COLORS.gray[500], fontSize: 20 }}
-                  aria-hidden
-                />
-                <MapSearchInput
-                  type="search"
-                  value={mapSearchInput}
-                  onChange={(e) => {
-                    setMapSearchInput(e.target.value)
-                    setMapSearchOpen(true)
-                    if (!e.target.value.trim()) setHighlightShareholderId(null)
-                  }}
-                  onFocus={() => setMapSearchOpen(true)}
-                  placeholder="이름·회사·주소 검색…"
-                  aria-label="주주 검색"
-                  autoComplete="off"
-                />
-                <MapSearchClose
-                  type="button"
-                  aria-label="검색 닫기"
-                  onClick={closeMapSearchPanel}>
-                  <ClearIcon sx={{ fontSize: 20 }} />
-                </MapSearchClose>
-              </MapSearchInner>
-              {mapSearchOpen && debouncedMapSearch.trim() && (
-                <MapSearchResults role="listbox" aria-label="검색 결과">
-                  {mapSearchHits.length === 0 ? (
-                    <MapSearchEmpty>검색 결과가 없습니다.</MapSearchEmpty>
-                  ) : (
-                    mapSearchHits.map((m) => (
-                      <MapSearchHitRow
-                        key={m.id}
-                        type="button"
-                        role="option"
-                        onClick={() => flyToShareholder(m)}>
-                        <span>
-                          {[m.company, m.name].filter(Boolean).join(" · ") ||
-                            "이름 없음"}
-                        </span>
-                        <small>{m.address ?? m.latlngaddress ?? ""}</small>
-                      </MapSearchHitRow>
-                    ))
-                  )}
-                  {mapSearchHits.length > 0 ? (
-                    <MapSearchHint>
-                      현재 필터·지도 조건이 적용된 주주 목록에서 최대 40건까지
-                      표시됩니다.
-                    </MapSearchHint>
-                  ) : null}
-                </MapSearchResults>
-              )}
-            </MapSearchWrap>
-          ) : null}
 
           <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
             <Menu />
@@ -725,49 +680,155 @@ const WorkspaceMapPage = () => {
           </Modal>
         </Map>
       </MapContainer>
+
+      {mapSearchPanelOpen ? (
+        <GlobalSearchLayer
+          data-map-search
+          role="dialog"
+          aria-modal="true"
+          aria-label="주주 검색">
+          <GlobalSearchHeader>
+            <GlobalSearchTitle>주주 검색</GlobalSearchTitle>
+            <GlobalSearchHeaderClose
+              type="button"
+              aria-label="검색 닫기"
+              onClick={() => closeMapSearchPanel()}>
+              <ClearIcon sx={{ fontSize: 22 }} />
+            </GlobalSearchHeaderClose>
+          </GlobalSearchHeader>
+          <GlobalSearchFieldStrip>
+            <SearchIcon
+              sx={{ color: COLORS.gray[500], fontSize: 22 }}
+              aria-hidden
+            />
+            <MapSearchInput
+              type="search"
+              value={mapSearchInput}
+              onChange={(e) => {
+                setMapSearchInput(e.target.value)
+                if (!e.target.value.trim()) setHighlightShareholderId(null)
+              }}
+              placeholder="이름·회사·주소 검색…"
+              aria-label="검색어"
+              autoComplete="off"
+              autoFocus
+            />
+          </GlobalSearchFieldStrip>
+          <GlobalSearchResultsScroll role="listbox" aria-label="검색 결과">
+            {!debouncedMapSearch.trim() ? (
+              <GlobalSearchIdle>
+                검색어를 입력하면 아래에 결과 목록이 표시됩니다. 항목을 누르면
+                지도가 해당 위치로 이동합니다.
+              </GlobalSearchIdle>
+            ) : mapSearchHits.length === 0 ? (
+              <MapSearchEmpty>검색 결과가 없습니다.</MapSearchEmpty>
+            ) : (
+              <>
+                {mapSearchHits.map((m) => (
+                  <MapSearchHitRow
+                    key={m.id}
+                    type="button"
+                    role="option"
+                    onClick={() => flyToShareholder(m)}>
+                    <span>
+                      {[m.company, m.name].filter(Boolean).join(" · ") ||
+                        "이름 없음"}
+                    </span>
+                    <small>{m.address ?? m.latlngaddress ?? ""}</small>
+                  </MapSearchHitRow>
+                ))}
+                <MapSearchHint>
+                  현재 필터가 적용된 명부 전체에서 검색합니다. 표시는 최대
+                  200건이며, 항목을 누르면 지도로 이동합니다.
+                </MapSearchHint>
+              </>
+            )}
+          </GlobalSearchResultsScroll>
+        </GlobalSearchLayer>
+      ) : null}
     </>
   )
 }
 
 export default WorkspaceMapPage
 
-const MapSearchWrap = styled.div`
+const GlobalSearchLayer = styled.div`
   position: fixed;
-  top: max(1rem, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 11;
-  width: min(calc(100vw - 2rem), 22rem);
-  max-width: calc(100vw - 1rem);
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  padding: max(0.75rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
 `
 
-const MapSearchInner = styled.div`
+const GlobalSearchHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: white;
-  border-radius: 9999px;
-  padding: 0.35rem 0.35rem 0.35rem 0.65rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  justify-content: space-between;
+  flex-shrink: 0;
+  margin-bottom: 0.75rem;
+  gap: 0.75rem;
 `
 
-const MapSearchClose = styled.button`
+const GlobalSearchTitle = styled.h2`
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: ${COLORS.gray[900]};
+`
+
+const GlobalSearchHeaderClose = styled.button`
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border: none;
-  border-radius: 9999px;
-  background: transparent;
-  color: ${COLORS.gray[500]};
+  border-radius: 0.75rem;
+  background: ${COLORS.gray[100]};
+  color: ${COLORS.gray[600]};
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   &:hover {
-    background: ${COLORS.gray[100]};
-    color: ${COLORS.gray[700]};
+    background: ${COLORS.gray[200]};
+    color: ${COLORS.gray[800]};
   }
+`
+
+const GlobalSearchFieldStrip = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 0.75rem;
+  background: ${COLORS.gray[50]};
+  margin-bottom: 0.75rem;
+`
+
+const GlobalSearchResultsScroll = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border: 1px solid ${COLORS.gray[100]};
+  border-radius: 0.75rem;
+  background: white;
+`
+
+const GlobalSearchIdle = styled.p`
+  margin: 0;
+  padding: 1.25rem 1rem;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[600]};
+  line-height: 1.55;
 `
 
 const MapSearchInput = styled.input`
@@ -780,17 +841,6 @@ const MapSearchInput = styled.input`
   &::placeholder {
     color: ${COLORS.gray[400]};
   }
-`
-
-const MapSearchResults = styled.div`
-  margin-top: 0.35rem;
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  max-height: min(50vh, 280px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 `
 
 const MapSearchHint = styled.div`
