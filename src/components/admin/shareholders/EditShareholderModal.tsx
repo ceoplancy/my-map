@@ -10,6 +10,10 @@ import {
   usePatchShareholder,
   useShareholderChangeHistory,
 } from "@/api/workspace"
+import {
+  removeShareholderPhotoObject,
+  uploadShareholderPhotoAndGetPublicUrl,
+} from "@/lib/shareholderPhotoStorage"
 import Select from "@/components/ui/select"
 import {
   composeShareholderStatus,
@@ -260,16 +264,19 @@ export const FIELD_LABELS: Record<string, string> = {
   company: "회사명(구분1)",
   status: "상태",
   address: "주소",
+  address_original: "원본 주소(엑셀)",
   lat: "위도",
   lng: "경도",
   latlngaddress: "기존 주소(수정 전)",
   maker: "마커(구분2)",
   stocks: "주식수",
   memo: "메모",
+  image: "사진 URL",
 }
 
 export default function EditShareholderModal({ data, userId, onClose }: Props) {
   const [formData, setFormData] = useState<Shareholder>(data)
+  const [photoBusy, setPhotoBusy] = useState(false)
   const parsedStatus = splitShareholderStatus(data.status)
   const [statusPrimary, setStatusPrimary] = useState<PrimaryStatus>(
     parsedStatus.primary,
@@ -306,6 +313,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           latlngaddress: formData.latlngaddress,
           memo: formData.memo,
           maker: formData.maker,
+          image: formData.image,
         },
         userId,
       })
@@ -354,6 +362,16 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   onChange={(e) => handleChange("address", e.target.value)}
                 />
               </FormGroup>
+              {formData.address_original ? (
+                <FormGroup>
+                  <Label>{FIELD_LABELS.address_original}</Label>
+                  <Input
+                    type="text"
+                    disabled
+                    value={formData.address_original}
+                  />
+                </FormGroup>
+              ) : null}
               <FormGroup>
                 <Label>{FIELD_LABELS.status}</Label>
                 <ModalSelect
@@ -429,6 +447,92 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   value={formData.maker || ""}
                   onChange={(e) => handleChange("maker", e.target.value)}
                 />
+              </FormGroup>
+              <FormGroup>
+                <Label>사진</Label>
+                {formData.image ? (
+                  <img
+                    src={formData.image}
+                    alt=""
+                    style={{
+                      maxWidth: 160,
+                      maxHeight: 120,
+                      borderRadius: 8,
+                      objectFit: "cover",
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  />
+                ) : null}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={photoBusy || patchShareholder.isPending}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ""
+                    if (!file) return
+                    setPhotoBusy(true)
+                    try {
+                      const url = await uploadShareholderPhotoAndGetPublicUrl(
+                        file,
+                        data.list_id,
+                        data.id,
+                      )
+                      setFormData((prev) => ({ ...prev, image: url }))
+                      await patchShareholder.mutateAsync({
+                        patch: { id: data.id, image: url },
+                        userId,
+                      })
+                      toast.success("사진을 반영했습니다.")
+                    } catch (err) {
+                      reportError(err, {
+                        toastMessage: "사진 업로드에 실패했습니다.",
+                      })
+                    } finally {
+                      setPhotoBusy(false)
+                    }
+                  }}
+                />
+                {formData.image ? (
+                  <button
+                    type="button"
+                    disabled={photoBusy || patchShareholder.isPending}
+                    style={{
+                      marginTop: 8,
+                      padding: "6px 12px",
+                      fontSize: "0.8125rem",
+                      color: COLORS.red[700],
+                      background: COLORS.red[50],
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                    onClick={async () => {
+                      setPhotoBusy(true)
+                      try {
+                        await removeShareholderPhotoObject(
+                          data.list_id,
+                          data.id,
+                          formData.image,
+                        )
+                        setFormData((prev) => ({ ...prev, image: null }))
+                        await patchShareholder.mutateAsync({
+                          patch: { id: data.id, image: null },
+                          userId,
+                        })
+                        toast.success("사진을 삭제했습니다.")
+                      } catch (err) {
+                        reportError(err, {
+                          toastMessage: "사진 삭제에 실패했습니다.",
+                        })
+                      } finally {
+                        setPhotoBusy(false)
+                      }
+                    }}>
+                    사진 삭제
+                  </button>
+                ) : null}
               </FormGroup>
             </FormSection>
           </FormGrid>

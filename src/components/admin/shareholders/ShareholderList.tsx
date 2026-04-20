@@ -2,8 +2,11 @@ import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import EditShareholderModal from "./EditShareholderModal"
+import EditShareholderModal, {
+  FIELD_LABELS as ChangeHistoryFieldLabels,
+} from "./EditShareholderModal"
 import AddShareholderModal from "./AddShareholderModal"
+import ShareholderExportDialog from "./ShareholderExportDialog"
 import {
   ArrowUpward,
   ArrowDownward,
@@ -30,11 +33,14 @@ import {
 import { useSession } from "@/api/auth"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
-import * as XLSX from "xlsx"
-import { buildShareholderRegistryExportFileName } from "@/lib/shareholderRegistryExportFilename"
-import { removeTags } from "@/lib/utils"
+import {
+  downloadShareholderRegistryWorkbook,
+  type ShareholderRegistryExportOptions,
+} from "@/lib/shareholderRegistryExportWorkbook"
+import { getWorkspaceAdminBase, removeTags } from "@/lib/utils"
 import supabase from "@/lib/supabase/supabaseClient"
 import { useGetUsers } from "@/api/supabase"
+import Link from "next/link"
 
 type Shareholder = Tables<"shareholders">
 
@@ -76,11 +82,22 @@ const Container = styled.div`
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  min-width: 0;
+
+  @media (max-width: 600px) {
+    border-radius: 0.75rem;
+  }
 `
 
 const TableWrapper = styled.div`
   overflow-x: auto;
   margin: 1rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+
+  @media (max-width: 600px) {
+    margin: 0.5rem 0.5rem 0.75rem;
+  }
 `
 
 const Table = styled.table`
@@ -105,6 +122,19 @@ const Th = styled.th`
 
   &:last-of-type {
     padding-right: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 0.65rem 0.5rem;
+    font-size: 0.8125rem;
+
+    &:first-of-type {
+      padding-left: 0.75rem;
+    }
+
+    &:last-of-type {
+      padding-right: 0.75rem;
+    }
   }
 `
 
@@ -146,6 +176,19 @@ const Td = styled.td`
 
   &:last-of-type {
     padding-right: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 0.65rem 0.5rem;
+    font-size: 0.8125rem;
+
+    &:first-of-type {
+      padding-left: 0.75rem;
+    }
+
+    &:last-of-type {
+      padding-right: 0.75rem;
+    }
   }
 `
 
@@ -192,13 +235,24 @@ const ActionButton = styled.button`
 const FilterSection = styled.div`
   padding: 1.5rem;
   border-bottom: 1px solid ${COLORS.gray[200]};
+
+  @media (max-width: 600px) {
+    padding: 1rem 0.75rem;
+  }
 `
 
 const FilterHeader = styled.div`
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `
 
 const FilterTitle = styled.div`
@@ -217,6 +271,12 @@ const SearchInputWrapper = styled.div`
   position: relative;
   flex: 1;
   max-width: 300px;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    max-width: none;
+    width: 100%;
+  }
 
   svg {
     position: absolute;
@@ -249,6 +309,14 @@ const PaginationContainer = styled.div`
   align-items: center;
   padding: 1rem 1.5rem;
   border-top: 1px solid ${COLORS.gray[200]};
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  @media (max-width: 600px) {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
 `
 
 const PaginationInfo = styled.div`
@@ -308,6 +376,10 @@ const FilterGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
   gap: 1rem 1.25rem;
   align-items: start;
+
+  @media (max-width: 480px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 `
 
 const FilterToolbar = styled.div`
@@ -317,6 +389,15 @@ const FilterToolbar = styled.div`
   gap: 0.75rem;
   padding-top: 0.25rem;
   border-top: 1px solid ${COLORS.gray[100]};
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    & > button {
+      justify-content: center;
+    }
+  }
 `
 
 const StocksRangeContainer = styled.div`
@@ -433,6 +514,43 @@ type Filters = {
   /** YYYY-MM-DD, 변경 이력 없으면 shareholders.updated_at으로 비교 */
   modifiedFrom: string
   modifiedTo: string
+
+  /** 사진 있음 / 없음 / 전체 */
+  photo: "" | "with" | "without"
+
+  /** 지도 좌표 변환 상태 (서버 조회 후 클라이언트 필터) */
+  geocode: "" | "ok" | "pending" | "failed"
+}
+
+function describeShareholderListFilters(filters: Filters): string {
+  const parts: string[] = []
+  if (filters.search.trim()) {
+    parts.push(`검색「${filters.search.trim()}」`)
+  }
+  if (filters.status) parts.push(`상태 ${filters.status}`)
+  if (filters.stocksMin.trim() || filters.stocksMax.trim()) {
+    parts.push(
+      `주식수 ${filters.stocksMin.trim() || "—"} ~ ${filters.stocksMax.trim() || "—"}`,
+    )
+  }
+  if (filters.modifier) {
+    parts.push("최종수정자 필터 적용")
+  }
+  if (filters.modifiedFrom.trim() || filters.modifiedTo.trim()) {
+    parts.push(
+      `최종수정일 ${filters.modifiedFrom.trim() || "—"} ~ ${filters.modifiedTo.trim() || "—"}`,
+    )
+  }
+  if (filters.photo === "with") parts.push("사진 있음")
+  if (filters.photo === "without") parts.push("사진 없음")
+  const geoMap: Record<string, string> = {
+    ok: "지오코딩 성공",
+    pending: "지오코딩 대기",
+    failed: "지오코딩 실패",
+  }
+  if (filters.geocode) parts.push(geoMap[filters.geocode] ?? filters.geocode)
+
+  return parts.length > 0 ? parts.join(" · ") : "없음 (전체)"
 }
 
 type Props = { listId: string; listName?: string }
@@ -464,6 +582,7 @@ export default function ShareholderList({ listId, listName }: Props) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedItem, setSelectedItem] = useState<Shareholder | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [sort, setSort] = useState<SortConfig>({
     field: null,
     direction: "asc",
@@ -476,6 +595,8 @@ export default function ShareholderList({ listId, listName }: Props) {
     modifier: "",
     modifiedFrom: "",
     modifiedTo: "",
+    photo: "",
+    geocode: "",
   })
 
   const { data: session } = useSession()
@@ -484,14 +605,25 @@ export default function ShareholderList({ listId, listName }: Props) {
     data: shareholdersData,
     isPending: shareholdersPending,
     refetch,
-  } = useShareholders({ listId })
+  } = useShareholders({
+    listId,
+    photoFilter:
+      filters.photo === "with"
+        ? "with"
+        : filters.photo === "without"
+          ? "without"
+          : undefined,
+    geocodeStatusFilter: filters.geocode === "" ? undefined : [filters.geocode],
+  })
 
   const { data: listMeta } = useQuery({
     queryKey: ["shareholderListWorkspace", listId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shareholder_lists")
-        .select("workspace_id")
+        .select(
+          "workspace_id, contact_phone, contact_note, rules_version, archived_at, completed_at, name",
+        )
         .eq("id", listId)
         .maybeSingle()
       if (error) throw error
@@ -637,6 +769,7 @@ export default function ShareholderList({ listId, listName }: Props) {
         item.name?.toLowerCase().includes(searchTerm) ||
         memoPlain.includes(searchTerm) ||
         item.address?.toLowerCase().includes(searchTerm) ||
+        item.address_original?.toLowerCase().includes(searchTerm) ||
         item.latlngaddress?.toLowerCase().includes(searchTerm)
 
       const matchesStatus =
@@ -782,6 +915,63 @@ export default function ShareholderList({ listId, listName }: Props) {
     }
   }
 
+  const formatHistoryForExport = useCallback(
+    (shareholderId: string): string => {
+      const entries = allChanges[shareholderId]
+      if (!entries?.length) return ""
+
+      return entries
+        .map((e) => {
+          const who = usersMap[e.changed_by] ?? e.changed_by
+          const label = ChangeHistoryFieldLabels[e.field] ?? e.field
+
+          return `[${e.changed_at}] ${who}: ${label} ${e.old_value ?? "-"} → ${e.new_value ?? "-"}`
+        })
+        .join("\n")
+    },
+    [allChanges, usersMap],
+  )
+
+  const runRegistryExport = useCallback(
+    (opts: ShareholderRegistryExportOptions) => {
+      const filterDescription = describeShareholderListFilters(filters)
+      const displayName = listMeta?.name ?? listName ?? null
+      const fileBase = displayName ? `주주명부_${displayName}` : "주주명부"
+
+      downloadShareholderRegistryWorkbook({
+        listName: displayName,
+        filterDescription,
+        rows: sortedData,
+        options: opts,
+        fileBaseName: fileBase,
+        ctx: {
+          formatHistoryInline: formatHistoryForExport,
+          getLatestModifier: (id) => String(getLatestModifier(id)),
+          getLatestModifiedDate: (id) => {
+            const raw = getLatestModifiedDate(id)
+
+            return formatModifiedAtDisplay(raw === EMPTY_CELL ? "" : raw)
+          },
+          allChanges,
+          usersMap,
+          fieldLabels: ChangeHistoryFieldLabels,
+        },
+      })
+      toast.success("엑셀 파일을 저장했습니다.")
+    },
+    [
+      filters,
+      listMeta?.name,
+      listName,
+      sortedData,
+      formatHistoryForExport,
+      getLatestModifier,
+      getLatestModifiedDate,
+      allChanges,
+      usersMap,
+    ],
+  )
+
   if (shareholdersPending && shareholdersData === undefined) {
     return (
       <div
@@ -789,64 +979,6 @@ export default function ShareholderList({ listId, listName }: Props) {
         <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
       </div>
     )
-  }
-
-  const FIELD_LABELS: Record<string, string> = {
-    name: "이름",
-    company: "회사명",
-    status: "상태",
-    address: "주소",
-    memo: "메모",
-    stocks: "주식수",
-    maker: "마커",
-    latlngaddress: "기존 주소",
-  }
-
-  const formatHistoryForExport = (shareholderId: string): string => {
-    const entries = allChanges[shareholderId]
-    if (!entries?.length) return ""
-
-    return entries
-      .map((e) => {
-        const who = usersMap[e.changed_by] ?? e.changed_by
-        const label = FIELD_LABELS[e.field] ?? e.field
-
-        return `[${e.changed_at}] ${who}: ${label} ${e.old_value ?? "-"} → ${e.new_value ?? "-"}`
-      })
-      .join("\n")
-  }
-
-  const handleExport = () => {
-    const exportData = sortedData.map((item: Shareholder) => ({
-      주주ID: item.id,
-      이름: item.name ?? "",
-      회사명: item.company ?? "",
-      주소: item.address ?? "",
-      상태: item.status ?? "",
-      주식수: item.stocks ?? 0,
-      메모: item.memo ?? "",
-      최종수정자: getLatestModifier(item.id),
-      최종수정일: formatModifiedAtDisplay(getLatestModifiedDate(item.id)),
-      변경이력: formatHistoryForExport(item.id),
-    }))
-
-    const ws = XLSX.utils.json_to_sheet(exportData)
-    ws["!cols"] = [
-      { wch: 38 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 40 },
-      { wch: 8 },
-      { wch: 12 },
-      { wch: 30 },
-      { wch: 20 },
-      { wch: 28 },
-      { wch: 60 },
-    ]
-
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "주주명부")
-    XLSX.writeFile(wb, buildShareholderRegistryExportFileName(listName))
   }
 
   const currentData = sortedData.slice(
@@ -863,11 +995,34 @@ export default function ShareholderList({ listId, listName }: Props) {
               display: "flex",
               alignItems: "center",
               gap: "0.75rem",
+              flexWrap: "wrap",
             }}>
             <FilterTitle>
               <FilterList />
               주주 목록
             </FilterTitle>
+            {listMeta?.contact_phone || listMeta?.contact_note ? (
+              <span
+                style={{
+                  fontSize: "0.8rem",
+                  color: COLORS.gray[600],
+                  maxWidth: "28rem",
+                }}>
+                명부 연락처: {listMeta.contact_phone ?? "—"}
+                {listMeta.contact_note ? ` · ${listMeta.contact_note}` : ""}
+              </span>
+            ) : null}
+            {workspaceId ? (
+              <Link
+                href={`${getWorkspaceAdminBase(workspaceId)}/excel-import?listId=${listId}`}
+                style={{
+                  fontSize: "0.8rem",
+                  color: COLORS.blue[600],
+                  fontWeight: 600,
+                }}>
+                엑셀 가져오기 · 보류함
+              </Link>
+            ) : null}
             <AddButton type="button" onClick={() => setAddModalOpen(true)}>
               <AddIcon />
               주주 추가
@@ -876,7 +1031,7 @@ export default function ShareholderList({ listId, listName }: Props) {
           <SearchInputWrapper>
             <Search />
             <SearchInput
-              placeholder="이름, 회사명, 주소, 메모로 검색..."
+              placeholder="이름, 회사명, 주소, 원문 주소, 메모로 검색..."
               value={filters.search}
               onChange={(e) => handleFilterChange("search", e.target.value)}
             />
@@ -959,6 +1114,40 @@ export default function ShareholderList({ listId, listName }: Props) {
             </FormGroup>
 
             <FormGroup>
+              <Label>사진</Label>
+              <FilterSelect
+                value={filters.photo}
+                onChange={(e) =>
+                  handleFilterChange(
+                    "photo",
+                    e.target.value as Filters["photo"],
+                  )
+                }>
+                <option value="">전체</option>
+                <option value="with">있음</option>
+                <option value="without">없음</option>
+              </FilterSelect>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>지오코딩</Label>
+              <FilterSelect
+                value={filters.geocode}
+                onChange={(e) =>
+                  handleFilterChange(
+                    "geocode",
+                    e.target.value as Filters["geocode"],
+                  )
+                }
+                title="좌표 변환 성공·대기·실패">
+                <option value="">전체</option>
+                <option value="ok">성공</option>
+                <option value="pending">대기</option>
+                <option value="failed">실패</option>
+              </FilterSelect>
+            </FormGroup>
+
+            <FormGroup>
               <Label>정렬 기준</Label>
               <FilterSelect
                 value={sort.field ?? ""}
@@ -998,6 +1187,8 @@ export default function ShareholderList({ listId, listName }: Props) {
                   modifier: "",
                   modifiedFrom: "",
                   modifiedTo: "",
+                  photo: "",
+                  geocode: "",
                 })
                 setCurrentPage(1)
               }}>
@@ -1005,7 +1196,9 @@ export default function ShareholderList({ listId, listName }: Props) {
               필터 초기화
             </ClearFiltersButton>
 
-            <ExportButton type="button" onClick={handleExport}>
+            <ExportButton
+              type="button"
+              onClick={() => setExportDialogOpen(true)}>
               <DownloadIcon />
               엑셀 내보내기
             </ExportButton>
@@ -1028,6 +1221,7 @@ export default function ShareholderList({ listId, listName }: Props) {
                     ))}
                 </div>
               </ThSortable>
+              <Th>사진</Th>
               <ThSortable onClick={() => handleSort("status")}>
                 상태
                 {sort.field === "status" &&
@@ -1086,6 +1280,22 @@ export default function ShareholderList({ listId, listName }: Props) {
             {currentData.map((item: Shareholder) => (
               <Tr key={item.id}>
                 <Td>{item.name}</Td>
+                <Td>
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt=""
+                      style={{
+                        width: 40,
+                        height: 40,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                      }}
+                    />
+                  ) : (
+                    EMPTY_CELL
+                  )}
+                </Td>
                 <Td>{item.status}</Td>
                 <Td>{item.stocks.toLocaleString()}</Td>
                 <Td>{item.address}</Td>
@@ -1175,6 +1385,13 @@ export default function ShareholderList({ listId, listName }: Props) {
           onSuccess={() => refetch()}
         />
       )}
+      <ShareholderExportDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        onConfirm={runRegistryExport}
+        filterDescriptionPreview={describeShareholderListFilters(filters)}
+        rowCount={sortedData.length}
+      />
     </Container>
   )
 }

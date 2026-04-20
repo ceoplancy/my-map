@@ -3,6 +3,9 @@ import { COLORS } from "@/styles/global-style"
 import { useState, useEffect } from "react"
 import type { Tables } from "@/types/db"
 import { useUpdateShareholderList } from "@/api/workspace"
+import supabase from "@/lib/supabase/supabaseClient"
+import { toast } from "react-toastify"
+import { reportError } from "@/lib/reportError"
 
 const Overlay = styled.div`
   position: fixed;
@@ -22,7 +25,9 @@ const Modal = styled.div`
   border-radius: 1rem;
   padding: 1.5rem;
   width: 100%;
-  max-width: 28rem;
+  max-width: 32rem;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
 `
 
@@ -125,6 +130,9 @@ export default function EditListModal({ list, onClose }: Props) {
   const [activeFrom, setActiveFrom] = useState(list.active_from ?? "")
   const [activeTo, setActiveTo] = useState(list.active_to ?? "")
   const [isVisible, setIsVisible] = useState(list.is_visible)
+  const [contactPhone, setContactPhone] = useState(list.contact_phone ?? "")
+  const [contactNote, setContactNote] = useState(list.contact_note ?? "")
+  const [qrBusy, setQrBusy] = useState(false)
   const updateList = useUpdateShareholderList()
 
   useEffect(() => {
@@ -132,6 +140,8 @@ export default function EditListModal({ list, onClose }: Props) {
     setActiveFrom(list.active_from ?? "")
     setActiveTo(list.active_to ?? "")
     setIsVisible(list.is_visible)
+    setContactPhone(list.contact_phone ?? "")
+    setContactNote(list.contact_note ?? "")
   }, [list])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -143,11 +153,36 @@ export default function EditListModal({ list, onClose }: Props) {
         active_from: activeFrom.trim() || null,
         active_to: activeTo.trim() || null,
         is_visible: isVisible,
+        contact_phone: contactPhone.trim() || null,
+        contact_note: contactNote.trim() || null,
       },
       {
         onSuccess: () => onClose(),
       },
     )
+  }
+
+  const issueQrLink = async () => {
+    setQrBusy(true)
+    try {
+      const token = crypto.randomUUID().replace(/-/g, "")
+      const expires_at = new Date(Date.now() + 7 * 86400000).toISOString()
+      const { data: auth } = await supabase.auth.getUser()
+      const { error } = await supabase.from("list_upload_tokens").insert({
+        list_id: list.id,
+        token,
+        expires_at,
+        created_by: auth.user?.id ?? null,
+      })
+      if (error) throw error
+      const url = `${window.location.origin}/upload-photo?t=${token}`
+      await navigator.clipboard.writeText(url)
+      toast.success("QR용 업로드 링크를 클립보드에 복사했습니다. (7일 유효)")
+    } catch (err) {
+      reportError(err, { toastMessage: "링크 발급에 실패했습니다." })
+    } finally {
+      setQrBusy(false)
+    }
   }
 
   return (
@@ -189,6 +224,83 @@ export default function EditListModal({ list, onClose }: Props) {
             />
             지도 노출
           </ToggleLabel>
+          <FormGroup>
+            <Label>명부 연락처 (전화)</Label>
+            <Input
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              placeholder="현장 대표 번호 등"
+            />
+          </FormGroup>
+          <FormGroup>
+            <Label>연락처 메모</Label>
+            <Input
+              type="text"
+              value={contactNote}
+              onChange={(e) => setContactNote(e.target.value)}
+            />
+          </FormGroup>
+          <p
+            style={{
+              fontSize: "0.8rem",
+              color: COLORS.gray[600],
+              margin: "0 0 0.5rem",
+            }}>
+            규율 버전: {list.rules_version ?? 1} (운영에서 갱신)
+          </p>
+          <Button
+            type="button"
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              marginBottom: "0.75rem",
+              borderRadius: "0.5rem",
+              border: `1px solid ${COLORS.gray[200]}`,
+              background: COLORS.gray[50],
+              cursor: qrBusy ? "not-allowed" : "pointer",
+            }}
+            disabled={qrBusy}
+            onClick={() => void issueQrLink()}>
+            사진 업로드용 링크 발급 (클립보드 복사)
+          </Button>
+          <ButtonGroup style={{ marginBottom: "0.75rem" }}>
+            <Button
+              type="button"
+              className="cancel"
+              style={{ flex: 1 }}
+              disabled={updateList.isPending}
+              onClick={() => {
+                if (
+                  !confirm("명부를 완료 처리할까요? (재확인 후 아카이브 가능)")
+                ) {
+                  return
+                }
+                updateList.mutate({
+                  id: list.id,
+                  completed_at: new Date().toISOString(),
+                })
+              }}>
+              완료 표시
+            </Button>
+            <Button
+              type="button"
+              className="cancel"
+              style={{ flex: 1, color: COLORS.purple[800] }}
+              disabled={updateList.isPending}
+              onClick={() => {
+                if (!confirm("명부를 아카이브하고 지도에서 숨길까요?")) {
+                  return
+                }
+                updateList.mutate({
+                  id: list.id,
+                  archived_at: new Date().toISOString(),
+                  is_visible: false,
+                })
+              }}>
+              아카이브
+            </Button>
+          </ButtonGroup>
           <ButtonGroup>
             <Button type="button" className="cancel" onClick={onClose}>
               취소

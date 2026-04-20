@@ -28,6 +28,7 @@ import {
   InputAdornment,
   Grid,
   ListItemButton,
+  useMediaQuery,
 } from "@mui/material"
 import {
   CloudUpload,
@@ -41,6 +42,7 @@ import {
   LocationOn,
   Map as MapIcon,
   Close,
+  HourglassEmpty,
 } from "@mui/icons-material"
 import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import useDebounce from "@/hooks/useDebounce"
@@ -65,8 +67,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   onDragEnter,
   onEditFailedData,
   onRetryAllFailedData,
+  onDeferRow,
 }) => {
   const theme = useTheme()
+  const editDialogFullScreen = useMediaQuery(theme.breakpoints.down("sm"))
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [currentEditData, setCurrentEditData] =
     useState<ImportSpreadsheetRow | null>(null)
@@ -296,13 +300,13 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
 
   // 편집 다이얼로그 열기 함수
   const handleEditClick = (rowData: ImportSpreadsheetRow) => {
-    setCurrentEditData(rowData)
+    setCurrentEditData({ ...rowData })
 
-    // 모든 필드를 포함하는 초기 값 설정
-    // 기본 필드 목록 정의 (필요에 따라 조정)
+    /** failData 배열 속 객체를 직접 수정하지 않도록 얕은 복사 */
     const allFields: (keyof ImportSpreadsheetRow)[] = [
       "id",
       "name",
+      "addressOriginal",
       "address",
       "status",
       "company",
@@ -311,8 +315,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
       "stocks",
     ]
 
-    // 초기값 설정 (rowData에 있는 값 + 없는 필드는 빈 문자열)
-    const initialValues: ImportSpreadsheetRow = rowData
+    const initialValues: ImportSpreadsheetRow = { ...rowData }
 
     allFields.forEach((field) => {
       switch (field) {
@@ -329,6 +332,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         case "status":
         case "company":
         case "address":
+        case "addressOriginal":
         case "maker":
         case "memo":
         case "latlngaddress":
@@ -382,10 +386,13 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   const handleSaveEdit = async () => {
     if (currentEditData && editedValues) {
       try {
-        // 수정된 데이터 저장
+        const ev = editedValues as ImportSpreadsheetRow
         await onEditFailedData({
           ...currentEditData,
-          ...editedValues,
+          ...ev,
+          id: currentEditData.id,
+          shareholderId:
+            ev.shareholderId ?? currentEditData.shareholderId ?? null,
         })
 
         // 다이얼로그 닫기
@@ -440,15 +447,20 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   }, [])
 
   return (
-    <Container maxWidth="lg" sx={{ py: 5 }}>
+    <Container
+      maxWidth="lg"
+      sx={{
+        py: { xs: 2, sm: 4, md: 5 },
+        px: { xs: 1, sm: 2, md: 3 },
+      }}>
       <Paper
         elevation={0}
         sx={{
-          p: 4,
+          p: { xs: 2, sm: 3, md: 4 },
           borderRadius: 2,
           border: "1px solid",
           borderColor: "divider",
-          mb: 4,
+          mb: { xs: 2, md: 4 },
         }}>
         <Typography
           variant="h4"
@@ -705,7 +717,8 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         open={editDialogOpen}
         onClose={handleEditDialogClose}
         maxWidth="lg"
-        fullWidth>
+        fullWidth
+        fullScreen={editDialogFullScreen}>
         <DialogTitle
           sx={{
             m: 0,
@@ -932,7 +945,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
         <Paper
           elevation={0}
           sx={{
-            p: 4,
+            p: { xs: 2, sm: 3, md: 4 },
             borderRadius: 2,
             border: "1px solid",
             borderColor: "divider",
@@ -940,8 +953,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
           <Box
             sx={{
               display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: { xs: "stretch", sm: "center" },
+              gap: { xs: 1.5, sm: 0 },
               mb: 3,
             }}>
             <Typography variant="h6" fontWeight="bold" color="error">
@@ -951,8 +966,9 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
               variant="outlined"
               color="primary"
               startIcon={<FileDownload />}
-              onClick={() => onExport(failData)}
-              size="small">
+              onClick={() => onExport()}
+              size="small"
+              sx={{ alignSelf: { xs: "stretch", sm: "auto" } }}>
               실패 목록 다운로드 (.xlsx)
             </Button>
           </Box>
@@ -962,19 +978,28 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
             버튼을 통해 주소를 수정한 후 저장 및 재변환을 시도해주세요.
           </Alert>
 
-          <Alert severity="error" sx={{ mb: 3 }}>
-            새로 고침 시 수정 중인 데이터 목록은 사라집니다.
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            새로 고침하면 아래 세션 목록은 비워집니다. 변환에 실패한 행은
+            자동으로 DB 보류함에도 저장되며, 화면 하단 &quot;보류함
+            (DB)&quot;에서 언제든 재시도할 수 있습니다. 줄별 &quot;보류&quot;는
+            세션 목록에서만 제거합니다.
           </Alert>
 
-          <TableContainer>
-            <Table size="small">
+          <TableContainer
+            sx={{
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
+              maxWidth: "100%",
+            }}>
+            <Table size="small" sx={{ minWidth: 560 }}>
               <TableHead>
                 <TableRow sx={{ backgroundColor: theme.palette.action.hover }}>
                   <TableCell>ID</TableCell>
                   <TableCell>이름</TableCell>
-                  <TableCell>주소</TableCell>
+                  <TableCell>원본 주소</TableCell>
+                  <TableCell>지오코딩 시도 주소</TableCell>
                   <TableCell>상태</TableCell>
-                  <TableCell width={100} align="center">
+                  <TableCell width={140} align="center">
                     작업
                   </TableCell>
                 </TableRow>
@@ -983,9 +1008,10 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                 {failData
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((row, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{row.id || index + 1}</TableCell>
+                    <TableRow key={`${row.id}-${index}`}>
+                      <TableCell>{row.id ?? index + 1}</TableCell>
                       <TableCell>{row.name || "-"}</TableCell>
+                      <TableCell>{row.addressOriginal || "-"}</TableCell>
                       <TableCell>{row.address || "-"}</TableCell>
                       <TableCell>
                         <Chip
@@ -1005,6 +1031,16 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
                             <Edit fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        {onDeferRow && (
+                          <Tooltip title="세션에서 제거 · 보류함에 저장(없을 때만 삽입)">
+                            <IconButton
+                              size="small"
+                              color="secondary"
+                              onClick={() => void onDeferRow(row)}>
+                              <HourglassEmpty fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
