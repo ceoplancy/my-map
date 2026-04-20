@@ -62,6 +62,53 @@ export type Database = {
         }
         Relationships: []
       }
+      excel_import_staging: {
+        Row: {
+          created_at: string
+          created_by: string
+          error_message: string | null
+          id: string
+          list_id: string
+          original_address: string | null
+          row_data: Json
+          status: string
+          stocks: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          id?: string
+          list_id: string
+          original_address?: string | null
+          row_data: Json
+          status?: string
+          stocks?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          id?: string
+          list_id?: string
+          original_address?: string | null
+          row_data?: Json
+          status?: string
+          stocks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excel_import_staging_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shareholder_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_agent_activity_photos: {
         Row: {
           created_at: string
@@ -90,6 +137,70 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_rules_acceptances: {
+        Row: {
+          accepted_at: string
+          list_id: string
+          rules_version: number
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          list_id: string
+          rules_version: number
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          list_id?: string
+          rules_version?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_rules_acceptances_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shareholder_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_upload_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          list_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          list_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          list_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_upload_tokens_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shareholder_lists"
             referencedColumns: ["id"]
           },
         ]
@@ -165,31 +276,46 @@ export type Database = {
         Row: {
           active_from: string | null
           active_to: string | null
+          archived_at: string | null
+          completed_at: string | null
+          contact_note: string | null
+          contact_phone: string | null
           created_at: string
           id: string
           is_visible: boolean
           name: string
+          rules_version: number
           updated_at: string
           workspace_id: string
         }
         Insert: {
           active_from?: string | null
           active_to?: string | null
+          archived_at?: string | null
+          completed_at?: string | null
+          contact_note?: string | null
+          contact_phone?: string | null
           created_at?: string
           id?: string
           is_visible?: boolean
           name: string
+          rules_version?: number
           updated_at?: string
           workspace_id: string
         }
         Update: {
           active_from?: string | null
           active_to?: string | null
+          archived_at?: string | null
+          completed_at?: string | null
+          contact_note?: string | null
+          contact_phone?: string | null
           created_at?: string
           id?: string
           is_visible?: boolean
           name?: string
           updated_at?: string
+          rules_version?: number
           workspace_id?: string
         }
         Relationships: [
@@ -205,8 +331,10 @@ export type Database = {
       shareholders: {
         Row: {
           address: string | null
+          address_original: string | null
           company: string | null
           created_at: string
+          geocode_status: string | null
           history: Json | null
           id: string
           image: string | null
@@ -223,8 +351,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_original?: string | null
           company?: string | null
           created_at?: string
+          geocode_status?: string | null
           history?: Json | null
           id?: string
           image?: string | null
@@ -241,8 +371,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_original?: string | null
           company?: string | null
           created_at?: string
+          geocode_status?: string | null
           history?: Json | null
           id?: string
           image?: string | null

@@ -71,6 +71,17 @@ export function composeShareholderStatus(
   return `${primary}${STATUS_DELIMITER}${normalizedDetail}`
 }
 
+/** 세부 값이 비어 있거나 해당 1차 상태 허용 목록에 없으면 false */
+export function isAllowedStatusDetail(
+  primary: PrimaryStatus,
+  detail: string | null | undefined,
+): boolean {
+  const d = (detail ?? "").trim()
+  if (!d) return false
+
+  return (STATUS_DETAIL_OPTIONS[primary] ?? []).includes(d)
+}
+
 export function getPrimaryStatusCategory(
   raw: string | null | undefined,
 ): PrimaryStatus {

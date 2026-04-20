@@ -7,6 +7,9 @@ import type { Json } from "./db"
 export type ImportSpreadsheetRow = {
   id: number
   shareholderId?: string | null
+
+  /** 업로드 원문 주소 — 지오코딩 후에도 동일인 매칭·표시에 사용 */
+  addressOriginal: string | null
   address: string | null
   company: string | null
   history: Json | null

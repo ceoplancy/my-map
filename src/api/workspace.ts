@@ -58,6 +58,11 @@ function toHistoryValue(v: unknown): string | null {
   return truncateChangeHistoryValue(s)
 }
 
+/** PostgREST ilike 패턴에 넣기 위한 `%`, `_`, `\` 이스케이프 */
+function escapePostgrestLikePattern(input: string): string {
+  return input.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
+}
+
 const getShareholderLists = async (workspaceId: string) => {
   const { data, error } = await supabase
     .from("shareholder_lists")
@@ -251,7 +256,7 @@ export function useVisibleListIds(
   }, [lists, myMember, now])
 }
 
-type ShareholdersParams = {
+export type ShareholdersParams = {
   listId?: string | null
   listIds?: string[] | null
   status?: string[]
@@ -269,6 +274,15 @@ type ShareholdersParams = {
 
   /** 회사별 상세(상태·지역·주식수). 설정된 회사는 여기 우선 */
   companyFilterProfiles?: CompanyFilterProfiles
+
+  /** 이름·회사·주소 통합 검색(맵 등). 설정 시 뷰포트(lat/lng/mapLevel) 제한은 적용하지 않음 */
+  search?: string
+
+  /** 관리자 목록: 사진 있음/없음 (클라이언트 필터) */
+  photoFilter?: "with" | "without"
+
+  /** 지오코딩 상태 (클라이언트 필터, null·빈 값은 ok로 간주) */
+  geocodeStatusFilter?: ("ok" | "pending" | "failed")[]
 }
 
 type CompanyStockStats = Record<
@@ -325,6 +339,22 @@ function applyShareholderPostFilters<
   const profiles = params.companyFilterProfiles ?? {}
 
   return rows.filter((row) => {
+    if (params.photoFilter === "with") {
+      const img = (row as { image?: string | null }).image
+      if (!img || String(img).trim() === "") return false
+    }
+    if (params.photoFilter === "without") {
+      const img = (row as { image?: string | null }).image
+      if (img && String(img).trim() !== "") return false
+    }
+
+    if (params.geocodeStatusFilter?.length) {
+      const raw = (row as { geocode_status?: string | null }).geocode_status
+      const gs: "ok" | "pending" | "failed" =
+        raw === "pending" ? "pending" : raw === "failed" ? "failed" : "ok"
+      if (!params.geocodeStatusFilter.includes(gs)) return false
+    }
+
     const company = row.company ?? ""
     const prof = profiles[company]
 
@@ -457,7 +487,21 @@ const getShareholders = async (params: ShareholdersParams) => {
       query = query.lte("stocks", bounds.max)
     }
   }
-  if (params.lat != null && params.lng != null && params.mapLevel != null) {
+
+  const searchTrim = params.search?.trim()
+  if (searchTrim) {
+    const q = escapePostgrestLikePattern(searchTrim)
+    query = query.or(
+      `name.ilike.%${q}%,company.ilike.%${q}%,address.ilike.%${q}%,address_original.ilike.%${q}%,latlngaddress.ilike.%${q}%`,
+    )
+  }
+
+  if (
+    !searchTrim &&
+    params.lat != null &&
+    params.lng != null &&
+    params.mapLevel != null
+  ) {
     const { latRange, lngRange } = getCoordinateRanges(params.mapLevel)
     query = query.gte("lat", params.lat - latRange)
     query = query.lte("lat", params.lat + latRange)
@@ -518,7 +562,7 @@ const getShareholderStats = async (
 
   let query = supabase
     .from("shareholders")
-    .select("status, stocks, company, address")
+    .select("status, stocks, company, address, image, geocode_status")
   if (listIds.length === 1) {
     query = query.eq("list_id", listIds[0])
   } else {
@@ -553,6 +597,15 @@ const getShareholderStats = async (
       query = query.lte("stocks", bounds.max)
     }
   }
+
+  const statsSearchTrim = params.search?.trim()
+  if (statsSearchTrim) {
+    const q = escapePostgrestLikePattern(statsSearchTrim)
+    query = query.or(
+      `name.ilike.%${q}%,company.ilike.%${q}%,address.ilike.%${q}%,address_original.ilike.%${q}%,latlngaddress.ilike.%${q}%`,
+    )
+  }
+
   const { data, error } = await query
   if (error) {
     reportError(error)
@@ -600,6 +653,9 @@ export const useShareholderStats = (params: ShareholdersParams) => {
       params.stocks,
       params.companyStockFilterMap,
       params.companyFilterProfiles,
+      params.search,
+      params.photoFilter,
+      params.geocodeStatusFilter,
     ],
     queryFn: () => getShareholderStats(params),
     enabled,
@@ -668,6 +724,9 @@ export const useShareholders = (params: ShareholdersParams) => {
       params.lat,
       params.lng,
       params.mapLevel,
+      params.search,
+      params.photoFilter,
+      params.geocodeStatusFilter,
     ],
     queryFn: () => getShareholders(params),
     enabled,

@@ -25,6 +25,22 @@ function pickString(
   return null
 }
 
+export function normalizeAddressForDedupe(
+  s: string | null | undefined,
+): string {
+  if (!s) return ""
+  const t = s.normalize("NFKC").replace(/\s+/g, "").toLowerCase()
+
+  return t
+}
+
+export function dedupeKeyFromRow(
+  stocks: number,
+  originalAddress: string | null | undefined,
+): string {
+  return `${Number(stocks) || 0}:${normalizeAddressForDedupe(originalAddress)}`
+}
+
 function pickNumber(raw: Record<string, unknown>, keys: string[]): number {
   const s = pickString(raw, keys)
   if (!s) return 0
@@ -43,13 +59,15 @@ export function parseSpreadsheetRow(
 ): ImportSpreadsheetRow {
   const sid = pickString(raw, ["주주ID", "shareholder_id", "shareholderId"])
   const shareholderId = sid && UUID_RE.test(sid) ? sid : null
+  const addressOriginal = pickString(raw, ["주소", "address"])
 
   return {
     id: rowIndex + 1,
     shareholderId,
+    addressOriginal,
     name: pickString(raw, ["이름", "name", "주주명"]),
     company: pickString(raw, ["회사명", "company", "회사", "상장사명"]),
-    address: pickString(raw, ["주소", "address"]),
+    address: addressOriginal,
     status: pickString(raw, ["상태", "status", "방문 상태"]),
     memo: pickString(raw, ["메모", "memo"]),
     maker: pickString(raw, ["담당", "maker", "마커"]),
