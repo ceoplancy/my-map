@@ -25,6 +25,7 @@ import supabase from "@/lib/supabase/supabaseClient"
 import type { Tables, WorkspaceRole } from "@/types/db"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError } from "@/lib/reportError"
+import { isPostgrestUndefinedColumnError } from "@/lib/postgrestErrors"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
 import { requireSupabaseRow } from "@/lib/supabaseMaybeSingle"
 import { getCoordinateRanges } from "@/lib/utils"
@@ -318,6 +319,30 @@ export function useVisibleListIds(
   }, [lists, myMember, now])
 }
 
+/**
+ * 대시보드·의결권 현황 집계용 명부 ID.
+ * 지도와 달리 `is_visible`/활동 기간으로 숨겨진 명부도 포함(워크스페이스에서 받아온 목록 전체).
+ * 현장요원은 `allowed_list_ids` 안의 명부만.
+ */
+export function useDashboardListIds(
+  workspaceId: string | null,
+  userId: string | undefined,
+): string[] {
+  const { data: lists = [] } = useShareholderLists(workspaceId)
+  const { data: members = [] } = useWorkspaceMembers(workspaceId)
+  const myMember = members.find((m) => m.user_id === userId)
+
+  return useMemo(() => {
+    if (myMember?.role === "field_agent" && myMember.allowed_list_ids?.length) {
+      const allowed = new Set(myMember.allowed_list_ids)
+
+      return lists.filter((l) => allowed.has(l.id)).map((l) => l.id)
+    }
+
+    return lists.map((l) => l.id)
+  }, [lists, myMember])
+}
+
 export type ShareholdersParams = {
   listId?: string | null
   listIds?: string[] | null
@@ -339,6 +364,12 @@ export type ShareholdersParams = {
 
   /** 이름·회사·주소 통합 검색(맵 등). 설정 시 뷰포트(lat/lng/mapLevel) 제한은 적용하지 않음 */
   search?: string
+
+  /**
+   * true이면 `search`가 비어 있을 때 주주 쿼리를 실행하지 않음.
+   * 검색 전용 페이지에서 명부 전체를 불러오지 않도록 할 때 사용.
+   */
+  requireSearchToFetch?: boolean
 
   /** 관리자 목록: 사진 있음/없음 (클라이언트 필터) */
   photoFilter?: "with" | "without"
@@ -645,85 +676,108 @@ const getShareholderStats = async (
     }
   }
 
-  let query = supabase
-    .from("shareholders")
-    .select("status, stocks, company, address, image, geocode_status")
-  if (listIds.length === 1) {
-    query = query.eq("list_id", listIds[0])
-  } else {
-    query = query.in("list_id", listIds)
-  }
-  const useClientStatusOrProfiles =
-    (params.statusPrimaryFilter?.length ?? 0) > 0 ||
-    hasCompanyFilterProfiles(params.companyFilterProfiles)
-  const useClientCityForProfiles = hasCompanyFilterProfiles(
-    params.companyFilterProfiles,
-  )
-
-  const statusForQuery =
-    params.status?.filter((s) => s != null && String(s).trim() !== "") ?? []
-  if (statusForQuery.length && !useClientStatusOrProfiles) {
-    query = query.in("status", statusForQuery)
-  }
-  if (params.company?.length) {
-    query = query.in("company", params.company)
-  }
-  if (params.maker) {
-    query = query.eq("maker", params.maker)
-  }
-  if (params.city && !useClientCityForProfiles) {
-    query = query.like("address", `%${params.city}%`)
-  }
-
-  const statsSearchTrim = params.search?.trim()
-  const statsBboxFragment =
-    !statsSearchTrim &&
-    params.lat != null &&
-    params.lng != null &&
-    params.mapLevel != null
-      ? viewportBBoxPostgrestFragment(params.lat, params.lng, params.mapLevel)
-      : null
-
-  if (params.stocks?.length) {
-    if (statsBboxFragment) {
-      const conditions = params.stocks
-        .map(
-          (r) =>
-            `and(stocks.gte.${r.start},stocks.lte.${r.end},${statsBboxFragment})`,
-        )
-        .join(",")
-      query = query.or(conditions)
+  const buildShareholderStatsQuery = (select: string) => {
+    let q = supabase.from("shareholders").select(select)
+    if (listIds.length === 1) {
+      q = q.eq("list_id", listIds[0])
     } else {
-      const conditions = params.stocks
-        .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
-        .join(",")
-      query = query.or(conditions)
+      q = q.in("list_id", listIds)
     }
-  } else if (statsBboxFragment) {
-    query = query.or(`and(${statsBboxFragment})`)
-  }
-  if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
-    const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
-    if (bounds) {
-      query = query.gte("stocks", bounds.min)
-      query = query.lte("stocks", bounds.max)
-    }
-  }
-
-  if (statsSearchTrim) {
-    const q = escapePostgrestLikePattern(statsSearchTrim)
-    query = query.or(
-      `name.ilike.%${q}%,company.ilike.%${q}%,address.ilike.%${q}%,address_original.ilike.%${q}%,latlngaddress.ilike.%${q}%`,
+    const useClientStatusOrProfiles =
+      (params.statusPrimaryFilter?.length ?? 0) > 0 ||
+      hasCompanyFilterProfiles(params.companyFilterProfiles)
+    const useClientCityForProfiles = hasCompanyFilterProfiles(
+      params.companyFilterProfiles,
     )
+
+    const statusForQuery =
+      params.status?.filter((s) => s != null && String(s).trim() !== "") ?? []
+    if (statusForQuery.length && !useClientStatusOrProfiles) {
+      q = q.in("status", statusForQuery)
+    }
+    if (params.company?.length) {
+      q = q.in("company", params.company)
+    }
+    if (params.maker) {
+      q = q.eq("maker", params.maker)
+    }
+    if (params.city && !useClientCityForProfiles) {
+      q = q.like("address", `%${params.city}%`)
+    }
+
+    const statsSearchTrim = params.search?.trim()
+    const statsBboxFragment =
+      !statsSearchTrim &&
+      params.lat != null &&
+      params.lng != null &&
+      params.mapLevel != null
+        ? viewportBBoxPostgrestFragment(params.lat, params.lng, params.mapLevel)
+        : null
+
+    if (params.stocks?.length) {
+      if (statsBboxFragment) {
+        const conditions = params.stocks
+          .map(
+            (r) =>
+              `and(stocks.gte.${r.start},stocks.lte.${r.end},${statsBboxFragment})`,
+          )
+          .join(",")
+        q = q.or(conditions)
+      } else {
+        const conditions = params.stocks
+          .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
+          .join(",")
+        q = q.or(conditions)
+      }
+    } else if (statsBboxFragment) {
+      q = q.or(`and(${statsBboxFragment})`)
+    }
+    if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
+      const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
+      if (bounds) {
+        q = q.gte("stocks", bounds.min)
+        q = q.lte("stocks", bounds.max)
+      }
+    }
+
+    if (statsSearchTrim) {
+      const pat = escapePostgrestLikePattern(statsSearchTrim)
+      q = q.or(
+        `name.ilike.%${pat}%,company.ilike.%${pat}%,address.ilike.%${pat}%,address_original.ilike.%${pat}%,latlngaddress.ilike.%${pat}%`,
+      )
+    }
+
+    return q
   }
 
-  const { data, error } = await query
-  if (error) {
-    reportError(error)
-    throw new Error(error.message)
+  const selectBase = "status, stocks, company, address, image"
+  const wantsGeocodeColumn = (params.geocodeStatusFilter?.length ?? 0) > 0
+  const selectWithGeocode = `${selectBase}, geocode_status`
+
+  type StatsRow = {
+    status: string | null
+    stocks: number | null
+    company: string | null
+    address: string | null
+    image?: string | null
+    geocode_status?: string | null
   }
-  let rows = data ?? []
-  rows = applyShareholderPostFilters(rows, params)
+
+  const first = await buildShareholderStatsQuery(
+    wantsGeocodeColumn ? selectWithGeocode : selectBase,
+  )
+  let rawRows = (first.data ?? []) as unknown as StatsRow[]
+  let err = first.error
+  if (err && wantsGeocodeColumn && isPostgrestUndefinedColumnError(err)) {
+    const second = await buildShareholderStatsQuery(selectBase)
+    err = second.error
+    rawRows = (second.data ?? []) as unknown as StatsRow[]
+  }
+  if (err) {
+    reportError(err)
+    throw new Error(err.message)
+  }
+  const rows = applyShareholderPostFilters(rawRows, params)
   const totalStocks = rows.reduce((sum, r) => sum + (Number(r.stocks) || 0), 0)
   const completedRows = rows.filter(
     (r) => getPrimaryStatusCategory(r.status) === "완료",
@@ -852,7 +906,9 @@ export const useFilterMenuForLists = (listIds: string[] | null) => {
 }
 
 export const useShareholders = (params: ShareholdersParams) => {
-  const enabled = !!(params.listId || (params.listIds?.length ?? 0) > 0)
+  const hasLists = !!(params.listId || (params.listIds?.length ?? 0) > 0)
+  const searchGate = !params.requireSearchToFetch || !!params.search?.trim()
+  const enabled = hasLists && searchGate
 
   return useQuery({
     queryKey: [
@@ -871,12 +927,40 @@ export const useShareholders = (params: ShareholdersParams) => {
       params.lng,
       params.mapLevel,
       params.search,
+      params.requireSearchToFetch,
       params.photoFilter,
       params.geocodeStatusFilter,
     ],
     queryFn: () => getShareholders(params),
     enabled,
     placeholderData: keepPreviousData,
+  })
+}
+
+const getShareholderById = async (
+  shareholderId: string,
+): Promise<Shareholder | null> => {
+  const { data, error } = await supabase
+    .from("shareholders")
+    .select("*")
+    .eq("id", shareholderId)
+    .maybeSingle()
+  if (error) {
+    reportError(error)
+    throw new Error(error.message)
+  }
+
+  return data ?? null
+}
+
+/** 지도 `?highlight=` 진입 시 뷰포트 밖 주주 한 건을 마커에 합치기 위한 조회 */
+export const useShareholderById = (shareholderId: string | null) => {
+  return useQuery({
+    queryKey: ["shareholderById", shareholderId],
+    queryFn: () =>
+      shareholderId ? getShareholderById(shareholderId) : Promise.resolve(null),
+    enabled: !!shareholderId,
+    staleTime: 1000 * 60,
   })
 }
 
@@ -1264,8 +1348,10 @@ export type ShareholderChangeHistoryResolved = {
 
 async function fetchShareholderChangeHistoryApiJson(
   shareholderId: string,
+  options?: { forMap?: boolean },
 ): Promise<ShareholderChangeHistoryResolved | null> {
-  const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history`
+  const q = options?.forMap ? "?forMap=1" : ""
+  const url = `/api/workspace/shareholders/${encodeURIComponent(shareholderId)}/change-history${q}`
   let token = await getAccessToken()
   if (!token) {
     token = (await recoverAccessTokenAfterAuthFailure()) ?? ""
@@ -1303,6 +1389,7 @@ export const useShareholderChangeHistory = (shareholderId: string | null) => {
       )
     },
     enabled: !!shareholderId,
+    staleTime: 1000 * 60 * 2,
   })
 }
 
@@ -1328,7 +1415,9 @@ export type ShareholderChangeHistoryForMapItem = {
 async function fetchShareholderChangeHistoryForMap(
   shareholderId: string,
 ): Promise<ShareholderChangeHistoryForMapItem[]> {
-  const parsed = await fetchShareholderChangeHistoryApiJson(shareholderId)
+  const parsed = await fetchShareholderChangeHistoryApiJson(shareholderId, {
+    forMap: true,
+  })
   if (!parsed || parsed.rows.length === 0) return []
   const rows = parsed.rows as ChangeHistoryRow[]
   const changedByUser = parsed.changedByUser
@@ -1389,7 +1478,7 @@ export const useShareholderChangeHistoryForMap = (
   const enabled = !!shareholderId && options?.enabled !== false
 
   return useQuery({
-    queryKey: ["shareholderChangeHistoryForMap", shareholderId],
+    queryKey: ["shareholderChangeHistoryForMap", shareholderId, "light"],
     queryFn: () =>
       shareholderId
         ? fetchShareholderChangeHistoryForMap(shareholderId)
@@ -1406,7 +1495,7 @@ export const prefetchShareholderChangeHistoryForMap = async (
 ): Promise<void> => {
   if (!shareholderId) return
   await queryClient.prefetchQuery({
-    queryKey: ["shareholderChangeHistoryForMap", shareholderId],
+    queryKey: ["shareholderChangeHistoryForMap", shareholderId, "light"],
     queryFn: () => fetchShareholderChangeHistoryForMap(shareholderId),
     staleTime: 1000 * 60 * 2,
   })

@@ -25,13 +25,18 @@ import {
 } from "@/lib/makerPatchForm"
 import {
   composeShareholderStatus,
+  composeCompletionDetail,
+  inferCompletionAxes,
   isAllowedStatusDetail,
+  isCanonicalCompletionDetail,
   PRIMARY_STATUS_OPTIONS,
   splitShareholderStatus,
+  AGMEETING_DETAIL_OPTIONS_FOR_UI,
   STATUS_DETAIL_OPTIONS,
   getShareholderStatusChipBackground,
   getShareholderStatusChipColor,
 } from "@/lib/shareholderStatus"
+import CompletionStatusChecklist from "../completion-status-checklist"
 import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
 import OpenInNew from "@mui/icons-material/OpenInNew"
 import {
@@ -92,6 +97,10 @@ const MakerPatchModalChildren = ({
   const [photoBusy, setPhotoBusy] = useState(false)
   const saveSucceededRef = useRef(false)
 
+  /** 완료(1차)일 때 의결권·신분증 각각 한 축 선택 — formik.statusDetail과 동기 */
+  const [completionDoc, setCompletionDoc] = useState<"" | "done" | "hold">("")
+  const [completionId, setCompletionId] = useState<"" | "done" | "hold">("")
+
   const isSaveBusy = isSaving || mutateIsPending
 
   const formik = useFormik({
@@ -117,9 +126,15 @@ const MakerPatchModalChildren = ({
 
       const statusPrimary = values.statusPrimary
       const statusDetail = (values.statusDetail ?? "").trim()
-      if (!isAllowedStatusDetail(statusPrimary, statusDetail)) {
+      const detailOk =
+        statusPrimary === "완료"
+          ? isCanonicalCompletionDetail(statusDetail)
+          : isAllowedStatusDetail(statusPrimary, statusDetail)
+      if (!detailOk) {
         toast.error(
-          "1차 상태를 고른 뒤, 세부 상태까지 선택해야 저장할 수 있습니다.",
+          statusPrimary === "완료"
+            ? "완료로 저장하려면 의결권 서류·신분증 항목을 각각 하나씩 선택해 주세요."
+            : "1차 상태를 고른 뒤, 세부 상태까지 선택해야 저장할 수 있습니다.",
         )
 
         return
@@ -211,6 +226,15 @@ const MakerPatchModalChildren = ({
 
   useEffect(() => {
     if (makerData) {
+      const parsed = splitShareholderStatus(makerData.status)
+      if (parsed.primary === "완료") {
+        const ax = inferCompletionAxes(parsed.detail)
+        setCompletionDoc(ax.doc === "done" || ax.doc === "hold" ? ax.doc : "")
+        setCompletionId(ax.id === "done" || ax.id === "hold" ? ax.id : "")
+      } else {
+        setCompletionDoc("")
+        setCompletionId("")
+      }
       formik.setValues({
         id: makerData.id,
         address: makerData.address ?? "",
@@ -221,8 +245,8 @@ const MakerPatchModalChildren = ({
         maker: makerData.maker ?? "",
         name: makerData.name ?? "",
         status: makerData.status ?? "미방문",
-        statusPrimary: splitShareholderStatus(makerData.status).primary,
-        statusDetail: splitShareholderStatus(makerData.status).detail,
+        statusPrimary: parsed.primary,
+        statusDetail: parsed.detail,
         memo: makerData.memo ?? "",
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
@@ -232,10 +256,28 @@ const MakerPatchModalChildren = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- makerData 변경 시만 폼 동기화
   }, [makerData])
 
-  const statusComplete = isAllowedStatusDetail(
-    formik.values.statusPrimary,
-    formik.values.statusDetail,
-  )
+  const statusComplete =
+    formik.values.statusPrimary === "완료"
+      ? isCanonicalCompletionDetail(formik.values.statusDetail)
+      : isAllowedStatusDetail(
+          formik.values.statusPrimary,
+          formik.values.statusDetail,
+        )
+
+  const detailChipOptions = useMemo(() => {
+    const p = formik.values.statusPrimary
+    if (p !== "주주총회") {
+      return STATUS_DETAIL_OPTIONS[p] ?? []
+    }
+    const base: string[] = [...AGMEETING_DETAIL_OPTIONS_FOR_UI]
+    const d = (formik.values.statusDetail ?? "").trim()
+    const all = STATUS_DETAIL_OPTIONS.주주총회
+    if (d && !base.includes(d) && all.includes(d)) {
+      return [...base, d]
+    }
+
+    return base
+  }, [formik.values.statusPrimary, formik.values.statusDetail])
 
   const pendingComposedStatus = useMemo(() => {
     if (!statusComplete) return null
@@ -273,7 +315,9 @@ const MakerPatchModalChildren = ({
     : null
 
   const submitBlockReason = !statusComplete
-    ? "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
+    ? formik.values.statusPrimary === "완료"
+      ? "완료 시 의결권 서류·신분증 항목을 각각 하나씩 선택해 주세요"
+      : "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
     : !hasEditableChanges
       ? "상태 또는 메모를 변경한 뒤 저장할 수 있습니다"
       : undefined
@@ -354,6 +398,8 @@ const MakerPatchModalChildren = ({
                     onClick={() => {
                       formik.setFieldValue("statusPrimary", opt)
                       formik.setFieldValue("statusDetail", "")
+                      setCompletionDoc("")
+                      setCompletionId("")
                     }}>
                     {opt}
                   </StatusChip>
@@ -361,17 +407,71 @@ const MakerPatchModalChildren = ({
               </ChipRow>
 
               <FieldLabel id="label-detail" style={{ marginTop: "1rem" }}>
-                2차 · 세부 상태
+                {formik.values.statusPrimary === "완료"
+                  ? "2차 · 완료 확인 (필수)"
+                  : "2차 · 세부 상태"}
                 <RequiredMark aria-hidden> (필수)</RequiredMark>
               </FieldLabel>
-              {!formik.values.statusDetail && formik.values.statusPrimary && (
-                <StepHint>
-                  유형을 바꾼 경우 아래에서 세부 상태를 반드시 선택해 주세요.
-                </StepHint>
-              )}
-              <ChipRow role="group" aria-labelledby="label-detail" $dense>
-                {(STATUS_DETAIL_OPTIONS[formik.values.statusPrimary] ?? []).map(
-                  (opt) => (
+              {!formik.values.statusDetail &&
+                formik.values.statusPrimary &&
+                formik.values.statusPrimary !== "완료" && (
+                  <StepHint>
+                    유형을 바꾼 경우 아래에서 세부 상태를 반드시 선택해 주세요.
+                  </StepHint>
+                )}
+              {formik.values.statusPrimary === "완료" ? (
+                <>
+                  <StepHint>
+                    의결권 서류·신분증 각 줄에서 하나씩 선택해야 저장할 수
+                    있습니다.
+                  </StepHint>
+                  <CompletionStatusChecklist
+                    doc={completionDoc}
+                    id={completionId}
+                    disabled={isSaveBusy}
+                    onDoc={(v) => {
+                      setCompletionDoc(v)
+                      setCompletionId((curId) => {
+                        if (curId === "done" || curId === "hold") {
+                          const detail = composeCompletionDetail(v, curId)
+                          formik.setFieldValue("statusDetail", detail)
+                          formik.setFieldValue(
+                            "status",
+                            normalizeStatusForPatch(
+                              composeShareholderStatus("완료", detail),
+                            ),
+                          )
+                        } else {
+                          formik.setFieldValue("statusDetail", "")
+                        }
+
+                        return curId
+                      })
+                    }}
+                    onId={(v) => {
+                      setCompletionId(v)
+                      setCompletionDoc((curDoc) => {
+                        if (curDoc === "done" || curDoc === "hold") {
+                          const detail = composeCompletionDetail(curDoc, v)
+                          formik.setFieldValue("statusDetail", detail)
+                          formik.setFieldValue(
+                            "status",
+                            normalizeStatusForPatch(
+                              composeShareholderStatus("완료", detail),
+                            ),
+                          )
+                        } else {
+                          formik.setFieldValue("statusDetail", "")
+                        }
+
+                        return curDoc
+                      })
+                    }}
+                  />
+                </>
+              ) : (
+                <ChipRow role="group" aria-labelledby="label-detail" $dense>
+                  {detailChipOptions.map((opt) => (
                     <StatusChip
                       key={opt}
                       type="button"
@@ -391,12 +491,14 @@ const MakerPatchModalChildren = ({
                       }}>
                       {opt}
                     </StatusChip>
-                  ),
-                )}
-              </ChipRow>
+                  ))}
+                </ChipRow>
+              )}
               {!statusComplete && (
                 <ValidationHint role="status">
-                  세부 상태를 선택해야 저장할 수 있습니다.
+                  {formik.values.statusPrimary === "완료"
+                    ? "의결권 서류·신분증을 각각 선택해 주세요."
+                    : "세부 상태를 선택해야 저장할 수 있습니다."}
                 </ValidationHint>
               )}
             </Section>

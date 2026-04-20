@@ -18,6 +18,9 @@ const PRIMARY_HEADER_SHORT: Record<PrimaryStatus, string> = {
 export type StatsCardProps = {
   /** 주주 집계용 파라미터. 대시보드는 보통 `listIds`만 넘겨 명부 전체 현황을 봅니다 */
   statsParams: ShareholdersParams
+
+  /** 명부 목록 쿼리 로딩 중이면 집계 API가 꺼져 0으로 보이지 않도록 로딩 처리 */
+  listsLoading?: boolean
 }
 
 const emptyByPrimary = () => {
@@ -35,12 +38,19 @@ const emptyByPrimary = () => {
   return o
 }
 
-const StatsCard = ({ statsParams }: StatsCardProps) => {
+const StatsCard = ({
+  statsParams,
+  listsLoading: listsLoadingProp = false,
+}: StatsCardProps) => {
   const hasLists = !!(
     statsParams.listId || (statsParams.listIds?.length ?? 0) > 0
   )
-  const { data: shareholderStats, isLoading: shareholderLoading } =
-    useShareholderStats(statsParams)
+  const {
+    data: shareholderStats,
+    isLoading: shareholderLoading,
+    isError: shareholderStatsError,
+    error: shareholderStatsErrorObj,
+  } = useShareholderStats(statsParams)
 
   const stats = shareholderStats ?? {
     totalShareholders: 0,
@@ -52,7 +62,8 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
   }
   const byPrimary = stats.byPrimary ?? emptyByPrimary()
   const byCompanyPrimary = stats.byCompanyPrimary ?? []
-  const isLoading = hasLists ? shareholderLoading : false
+  const listsLoading = listsLoadingProp
+  const isLoading = listsLoading || (hasLists ? shareholderLoading : false)
 
   const totalH = stats.totalShareholders ?? 0
   const totalS = stats.totalStocks ?? 0
@@ -69,11 +80,20 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
       <HeaderSection>
         <Title>의결권 현황</Title>
         <InfoText>
-          노출된 주주명부 전체를 기준으로 합니다. 지도 위치·줌·필터·검색과
-          무관하게 같은 숫자가 유지됩니다. 회사별 표는 1차 상태(미방문·완료 등)
+          워크스페이스에 연결된 주주명부 전체를 집계합니다(지도 &apos;노출&apos;
+          여부·위치·줌·필터·검색과 무관). 회사별 표는 1차 상태(미방문·완료 등)
           인원·주식수입니다.
         </InfoText>
       </HeaderSection>
+
+      {shareholderStatsError && (
+        <ErrorBanner role="alert">
+          의결권 집계를 불러오지 못했습니다.{" "}
+          {shareholderStatsErrorObj instanceof Error
+            ? shareholderStatsErrorObj.message
+            : "잠시 후 다시 시도해 주세요."}
+        </ErrorBanner>
+      )}
 
       <KpiRow>
         <KpiCard $variant="neutral">
@@ -129,8 +149,8 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
 
       <CompanySection>
         <CompanyTitle>회사별 1차 상태</CompanyTitle>
-        {!hasLists ? (
-          <CompanyEmpty>노출된 명부가 없습니다.</CompanyEmpty>
+        {!hasLists && !listsLoading ? (
+          <CompanyEmpty>집계할 명부가 없습니다.</CompanyEmpty>
         ) : isLoading ? (
           <CompanyEmpty>불러오는 중…</CompanyEmpty>
         ) : byCompanyPrimary.length === 0 ? (
@@ -207,6 +227,17 @@ const InfoText = styled.p`
   font-size: 0.75rem;
   color: ${COLORS.gray[600]};
   line-height: 1.45;
+`
+
+const ErrorBanner = styled.div`
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: ${COLORS.red[800]};
+  background: ${COLORS.red[50]};
+  border: 1px solid ${COLORS.red[200]};
 `
 
 const KpiRow = styled.div`

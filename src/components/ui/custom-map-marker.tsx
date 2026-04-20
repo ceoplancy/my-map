@@ -5,7 +5,7 @@ import {
   useShareholderChangeHistoryForMap,
 } from "@/api/workspace"
 import { useSession } from "@/api/auth"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { CustomOverlayMap, MapMarker } from "react-kakao-maps-sdk"
 import styled from "@emotion/styled"
@@ -192,6 +192,15 @@ const CustomMapMarker = ({
   const isShareholderMarker = isShareholder(markerForDetail)
   const makerDataMutateIsLoading = shareholderMutateLoading
 
+  const hoverPrefetchAt = useRef<Record<string, number>>({})
+  const prefetchHistoryOnHover = useCallback(() => {
+    const id = String(isGroupMarker ? markerForDetail.id : marker.id)
+    const now = Date.now()
+    if ((hoverPrefetchAt.current[id] ?? 0) > now - 2800) return
+    hoverPrefetchAt.current[id] = now
+    void prefetchShareholderChangeHistoryForMap(queryClient, id)
+  }, [queryClient, isGroupMarker, marker.id, markerForDetail.id])
+
   const shareholderIdForHistory = isShareholderMarker
     ? String(markerForDetail.id)
     : null
@@ -360,6 +369,7 @@ const CustomMapMarker = ({
           lng: marker.lng || 0,
         }}
         clickable={true}
+        onMouseOver={prefetchHistoryOnHover}
         onClick={handleMarkerClick}
         image={{
           src:

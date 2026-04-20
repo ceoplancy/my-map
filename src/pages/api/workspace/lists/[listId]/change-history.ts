@@ -81,6 +81,9 @@ export default withApiHandler(async (req, res) => {
    */
   const MAX_ROWS = 8000
 
+  /** 단일 주주 변경이력 API와 동일 — 변경자 수가 많을 때 Auth Admin 병렬 호출로 응답이 지연·타임아웃되는 것을 방지 */
+  const MAX_CHANGED_BY_USER_LOOKUPS = 40
+
   const {
     data: historyJoined,
     count: totalCount,
@@ -116,7 +119,7 @@ export default withApiHandler(async (req, res) => {
   const total = totalCount ?? historyRows.length
   const changedByIds = [
     ...new Set(historyRows.map((r: { changed_by: string }) => r.changed_by)),
-  ]
+  ].slice(0, MAX_CHANGED_BY_USER_LOOKUPS)
   const admin = createSupabaseAdmin()
   const authUsers = await Promise.all(
     changedByIds.map((uid) => admin.auth.admin.getUserById(uid)),

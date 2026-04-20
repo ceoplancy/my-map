@@ -11,29 +11,135 @@ export const PRIMARY_STATUS_OPTIONS = [
 
 export type PrimaryStatus = (typeof PRIMARY_STATUS_OPTIONS)[number]
 
+/** 완료(1차) 세부 — 저장 시 UI에서 강제하는 4가지 조합의 라벨 */
+export const COMPLETION_DOC_LABEL_DONE = "의결권 서류 완료"
+export const COMPLETION_DOC_LABEL_HOLD = "의결권 서류 보류"
+export const COMPLETION_ID_LABEL_DONE = "신분증 확보 완료"
+export const COMPLETION_ID_LABEL_HOLD = "신분증 보류"
+
+export const COMPLETION_DETAIL_JOINER = " · "
+
+export function composeCompletionDetail(
+  doc: "done" | "hold",
+  id: "done" | "hold",
+): string {
+  const docPart =
+    doc === "done" ? COMPLETION_DOC_LABEL_DONE : COMPLETION_DOC_LABEL_HOLD
+  const idPart =
+    id === "done" ? COMPLETION_ID_LABEL_DONE : COMPLETION_ID_LABEL_HOLD
+
+  return `${docPart}${COMPLETION_DETAIL_JOINER}${idPart}`
+}
+
+const CANONICAL_COMPLETION_DETAILS = [
+  composeCompletionDetail("done", "done"),
+  composeCompletionDetail("done", "hold"),
+  composeCompletionDetail("hold", "done"),
+  composeCompletionDetail("hold", "hold"),
+] as const
+
+/** 지도·편집 저장 시 완료는 이 4가지 문자열만 허용 (기존 명부 값은 별도 허용 목록) */
+export function isCanonicalCompletionDetail(detail: string | null | undefined) {
+  const d = (detail ?? "").trim()
+
+  return (CANONICAL_COMPLETION_DETAILS as readonly string[]).includes(d)
+}
+
+const LEGACY_COMPLETE_DETAILS = [
+  "의결권 완료",
+  "신분증 확보",
+  "신분증 추후 수령",
+  "방문완료",
+  "수집완료",
+  "처리완료",
+  "진행완료",
+  "위임완료",
+  "서명완료",
+  "직접서명완료",
+  "의결완료",
+  "결의완료",
+] as const
+
+export function getCanonicalCompletionDetails(): readonly string[] {
+  return CANONICAL_COMPLETION_DETAILS
+}
+
+export type CompletionAxis = "done" | "hold" | null
+
+/** 기존 세부 문자열에서 체크리스트 초깃값 추정 (없으면 null) */
+export function inferCompletionAxes(detail: string | null | undefined): {
+  doc: CompletionAxis
+  id: CompletionAxis
+} {
+  const d = (detail ?? "").trim()
+  if (!d) return { doc: null, id: null }
+
+  if (isCanonicalCompletionDetail(d)) {
+    const [a, b] = d.split(COMPLETION_DETAIL_JOINER).map((s) => s.trim())
+
+    return {
+      doc:
+        a === COMPLETION_DOC_LABEL_DONE
+          ? "done"
+          : a === COMPLETION_DOC_LABEL_HOLD
+            ? "hold"
+            : null,
+      id:
+        b === COMPLETION_ID_LABEL_DONE
+          ? "done"
+          : b === COMPLETION_ID_LABEL_HOLD
+            ? "hold"
+            : null,
+    }
+  }
+
+  let doc: CompletionAxis = null
+  let id: CompletionAxis = null
+
+  if (/의결권\s*서류\s*보류|의결권\s*보류/.test(d)) doc = "hold"
+  else if (
+    /의결권\s*완료|의결완료|결의완료|위임완료|서명완료|직접서명완료/.test(d)
+  )
+    doc = "done"
+  else if (/의결|결의|위임|서명/.test(d) && /완료/.test(d)) doc = "done"
+
+  if (/신분증\s*보류|신분증\s*추후|추후\s*수령/.test(d)) id = "hold"
+  else if (/신분증\s*확보/.test(d)) id = "done"
+
+  if (/방문완료|수집완료|처리완료|진행완료/.test(d)) {
+    if (doc === null) doc = "done"
+    if (id === null) id = "done"
+  }
+
+  return { doc, id }
+}
+
 export const STATUS_DETAIL_OPTIONS: Record<PrimaryStatus, readonly string[]> = {
   미방문: ["미방문"],
 
-  /** 구 명부·수기 입력에서 쓰이던 표기까지 포함 (형식 없이 한 줄만 들어온 경우) */
-  완료: [
-    "의결권 완료",
-    "신분증 확보",
-    "신분증 추후 수령",
-    "방문완료",
-    "수집완료",
-    "처리완료",
-    "진행완료",
-    "위임완료",
-    "서명완료",
-    "직접서명완료",
-    "의결완료",
-    "결의완료",
-  ],
+  /** 신규 저장은 4가지 조합만; 구 데이터 문자열은 필터·호환용으로 유지 */
+  완료: [...CANONICAL_COMPLETION_DETAILS, ...LEGACY_COMPLETE_DETAILS],
   보류: ["거부", "재방문 요청", "부재중"],
   실패: ["완강한 거부", "방문 실패", "주소 오류"],
   전자투표: ["전자투표 완료", "전자투표 의사", "전자투표 의향"],
-  주주총회: ["주주총회 참석 예정", "주주총회 참석 완료", "주주총회 불참 예정"],
+
+  /**
+   * 신규 선택은 두 가지만. 구 명부 값(참석 완료·불참 예정·구 참석 예정 문구)은 허용·필터용으로 유지.
+   */
+  주주총회: [
+    "참석 예정",
+    "주주총회 참석 의향",
+    "주주총회 참석 예정",
+    "주주총회 참석 완료",
+    "주주총회 불참 예정",
+  ],
 }
+
+/** 지도 등 편집 UI에서 주주총회 세부 칩으로만 노출할 값 */
+export const AGMEETING_DETAIL_OPTIONS_FOR_UI = [
+  "참석 예정",
+  "주주총회 참석 의향",
+] as const
 
 const STATUS_DELIMITER = " - "
 

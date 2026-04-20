@@ -67,6 +67,9 @@ export type ShareholderChangeHistoryLogPayload = {
   /** POST 본문 entries의 값 요약(필드명 + old/new). */
   entriesPreview?: ChangeEntryPreview[]
   entryCount?: number
+
+  /** GET `?forMap=1` 지도용 경량 조회 여부 */
+  forMap?: boolean
   dbError?: { code?: string; message: string; details?: string }
   requestId?: string | null
   httpStatus?: number

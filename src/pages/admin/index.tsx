@@ -19,6 +19,7 @@ import { type Tables, type WorkspaceRole } from "@/types/db"
 import {
   getPrimaryStatusCategory,
   PRIMARY_STATUS_OPTIONS,
+  splitShareholderStatus,
   type PrimaryStatus,
 } from "@/lib/shareholderStatus"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
@@ -311,6 +312,65 @@ const StatusCountGrid = styled.div`
   margin-bottom: 1rem;
 `
 
+const DetailBreakdownBlock = styled.div`
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid ${COLORS.gray[100]};
+`
+
+const DetailBreakdownTitle = styled.h3`
+  margin: 0 0 0.35rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: ${COLORS.gray[800]};
+`
+
+const DetailBreakdownHint = styled.p`
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.45;
+`
+
+const DetailTableScroll = styled.div`
+  max-height: min(28rem, 50vh);
+  overflow: auto;
+  border: 1px solid ${COLORS.gray[100]};
+  border-radius: 0.65rem;
+  -webkit-overflow-scrolling: touch;
+`
+
+const DetailTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+`
+
+const DetailTh = styled.th`
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  background: ${COLORS.gray[50]};
+  color: ${COLORS.gray[600]};
+  font-weight: 600;
+  border-bottom: 1px solid ${COLORS.gray[100]};
+  position: sticky;
+  top: 0;
+  z-index: 1;
+`
+
+const DetailTd = styled.td`
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid ${COLORS.gray[50]};
+  color: ${COLORS.gray[800]};
+  vertical-align: top;
+`
+
+const DetailTdNum = styled(DetailTd)`
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+`
+
 const StatusCountCard = styled.div<{ color: string }>`
   padding: 1rem;
   border-radius: 0.75rem;
@@ -394,6 +454,37 @@ export function WorkspaceDashboardBody() {
     }
 
     return { byPrimary, totalStocks }
+  }, [shareholders])
+
+  const detailBreakdownRows = useMemo(() => {
+    type Row = {
+      primary: PrimaryStatus
+      detail: string
+      count: number
+      stocks: number
+    }
+    const map = new Map<string, Row>()
+    for (const s of shareholders as Tables<"shareholders">[]) {
+      const { primary, detail } = splitShareholderStatus(s.status)
+      const key = `${primary}\t${detail}`
+      const prev = map.get(key) ?? {
+        primary,
+        detail,
+        count: 0,
+        stocks: 0,
+      }
+      prev.count += 1
+      prev.stocks += s.stocks ?? 0
+      map.set(key, prev)
+    }
+
+    return [...map.values()].sort((a, b) => {
+      const pa = PRIMARY_STATUS_OPTIONS.indexOf(a.primary)
+      const pb = PRIMARY_STATUS_OPTIONS.indexOf(b.primary)
+      if (pa !== pb) return pa - pb
+
+      return a.detail.localeCompare(b.detail, "ko")
+    })
   }, [shareholders])
 
   const statusCardColor = (p: PrimaryStatus): string => {
@@ -511,6 +602,49 @@ export function WorkspaceDashboardBody() {
                 <div>{totalStocks.toLocaleString()}</div>
               </StatusCountCard>
             </StatusCountGrid>
+            <DetailBreakdownBlock>
+              <DetailBreakdownTitle>세부 상태별</DetailBreakdownTitle>
+              <DetailBreakdownHint>
+                위 명부·필터와 동일한 주주 목록을 기준으로, 저장된 상태
+                문자열에서 1차·세부를 나눈 뒤 세부별로 집계합니다.
+              </DetailBreakdownHint>
+              {detailBreakdownRows.length === 0 ? (
+                <DetailBreakdownHint style={{ marginBottom: 0 }}>
+                  표시할 주주가 없습니다.
+                </DetailBreakdownHint>
+              ) : (
+                <DetailTableScroll>
+                  <DetailTable>
+                    <thead>
+                      <tr>
+                        <DetailTh scope="col">1차 상태</DetailTh>
+                        <DetailTh scope="col">세부 상태</DetailTh>
+                        <DetailTh scope="col" style={{ textAlign: "right" }}>
+                          인원
+                        </DetailTh>
+                        <DetailTh scope="col" style={{ textAlign: "right" }}>
+                          주식수
+                        </DetailTh>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailBreakdownRows.map((row) => (
+                        <tr key={`${row.primary}\t${row.detail}`}>
+                          <DetailTd>{row.primary}</DetailTd>
+                          <DetailTd>{row.detail}</DetailTd>
+                          <DetailTdNum>
+                            {row.count.toLocaleString()}명
+                          </DetailTdNum>
+                          <DetailTdNum>
+                            {row.stocks.toLocaleString()}
+                          </DetailTdNum>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DetailTable>
+                </DetailTableScroll>
+              )}
+            </DetailBreakdownBlock>
             <FilterRow>
               <FilterGroup>
                 <ListSelectLabel>상태</ListSelectLabel>

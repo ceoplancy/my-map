@@ -1,6 +1,6 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
 import { formatChangeHistoryTimestamp } from "@/lib/shareholderChangeHistoryValues"
@@ -15,8 +15,13 @@ import {
   uploadShareholderPhotoAndGetPublicUrl,
 } from "@/lib/shareholderPhotoStorage"
 import Select from "@/components/ui/select"
+import CompletionStatusChecklist from "@/components/ui/completion-status-checklist"
 import {
+  AGMEETING_DETAIL_OPTIONS_FOR_UI,
   composeShareholderStatus,
+  composeCompletionDetail,
+  inferCompletionAxes,
+  isCanonicalCompletionDetail,
   PRIMARY_STATUS_OPTIONS,
   splitShareholderStatus,
   STATUS_DETAIL_OPTIONS,
@@ -282,7 +287,21 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
     parsedStatus.primary,
   )
   const [statusDetail, setStatusDetail] = useState(parsedStatus.detail)
+  const [completionDoc, setCompletionDoc] = useState<"" | "done" | "hold">("")
+  const [completionId, setCompletionId] = useState<"" | "done" | "hold">("")
   const patchShareholder = usePatchShareholder()
+
+  useEffect(() => {
+    const p = splitShareholderStatus(data.status)
+    if (p.primary === "완료") {
+      const ax = inferCompletionAxes(p.detail)
+      setCompletionDoc(ax.doc === "done" || ax.doc === "hold" ? ax.doc : "")
+      setCompletionId(ax.id === "done" || ax.id === "hold" ? ax.id : "")
+    } else {
+      setCompletionDoc("")
+      setCompletionId("")
+    }
+  }, [data.id, data.status])
   const { data: changeHistoryBundle } = useShareholderChangeHistory(data.id)
   const changeHistoryRows = changeHistoryBundle?.rows ?? []
   const changedByUser = changeHistoryBundle?.changedByUser ?? {}
@@ -293,10 +312,34 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
     return u?.name?.trim() || u?.email || uid
   }
 
+  const statusDetailSelectOptions = useMemo(() => {
+    if (statusPrimary !== "주주총회") {
+      return STATUS_DETAIL_OPTIONS[statusPrimary] ?? []
+    }
+    const base: string[] = [...AGMEETING_DETAIL_OPTIONS_FOR_UI]
+    const d = statusDetail.trim()
+    const all = STATUS_DETAIL_OPTIONS.주주총회
+    if (d && !base.includes(d) && all.includes(d)) {
+      return [...base, d]
+    }
+
+    return base
+  }, [statusPrimary, statusDetail])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!statusDetail.trim()) {
       toast.error("상세 상태를 선택해야 저장할 수 있습니다.")
+
+      return
+    }
+    if (
+      statusPrimary === "완료" &&
+      !isCanonicalCompletionDetail(statusDetail.trim())
+    ) {
+      toast.error(
+        "완료로 저장하려면 의결권 서류·신분증 항목을 각각 하나씩 선택해 주세요.",
+      )
 
       return
     }
@@ -379,7 +422,15 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   onChange={(e) => {
                     const nextPrimary = e.target.value as PrimaryStatus
                     setStatusPrimary(nextPrimary)
-                    setStatusDetail(STATUS_DETAIL_OPTIONS[nextPrimary][0] ?? "")
+                    setCompletionDoc("")
+                    setCompletionId("")
+                    if (nextPrimary === "완료") {
+                      setStatusDetail("")
+                    } else {
+                      setStatusDetail(
+                        STATUS_DETAIL_OPTIONS[nextPrimary][0] ?? "",
+                      )
+                    }
                   }}>
                   {PRIMARY_STATUS_OPTIONS.map((statusOption) => (
                     <option key={statusOption} value={statusOption}>
@@ -387,18 +438,50 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                     </option>
                   ))}
                 </ModalSelect>
-                <ModalSelect
-                  style={{ marginTop: "0.5rem" }}
-                  value={statusDetail}
-                  onChange={(e) => setStatusDetail(e.target.value)}>
-                  {(STATUS_DETAIL_OPTIONS[statusPrimary] ?? []).map(
-                    (detail) => (
+                {statusPrimary === "완료" ? (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <CompletionStatusChecklist
+                      doc={completionDoc}
+                      id={completionId}
+                      disabled={patchShareholder.isPending}
+                      onDoc={(v) => {
+                        setCompletionDoc(v)
+                        setCompletionId((curId) => {
+                          if (curId === "done" || curId === "hold") {
+                            setStatusDetail(composeCompletionDetail(v, curId))
+                          } else {
+                            setStatusDetail("")
+                          }
+
+                          return curId
+                        })
+                      }}
+                      onId={(v) => {
+                        setCompletionId(v)
+                        setCompletionDoc((curDoc) => {
+                          if (curDoc === "done" || curDoc === "hold") {
+                            setStatusDetail(composeCompletionDetail(curDoc, v))
+                          } else {
+                            setStatusDetail("")
+                          }
+
+                          return curDoc
+                        })
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <ModalSelect
+                    style={{ marginTop: "0.5rem" }}
+                    value={statusDetail}
+                    onChange={(e) => setStatusDetail(e.target.value)}>
+                    {statusDetailSelectOptions.map((detail) => (
                       <option key={detail} value={detail}>
                         {detail}
                       </option>
-                    ),
-                  )}
-                </ModalSelect>
+                    ))}
+                  </ModalSelect>
+                )}
               </FormGroup>
               <FormGroup>
                 <Label>{FIELD_LABELS.company}</Label>

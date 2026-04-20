@@ -8,6 +8,7 @@ import supabase from "@/lib/supabase/supabaseClient"
 import { LIST_RULES_BODY_MARKDOWN } from "@/constants/listRules"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import { reportError } from "@/lib/reportError"
+import { isPostgrestUndefinedColumnError } from "@/lib/postgrestErrors"
 
 const Backdrop = styled.div`
   position: fixed;
@@ -93,11 +94,35 @@ export default function RulesAcceptanceGate({ listIds, userId }: Props) {
       if (ids.length === 0) {
         return null
       }
-      const { data: lists, error: e1 } = await supabase
+      const listsWithVersion = await supabase
         .from("shareholder_lists")
         .select("id, name, rules_version")
         .in("id", ids)
-      if (e1) throw e1
+
+      let lists: { id: string; name: string | null; rules_version: number }[]
+      if (
+        listsWithVersion.error &&
+        isPostgrestUndefinedColumnError(listsWithVersion.error)
+      ) {
+        const minimal = await supabase
+          .from("shareholder_lists")
+          .select("id, name")
+          .in("id", ids)
+        if (minimal.error) throw minimal.error
+        lists = (minimal.data ?? []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          rules_version: 1,
+        }))
+      } else if (listsWithVersion.error) {
+        throw listsWithVersion.error
+      } else {
+        lists = (listsWithVersion.data ?? []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          rules_version: r.rules_version ?? 1,
+        }))
+      }
       const { data: acc, error: e2 } = await supabase
         .from("list_rules_acceptances")
         .select("list_id, rules_version")

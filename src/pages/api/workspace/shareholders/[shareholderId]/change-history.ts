@@ -14,9 +14,15 @@ import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues
 
 const CHANGE_HISTORY_ROW_LIMIT = 500
 
+/** 지도 마커 시트: 지도 UI는 memo·status만 쓰므로 행·필드·Auth 조회를 줄임 */
+
+const CHANGE_HISTORY_ROW_LIMIT_FOR_MAP = 160
+
 /** `getUserById` 병렬 호출 상한 — 고유 변경자가 매우 많을 때 타임아웃 방지 */
 
 const MAX_CHANGED_BY_USER_LOOKUPS = 40
+
+const MAX_CHANGED_BY_USER_LOOKUPS_FOR_MAP = 20
 
 /** Check user is member of shareholder's workspace; return workspaceId or null */
 async function getShareholderWorkspaceAndAuth(
@@ -99,13 +105,33 @@ export default withApiHandler(async (req, res) => {
   }
 
   if (req.method === "GET") {
+    const forMap =
+      req.query.forMap === "1" ||
+      req.query.forMap === "true" ||
+      req.query.forMap === "yes"
+    const rowLimit = forMap
+      ? CHANGE_HISTORY_ROW_LIMIT_FOR_MAP
+      : CHANGE_HISTORY_ROW_LIMIT
+    const maxUserLookups = forMap
+      ? MAX_CHANGED_BY_USER_LOOKUPS_FOR_MAP
+      : MAX_CHANGED_BY_USER_LOOKUPS
+
     const client = createSupabaseWithToken(token)
-    const { data: history, error: historyError } = await client
-      .from("shareholder_change_history")
-      .select("*")
-      .eq("shareholder_id", shareholderId)
-      .order("changed_at", { ascending: false })
-      .limit(CHANGE_HISTORY_ROW_LIMIT)
+    const fromTable = client.from("shareholder_change_history")
+    const historyQuery = forMap
+      ? fromTable
+          .select("changed_at, changed_by, field, old_value, new_value")
+          .in("field", ["memo", "status"])
+          .eq("shareholder_id", shareholderId)
+          .order("changed_at", { ascending: false })
+          .limit(rowLimit)
+      : fromTable
+          .select("*")
+          .eq("shareholder_id", shareholderId)
+          .order("changed_at", { ascending: false })
+          .limit(rowLimit)
+
+    const { data: history, error: historyError } = await historyQuery
 
     if (historyError) {
       logShareholderChangeHistory(req, {
@@ -113,6 +139,7 @@ export default withApiHandler(async (req, res) => {
         phase: "get_error",
         shareholderId,
         method: "GET",
+        forMap,
         userId: user.id,
         workspaceId: scope.workspaceId,
         dbError: {
@@ -135,6 +162,7 @@ export default withApiHandler(async (req, res) => {
       phase: "get_ok",
       shareholderId,
       method: "GET",
+      forMap,
       userId: user.id,
       workspaceId: scope.workspaceId,
       entryCount: rows.length,
@@ -143,7 +171,7 @@ export default withApiHandler(async (req, res) => {
 
     const changedByIds = [
       ...new Set(rows.map((r: { changed_by: string }) => r.changed_by)),
-    ].slice(0, MAX_CHANGED_BY_USER_LOOKUPS)
+    ].slice(0, maxUserLookups)
     const admin = createSupabaseAdmin()
     const authUsers = await Promise.all(
       changedByIds.map((uid) => admin.auth.admin.getUserById(uid)),

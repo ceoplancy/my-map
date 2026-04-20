@@ -580,274 +580,101 @@ const FilterModalChildren = ({
   const isAllTab = activeMainTab === MAIN_TAB_ALL
 
   return (
-    <FilterContainer>
-      <ModalHeader>
-        <ModalTitle>필터 설정</ModalTitle>
-        <CloseButton onClick={handleClose}>
-          <ClearIcon />
-        </CloseButton>
-      </ModalHeader>
+    <FilterRoot>
+      <FilterScroll>
+        <ModalHeader>
+          <ModalTitle>필터 설정</ModalTitle>
+          <CloseButton onClick={handleClose}>
+            <ClearIcon />
+          </CloseButton>
+        </ModalHeader>
 
-      <SummarySection>
-        <SummaryRow>
-          <SummaryLabel>미리보기 (대시보드와 동일 칩)</SummaryLabel>
-          {draftChips.length > 0 ? (
-            <SummaryChips aria-label="편집 중 필터 요약">
-              {draftChips.map((text, i) => (
-                <SummaryChip key={`${text}-${i}`}>{text}</SummaryChip>
-              ))}
-            </SummaryChips>
-          ) : (
-            <SummaryMuted>조건 없음 · 전체 명부</SummaryMuted>
-          )}
-        </SummaryRow>
-        {isDirty && baseline && (
-          <SavedCompareRow>
-            <SavedCompareLabel>지도에 적용 중 (저장됨)</SavedCompareLabel>
-            {savedChips.length > 0 ? (
-              <SummaryChips>
-                {savedChips.map((text, i) => (
-                  <SavedChip key={`${text}-${i}`}>{text}</SavedChip>
+        <SummarySection>
+          <SummaryRow>
+            <SummaryLabel>미리보기 (대시보드와 동일 칩)</SummaryLabel>
+            {draftChips.length > 0 ? (
+              <SummaryChips aria-label="편집 중 필터 요약">
+                {draftChips.map((text, i) => (
+                  <SummaryChip key={`${text}-${i}`}>{text}</SummaryChip>
                 ))}
               </SummaryChips>
             ) : (
               <SummaryMuted>조건 없음 · 전체 명부</SummaryMuted>
             )}
-          </SavedCompareRow>
-        )}
-        <SummaryHint>
-          적용하기를 눌러야 지도·대시보드에 반영됩니다. 닫기 시 편집 내용은
-          저장되지 않습니다.
-        </SummaryHint>
-      </SummarySection>
-
-      <MainTabRow>
-        {mainTabs.map((tab) => (
-          <MainTabButton
-            key={tab}
-            type="button"
-            isActive={activeMainTab === tab}
-            onClick={() => setActiveMainTab(tab)}>
-            {tab === MAIN_TAB_ALL ? "전체" : tab}
-          </MainTabButton>
-        ))}
-      </MainTabRow>
-
-      {isAllTab ? (
-        <>
-          <FilterSection>
-            <SectionTitle>회사 범위 (지도에 표시할 회사)</SectionTitle>
-            <HintText>
-              선택하지 않으면 명부에 있는 모든 회사가 대상입니다.
-            </HintText>
-            <ChipsWrapper>
-              {availableCompany.map((company) => (
-                <FilterChip
-                  key={company}
-                  isSelected={safeCompanyFilter.includes(company)}
-                  onClick={() => handleCompanyFilter(company)}>
-                  {company}
-                </FilterChip>
-              ))}
-            </ChipsWrapper>
-          </FilterSection>
-
-          <FilterSection>
-            <SectionTitle>지역 (주소에 포함된 문자)</SectionTitle>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              현재 지도에서 보고 있는 지역을 기준으로 필터링됩니다(서울을 보고
-              있는데 부산으로 필터링되면 &apos;부산&apos;이 포함된 서울 지역만
-              필터링됩니다).
-            </Alert>
-            <ChipsWrapper>
-              <FilterChip
-                isSelected={draft.cityFilter === ""}
-                onClick={() => {
-                  setDraft((d) => ({ ...d, cityFilter: "" }))
-                }}>
-                전체
-              </FilterChip>
-              {MAJOR_CITIES.map((city) => (
-                <FilterChip
-                  key={city}
-                  isSelected={draft.cityFilter?.includes(city)}
-                  onClick={() => {
-                    setDraft((d) => ({ ...d, cityFilter: city }))
-                  }}>
-                  {city}
-                </FilterChip>
-              ))}
-            </ChipsWrapper>
-          </FilterSection>
-
-          <FilterSection>
-            <SectionTitle>상태 (1차)</SectionTitle>
-            <HintText>
-              상세 상태 대신 미방문·완료·전자투표·주주총회 등 묶음으로 고릅니다.
-              회사별로 다르게 쓰려면 아래 회사 탭에서 설정하세요.
-            </HintText>
-            <ChipsWrapper>
-              {availablePrimary.map((p) => (
-                <FilterChip
-                  key={p}
-                  isSelected={safeStatusPrimaryFilter.includes(p)}
-                  onClick={() => toggleGlobalPrimary(p)}>
-                  {p}
-                </FilterChip>
-              ))}
-            </ChipsWrapper>
-          </FilterSection>
-
-          <FilterSection>
-            <SectionTitle>주식수 (전체 공통)</SectionTitle>
-            <HintText>
-              선택한 회사 범위가 있으면 그 회사들의 분포로 추천 구간을 만듭니다.
-              회사 탭에서 회사별 구간을 따로 둘 수 있습니다.
-            </HintText>
-            {!isAdmin && !useListScopedMenu && (
-              <HintText style={{ marginTop: "0.35rem" }}>
-                * 현장요원 권한에 따라 회사·상태 목록이 다르게 보일 수 있습니다.
-              </HintText>
-            )}
-
-            <ManualBlock $first>
-              <ManualTitle>직접 입력</ManualTitle>
-              <ManualRow>
-                <ManualInput
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="최소"
-                  value={manualMin}
-                  onChange={(e) => setManualMin(e.target.value)}
-                />
-                <ManualSep>~</ManualSep>
-                <ManualInput
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="최대"
-                  value={manualMax}
-                  onChange={(e) => setManualMax(e.target.value)}
-                />
-                <ManualAddButton type="button" onClick={addGlobalManualRange}>
-                  구간 추가
-                </ManualAddButton>
-              </ManualRow>
-              <ManualHint>
-                상한을 크게 두려면 최대에 큰 숫자를 입력하세요.
-              </ManualHint>
-            </ManualBlock>
-
-            {globalStockRanges.length === 0 ? (
-              <HintText style={{ marginTop: "0.75rem" }}>
-                현재 조건에서 사용할 수 있는 추천 주식수 구간이 없습니다. 위에서
-                직접 구간을 추가해 보세요.
-              </HintText>
-            ) : (
-              <CompanyStockSection>
-                <CompanyStockTitle>추천 구간</CompanyStockTitle>
-                <StockRangeWrapper>
-                  {globalStockRanges.map((range) => (
-                    <StockRangeButton
-                      key={`all-${range.label}`}
-                      isSelected={safeStocks.some(
-                        (s) => s.start === range.start && s.end === range.end,
-                      )}
-                      onClick={() => {
-                        setDraft((d) => {
-                          const safePrev = toStockRangeArray(d.stocks)
-                          const exists = safePrev.some(
-                            (s) =>
-                              s.start === range.start && s.end === range.end,
-                          )
-                          const nextStocks = exists
-                            ? safePrev.filter(
-                                (s) =>
-                                  !(
-                                    s.start === range.start &&
-                                    s.end === range.end
-                                  ),
-                              )
-                            : [
-                                ...safePrev,
-                                { start: range.start, end: range.end },
-                              ]
-
-                          return { ...d, stocks: nextStocks }
-                        })
-                      }}>
-                      {range.label}
-                    </StockRangeButton>
+          </SummaryRow>
+          {isDirty && baseline && (
+            <SavedCompareRow>
+              <SavedCompareLabel>지도에 적용 중 (저장됨)</SavedCompareLabel>
+              {savedChips.length > 0 ? (
+                <SummaryChips>
+                  {savedChips.map((text, i) => (
+                    <SavedChip key={`${text}-${i}`}>{text}</SavedChip>
                   ))}
-                </StockRangeWrapper>
-              </CompanyStockSection>
-            )}
-          </FilterSection>
-        </>
-      ) : (
-        activeCompany && (
+                </SummaryChips>
+              ) : (
+                <SummaryMuted>조건 없음 · 전체 명부</SummaryMuted>
+              )}
+            </SavedCompareRow>
+          )}
+          <SummaryHint>
+            적용하기를 눌러야 지도·대시보드에 반영됩니다. 닫기 시 편집 내용은
+            저장되지 않습니다.
+          </SummaryHint>
+        </SummarySection>
+
+        <MainTabRow>
+          {mainTabs.map((tab) => (
+            <MainTabButton
+              key={tab}
+              type="button"
+              isActive={activeMainTab === tab}
+              onClick={() => setActiveMainTab(tab)}>
+              {tab === MAIN_TAB_ALL ? "전체" : tab}
+            </MainTabButton>
+          ))}
+        </MainTabRow>
+
+        {isAllTab ? (
           <>
             <FilterSection>
-              <SectionTitle>{activeCompany} · 상태 (1차)</SectionTitle>
+              <SectionTitle>회사 범위 (지도에 표시할 회사)</SectionTitle>
               <HintText>
-                이 회사 주주에만 적용됩니다. 비우면 &apos;전체&apos; 탭의 상태
-                규칙을 따릅니다.
+                선택하지 않으면 명부에 있는 모든 회사가 대상입니다.
               </HintText>
               <ChipsWrapper>
-                {availablePrimary.map((p) => {
-                  const selected =
-                    profileStatusPrimary !== undefined &&
-                    (profileStatusPrimary ?? []).includes(p)
-
-                  return (
-                    <FilterChip
-                      key={p}
-                      isSelected={selected}
-                      onClick={() => toggleProfilePrimary(activeCompany, p)}>
-                      {p}
-                    </FilterChip>
-                  )
-                })}
+                {availableCompany.map((company) => (
+                  <FilterChip
+                    key={company}
+                    isSelected={safeCompanyFilter.includes(company)}
+                    onClick={() => handleCompanyFilter(company)}>
+                    {company}
+                  </FilterChip>
+                ))}
               </ChipsWrapper>
-              {profileStatusPrimary !== undefined &&
-                profileStatusPrimary.length > 0 && (
-                  <GhostButton
-                    type="button"
-                    onClick={() =>
-                      clearProfileField(activeCompany, "statusPrimary")
-                    }>
-                    전체 탭과 동일하게 (이 회사만 초기화)
-                  </GhostButton>
-                )}
             </FilterSection>
 
             <FilterSection>
-              <SectionTitle>{activeCompany} · 지역</SectionTitle>
-              <HintText>
-                비우면 전체 탭의 지역 설정을 따릅니다. 이 회사만 다른 지역을
-                보려면 선택하세요.
-              </HintText>
+              <SectionTitle>지역 (주소에 포함된 문자)</SectionTitle>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                현재 지도에서 보고 있는 지역을 기준으로 필터링됩니다(서울을 보고
+                있는데 부산으로 필터링되면 &apos;부산&apos;이 포함된 서울 지역만
+                필터링됩니다).
+              </Alert>
               <ChipsWrapper>
                 <FilterChip
-                  isSelected={profileCity === undefined}
-                  onClick={() => clearProfileField(activeCompany, "city")}>
-                  전체 탭과 동일
+                  isSelected={draft.cityFilter === ""}
+                  onClick={() => {
+                    setDraft((d) => ({ ...d, cityFilter: "" }))
+                  }}>
+                  전체
                 </FilterChip>
                 {MAJOR_CITIES.map((city) => (
                   <FilterChip
                     key={city}
-                    isSelected={profileCity === city}
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        companyFilterProfiles: {
-                          ...d.companyFilterProfiles,
-                          [activeCompany]: {
-                            ...(d.companyFilterProfiles[activeCompany] ?? {}),
-                            city,
-                          },
-                        },
-                      }))
-                    }>
+                    isSelected={draft.cityFilter?.includes(city)}
+                    onClick={() => {
+                      setDraft((d) => ({ ...d, cityFilter: city }))
+                    }}>
                     {city}
                   </FilterChip>
                 ))}
@@ -855,11 +682,35 @@ const FilterModalChildren = ({
             </FilterSection>
 
             <FilterSection>
-              <SectionTitle>{activeCompany} · 주식수</SectionTitle>
+              <SectionTitle>상태 (1차)</SectionTitle>
               <HintText>
-                여기서 고르면 이 회사에는 전체 탭 주식 필터 대신 이 구간만
-                적용됩니다.
+                상세 상태 대신 미방문·완료·전자투표·주주총회 등 묶음으로
+                고릅니다. 회사별로 다르게 쓰려면 아래 회사 탭에서 설정하세요.
               </HintText>
+              <ChipsWrapper>
+                {availablePrimary.map((p) => (
+                  <FilterChip
+                    key={p}
+                    isSelected={safeStatusPrimaryFilter.includes(p)}
+                    onClick={() => toggleGlobalPrimary(p)}>
+                    {p}
+                  </FilterChip>
+                ))}
+              </ChipsWrapper>
+            </FilterSection>
+
+            <FilterSection>
+              <SectionTitle>주식수 (전체 공통)</SectionTitle>
+              <HintText>
+                선택한 회사 범위가 있으면 그 회사들의 분포로 추천 구간을
+                만듭니다. 회사 탭에서 회사별 구간을 따로 둘 수 있습니다.
+              </HintText>
+              {!isAdmin && !useListScopedMenu && (
+                <HintText style={{ marginTop: "0.35rem" }}>
+                  * 현장요원 권한에 따라 회사·상태 목록이 다르게 보일 수
+                  있습니다.
+                </HintText>
+              )}
 
               <ManualBlock $first>
                 <ManualTitle>직접 입력</ManualTitle>
@@ -868,67 +719,219 @@ const FilterModalChildren = ({
                     type="text"
                     inputMode="numeric"
                     placeholder="최소"
-                    value={profileManualMin}
-                    onChange={(e) => setProfileManualMin(e.target.value)}
+                    value={manualMin}
+                    onChange={(e) => setManualMin(e.target.value)}
                   />
                   <ManualSep>~</ManualSep>
                   <ManualInput
                     type="text"
                     inputMode="numeric"
                     placeholder="최대"
-                    value={profileManualMax}
-                    onChange={(e) => setProfileManualMax(e.target.value)}
+                    value={manualMax}
+                    onChange={(e) => setManualMax(e.target.value)}
                   />
-                  <ManualAddButton
-                    type="button"
-                    onClick={() => addProfileManualRange(activeCompany)}>
+                  <ManualAddButton type="button" onClick={addGlobalManualRange}>
                     구간 추가
                   </ManualAddButton>
                 </ManualRow>
+                <ManualHint>
+                  상한을 크게 두려면 최대에 큰 숫자를 입력하세요.
+                </ManualHint>
               </ManualBlock>
 
-              {companySpecificRanges.length === 0 ? (
+              {globalStockRanges.length === 0 ? (
                 <HintText style={{ marginTop: "0.75rem" }}>
-                  이 회사의 주식수 분포를 불러오지 못했습니다. 위에서 직접
-                  구간을 추가할 수 있습니다.
+                  현재 조건에서 사용할 수 있는 추천 주식수 구간이 없습니다.
+                  위에서 직접 구간을 추가해 보세요.
                 </HintText>
               ) : (
                 <CompanyStockSection>
                   <CompanyStockTitle>추천 구간</CompanyStockTitle>
                   <StockRangeWrapper>
-                    {companySpecificRanges.map((range) => (
+                    {globalStockRanges.map((range) => (
                       <StockRangeButton
-                        key={`${activeCompany}-${range.label}`}
-                        isSelected={profileStockRanges.some(
+                        key={`all-${range.label}`}
+                        isSelected={safeStocks.some(
                           (s) => s.start === range.start && s.end === range.end,
                         )}
-                        onClick={() =>
-                          handleCompanyRangeSelect(
-                            activeCompany,
-                            range.start,
-                            range.end,
-                          )
-                        }>
+                        onClick={() => {
+                          setDraft((d) => {
+                            const safePrev = toStockRangeArray(d.stocks)
+                            const exists = safePrev.some(
+                              (s) =>
+                                s.start === range.start && s.end === range.end,
+                            )
+                            const nextStocks = exists
+                              ? safePrev.filter(
+                                  (s) =>
+                                    !(
+                                      s.start === range.start &&
+                                      s.end === range.end
+                                    ),
+                                )
+                              : [
+                                  ...safePrev,
+                                  { start: range.start, end: range.end },
+                                ]
+
+                            return { ...d, stocks: nextStocks }
+                          })
+                        }}>
                         {range.label}
                       </StockRangeButton>
                     ))}
                   </StockRangeWrapper>
                 </CompanyStockSection>
               )}
-              {profileStockRanges.length > 0 && (
-                <GhostButton
-                  type="button"
-                  onClick={() =>
-                    clearProfileField(activeCompany, "stockRanges")
-                  }>
-                  전체 탭 주식 규칙 따르기
-                </GhostButton>
-              )}
             </FilterSection>
           </>
-        )
-      )}
+        ) : (
+          activeCompany && (
+            <>
+              <FilterSection>
+                <SectionTitle>{activeCompany} · 상태 (1차)</SectionTitle>
+                <HintText>
+                  이 회사 주주에만 적용됩니다. 비우면 &apos;전체&apos; 탭의 상태
+                  규칙을 따릅니다.
+                </HintText>
+                <ChipsWrapper>
+                  {availablePrimary.map((p) => {
+                    const selected =
+                      profileStatusPrimary !== undefined &&
+                      (profileStatusPrimary ?? []).includes(p)
 
+                    return (
+                      <FilterChip
+                        key={p}
+                        isSelected={selected}
+                        onClick={() => toggleProfilePrimary(activeCompany, p)}>
+                        {p}
+                      </FilterChip>
+                    )
+                  })}
+                </ChipsWrapper>
+                {profileStatusPrimary !== undefined &&
+                  profileStatusPrimary.length > 0 && (
+                    <GhostButton
+                      type="button"
+                      onClick={() =>
+                        clearProfileField(activeCompany, "statusPrimary")
+                      }>
+                      전체 탭과 동일하게 (이 회사만 초기화)
+                    </GhostButton>
+                  )}
+              </FilterSection>
+
+              <FilterSection>
+                <SectionTitle>{activeCompany} · 지역</SectionTitle>
+                <HintText>
+                  비우면 전체 탭의 지역 설정을 따릅니다. 이 회사만 다른 지역을
+                  보려면 선택하세요.
+                </HintText>
+                <ChipsWrapper>
+                  <FilterChip
+                    isSelected={profileCity === undefined}
+                    onClick={() => clearProfileField(activeCompany, "city")}>
+                    전체 탭과 동일
+                  </FilterChip>
+                  {MAJOR_CITIES.map((city) => (
+                    <FilterChip
+                      key={city}
+                      isSelected={profileCity === city}
+                      onClick={() =>
+                        setDraft((d) => ({
+                          ...d,
+                          companyFilterProfiles: {
+                            ...d.companyFilterProfiles,
+                            [activeCompany]: {
+                              ...(d.companyFilterProfiles[activeCompany] ?? {}),
+                              city,
+                            },
+                          },
+                        }))
+                      }>
+                      {city}
+                    </FilterChip>
+                  ))}
+                </ChipsWrapper>
+              </FilterSection>
+
+              <FilterSection>
+                <SectionTitle>{activeCompany} · 주식수</SectionTitle>
+                <HintText>
+                  여기서 고르면 이 회사에는 전체 탭 주식 필터 대신 이 구간만
+                  적용됩니다.
+                </HintText>
+
+                <ManualBlock $first>
+                  <ManualTitle>직접 입력</ManualTitle>
+                  <ManualRow>
+                    <ManualInput
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="최소"
+                      value={profileManualMin}
+                      onChange={(e) => setProfileManualMin(e.target.value)}
+                    />
+                    <ManualSep>~</ManualSep>
+                    <ManualInput
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="최대"
+                      value={profileManualMax}
+                      onChange={(e) => setProfileManualMax(e.target.value)}
+                    />
+                    <ManualAddButton
+                      type="button"
+                      onClick={() => addProfileManualRange(activeCompany)}>
+                      구간 추가
+                    </ManualAddButton>
+                  </ManualRow>
+                </ManualBlock>
+
+                {companySpecificRanges.length === 0 ? (
+                  <HintText style={{ marginTop: "0.75rem" }}>
+                    이 회사의 주식수 분포를 불러오지 못했습니다. 위에서 직접
+                    구간을 추가할 수 있습니다.
+                  </HintText>
+                ) : (
+                  <CompanyStockSection>
+                    <CompanyStockTitle>추천 구간</CompanyStockTitle>
+                    <StockRangeWrapper>
+                      {companySpecificRanges.map((range) => (
+                        <StockRangeButton
+                          key={`${activeCompany}-${range.label}`}
+                          isSelected={profileStockRanges.some(
+                            (s) =>
+                              s.start === range.start && s.end === range.end,
+                          )}
+                          onClick={() =>
+                            handleCompanyRangeSelect(
+                              activeCompany,
+                              range.start,
+                              range.end,
+                            )
+                          }>
+                          {range.label}
+                        </StockRangeButton>
+                      ))}
+                    </StockRangeWrapper>
+                  </CompanyStockSection>
+                )}
+                {profileStockRanges.length > 0 && (
+                  <GhostButton
+                    type="button"
+                    onClick={() =>
+                      clearProfileField(activeCompany, "stockRanges")
+                    }>
+                    전체 탭 주식 규칙 따르기
+                  </GhostButton>
+                )}
+              </FilterSection>
+            </>
+          )
+        )}
+      </FilterScroll>
       <FooterBar>
         <FooterActions>
           <ResetButton
@@ -963,7 +966,7 @@ const FilterModalChildren = ({
           </ApplyButton>
         </FooterActions>
       </FooterBar>
-    </FilterContainer>
+    </FilterRoot>
   )
 }
 
@@ -995,16 +998,19 @@ const SummaryLabel = styled.div`
 const SummaryChips = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 `
 
 const SummaryChip = styled.span`
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.2;
   color: ${COLORS.blue[800]};
   background: #fff;
   border: 1px solid ${COLORS.blue[200]};
@@ -1013,10 +1019,13 @@ const SummaryChip = styled.span`
 const SavedChip = styled.span`
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.2;
   color: ${COLORS.gray[700]};
   background: #fff;
   border: 1px solid ${COLORS.gray[200]};
@@ -1047,16 +1056,32 @@ const SummaryHint = styled.p`
   line-height: 1.45;
 `
 
-const FilterContainer = styled.div`
-  padding: 24px;
-  position: relative;
-  height: 100%;
+const FilterRoot = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-height: min(78vh, 720px);
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    max-height: none;
+    flex: 1;
+  }
+`
+
+const FilterScroll = styled.div`
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding-bottom: 28px;
+  padding: 24px;
+  padding-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
 
   @media (max-width: 768px) {
     padding: 16px;
-    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    padding-bottom: 10px;
   }
 `
 
@@ -1176,16 +1201,22 @@ const ChipsWrapper = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 `
 
 const FilterChip = styled.button<{ isSelected: boolean }>`
-  padding: 8px 16px;
-  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
   border: 1px solid
     ${(props) => (props.isSelected ? COLORS.blue[500] : COLORS.gray[200])};
   background: ${(props) => (props.isSelected ? COLORS.blue[50] : "white")};
   color: ${(props) => (props.isSelected ? COLORS.blue[700] : COLORS.gray[700])};
-  font-size: 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 2.5rem;
@@ -1302,29 +1333,15 @@ const GhostButton = styled.button`
 `
 
 const FooterBar = styled.div`
-  position: relative;
-  z-index: 0;
-  margin: 20px -24px -24px;
-  padding: 16px 24px 20px;
-  background: ${COLORS.gray[50]};
-  border-top: 1px solid ${COLORS.gray[100]};
-
-  @media (min-width: 769px) {
-    margin-bottom: 0;
-    border-radius: 0 0 8px 8px;
-    box-shadow: none;
-  }
+  flex-shrink: 0;
+  padding: 12px 24px max(14px, env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1px solid ${COLORS.gray[200]};
+  box-shadow: 0 -8px 28px rgba(15, 23, 42, 0.08);
 
   @media (max-width: 768px) {
-    position: sticky;
-    bottom: 0;
-    z-index: 6;
-    margin: 12px -16px -16px;
-    padding: 14px 16px 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, #fff 18%);
-    border-top: 1px solid ${COLORS.gray[100]};
-    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
+    padding-left: 16px;
+    padding-right: 16px;
   }
 `
 
