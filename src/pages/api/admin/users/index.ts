@@ -12,7 +12,9 @@ export default withApiHandler(async (req, res) => {
 
   if (req.method === "GET") {
     const page = Math.max(1, Number(req.query.page) || 1)
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10))
+
+    /** 통합 대시보드 등에서 집계용으로 더 많이 요청할 수 있음(서비스 관리자 전용) */
+    const limit = Math.min(1000, Math.max(1, Number(req.query.limit) || 10))
 
     // Supabase Auth listUsers does not return total count; compute by paging
     const BATCH = 1000

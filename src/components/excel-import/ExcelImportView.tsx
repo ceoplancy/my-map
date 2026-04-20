@@ -68,6 +68,7 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
   onEditFailedData,
   onRetryAllFailedData,
   onDeferRow,
+  onDownloadImportTemplate,
 }) => {
   const theme = useTheme()
   const editDialogFullScreen = useMediaQuery(theme.breakpoints.down("sm"))
@@ -549,17 +550,36 @@ export const ExcelImportView: React.FC<ExcelImportViewProps> = ({
               </>
             )}
 
-            <label htmlFor="file-upload">
-              <Button
-                component="span"
-                variant="contained"
-                color="primary"
-                startIcon={<CloudUpload />}
-                sx={{ mt: 3 }}
-                disabled={loading}>
-                파일 선택
-              </Button>
-            </label>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: 1.5,
+                mt: 3,
+              }}>
+              <label htmlFor="file-upload">
+                <Button
+                  component="span"
+                  variant="contained"
+                  color="primary"
+                  startIcon={<CloudUpload />}
+                  disabled={loading}>
+                  파일 선택
+                </Button>
+              </label>
+              {onDownloadImportTemplate ? (
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<FileDownload />}
+                  disabled={loading}
+                  onClick={onDownloadImportTemplate}>
+                  명부 양식 다운로드
+                </Button>
+              ) : null}
+            </Box>
           </Box>
 
           <Box

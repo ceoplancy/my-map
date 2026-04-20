@@ -21,7 +21,11 @@ const WORKSPACE_ROLES = [
   "field_agent",
 ] as const
 
-/** GET: workspace members. POST: add member by email (workspace admin only). */
+/**
+ * GET: workspace members.
+ * POST: add member by email (workspace admin only).
+ * PATCH: update member role / 담당 명부 / 팀장 (workspace admin only).
+ */
 export default withApiHandler(async (req, res) => {
   res.setHeader("Cache-Control", "private, no-store, must-revalidate")
 
@@ -199,6 +203,73 @@ export default withApiHandler(async (req, res) => {
     }
 
     return res.status(201).json({ success: true })
+  }
+
+  if (req.method === "PATCH") {
+    if (!isWorkspaceAdmin && !isServiceAdminUser) {
+      return res
+        .status(403)
+        .json({ error: "워크스페이스 관리자만 멤버를 수정할 수 있습니다." })
+    }
+    const body = req.body as {
+      memberId?: string
+      role?: string
+      allowed_list_ids?: string[] | null
+      is_team_leader?: boolean
+    }
+    const memberId =
+      typeof body?.memberId === "string" ? body.memberId.trim() : ""
+    if (!memberId) {
+      return res.status(400).json({ error: "memberId required" })
+    }
+    const target = (members ?? []).find((m) => m.id === memberId)
+    if (!target || target.workspace_id !== workspaceId) {
+      return res.status(404).json({ error: "멤버를 찾을 수 없습니다." })
+    }
+    if (target.role === "service_admin" && !isServiceAdminUser) {
+      return res.status(403).json({
+        error: "서비스 관리자 멤버는 통합 관리에서만 수정할 수 있습니다.",
+      })
+    }
+
+    const updates: Record<string, unknown> = {}
+    if (body.role !== undefined) {
+      if (
+        !WORKSPACE_ROLES.includes(body.role as (typeof WORKSPACE_ROLES)[number])
+      ) {
+        return res.status(400).json({
+          error:
+            "role must be one of: service_admin, top_admin, admin, field_agent",
+        })
+      }
+      const nextRole = body.role as (typeof WORKSPACE_ROLES)[number]
+      if (nextRole === "service_admin" && !isServiceAdminUser) {
+        return res.status(403).json({
+          error: "service_admin 역할은 통합 관리자만 부여할 수 있습니다.",
+        })
+      }
+      updates.role = nextRole
+    }
+    if (Object.prototype.hasOwnProperty.call(body, "allowed_list_ids")) {
+      updates.allowed_list_ids = body.allowed_list_ids
+    }
+    if (body.is_team_leader !== undefined) {
+      updates.is_team_leader = body.is_team_leader
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "수정할 필드가 없습니다." })
+    }
+
+    const { error: patchErr } = await admin
+      .from("workspace_members")
+      .update(updates)
+      .eq("id", memberId)
+      .eq("workspace_id", workspaceId)
+    if (patchErr) {
+      return res.status(500).json({ error: patchErr.message })
+    }
+
+    return res.status(200).json({ success: true })
   }
 
   if (req.method !== "GET") {

@@ -22,7 +22,7 @@ import {
   recoverAccessTokenAfterAuthFailure,
 } from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
-import type { Tables } from "@/types/db"
+import type { Tables, WorkspaceRole } from "@/types/db"
 import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError } from "@/lib/reportError"
 import { truncateChangeHistoryValue } from "@/lib/shareholderChangeHistoryValues"
@@ -219,6 +219,53 @@ export const useRemoveWorkspaceMember = () => {
   })
 }
 
+export type UpdateWorkspaceMemberInput = {
+  workspaceId: string
+  memberId: string
+  role?: WorkspaceRole
+  allowed_list_ids?: string[] | null
+  is_team_leader?: boolean
+}
+
+export const useUpdateWorkspaceMember = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: UpdateWorkspaceMemberInput) => {
+      const token = await getAccessToken()
+      if (!token) throw new Error("Unauthorized")
+      const body: Record<string, unknown> = { memberId: input.memberId }
+      if (input.role !== undefined) body.role = input.role
+      if (Object.prototype.hasOwnProperty.call(input, "allowed_list_ids")) {
+        body.allowed_list_ids = input.allowed_list_ids
+      }
+      if (input.is_team_leader !== undefined) {
+        body.is_team_leader = input.is_team_leader
+      }
+      const res = await apiClient.patch(
+        `/api/me/workspace-members?workspaceId=${encodeURIComponent(input.workspaceId)}`,
+        body,
+        { headers: bearerHeaders(token) },
+      )
+      if (!isHttpOk(res.status)) {
+        throwApiErrorFromHttpResponse(res, res.statusText || "Request failed")
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembersWithUsers", variables.workspaceId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["workspaceMembers", variables.workspaceId],
+      })
+      toast.success("멤버 정보가 수정되었습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "멤버 수정에 실패했습니다.")
+    },
+  })
+}
+
 export const useShareholderLists = (workspaceId: string | null) => {
   return useQuery({
     queryKey: ["shareholderLists", workspaceId],
@@ -281,7 +328,7 @@ export type ShareholdersParams = {
   /** 관리자 목록: 사진 있음/없음 (클라이언트 필터) */
   photoFilter?: "with" | "without"
 
-  /** 지오코딩 상태 (클라이언트 필터, null·빈 값은 ok로 간주) */
+  /** 주소 변환(지오코딩) 성공·대기·실패 클라이언트 필터. null·빈 값은 성공(ok)으로 간주 */
   geocodeStatusFilter?: ("ok" | "pending" | "failed")[]
 }
 

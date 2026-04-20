@@ -200,6 +200,36 @@ const WorkspaceMapPage = () => {
     debouncedMapSearch,
   ])
 
+  /** 지도 뷰포트·검색 제외: 대시보드 집계는 명부 전체(필터만 동일) */
+  const mapStatsParams = useMemo((): ShareholdersParams => {
+    return {
+      listIds: visibleListIds.length > 0 ? visibleListIds : null,
+      status:
+        statusFilter?.length && !statusPrimaryFilter?.length
+          ? statusFilter
+          : undefined,
+      statusPrimaryFilter:
+        statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
+      company: companyFilter?.length ? companyFilter : undefined,
+      stocks: stocks?.length ? stocks : undefined,
+      companyStockFilterMap,
+      companyFilterProfiles:
+        companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
+          ? companyFilterProfiles
+          : undefined,
+      city: cityFilter || undefined,
+    }
+  }, [
+    visibleListIds,
+    statusFilter,
+    statusPrimaryFilter,
+    companyFilter,
+    stocks,
+    companyStockFilterMap,
+    companyFilterProfiles,
+    cityFilter,
+  ])
+
   const {
     data: shareholderData,
     refetch: shareholderRefetch,
@@ -570,7 +600,7 @@ const WorkspaceMapPage = () => {
                 )}
               </FilterSummaryChipsWrap>
             </FilterDashboardSummary>
-            <StatsCard statsParams={shareholderParams} />
+            <StatsCard statsParams={mapStatsParams} />
             {hasWorkspace && visibleListIds.length === 0 && (
               <EmptyWorkspaceHint>
                 이 워크스페이스에 노출된 주주명부가 없습니다. 관리자 화면에서
@@ -788,12 +818,18 @@ const MapSearchHitRow = styled.button`
   color: ${COLORS.gray[800]};
   cursor: pointer;
   border-bottom: 1px solid ${COLORS.gray[100]};
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   &:last-of-type {
     border-bottom: none;
   }
   &:hover {
     background: ${COLORS.gray[50]};
+  }
+  @media (hover: none) {
+    &:active {
+      background: ${COLORS.gray[100]};
+    }
   }
   small {
     font-size: 0.7rem;
@@ -835,6 +871,7 @@ const MenuButton = styled.button`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 
   &:hover {
@@ -886,6 +923,7 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   pointer-events: ${(props) => (props.isVisible ? "auto" : "none")};
 `
 

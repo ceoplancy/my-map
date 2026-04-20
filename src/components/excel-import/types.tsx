@@ -33,4 +33,7 @@ export interface ExcelImportViewProps {
 
   /** 세션 실패 목록에서 제거하고 DB 보류함에 저장(또는 동일 행이 이미 있으면 세션만 정리) */
   onDeferRow?: (_row: ImportSpreadsheetRow) => Promise<void>
+
+  /** 주주 명부 업로드용 빈 양식(.xlsx) 다운로드 */
+  onDownloadImportTemplate?: () => void
 }

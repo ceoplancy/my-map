@@ -41,10 +41,31 @@ import { getWorkspaceAdminBase, removeTags } from "@/lib/utils"
 import supabase from "@/lib/supabase/supabaseClient"
 import { useGetUsers } from "@/api/supabase"
 import Link from "next/link"
+import {
+  PRIMARY_STATUS_OPTIONS,
+  STATUS_DETAIL_OPTIONS,
+  splitShareholderStatus,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
 
 type Shareholder = Tables<"shareholders">
 
 const EMPTY_CELL = "—"
+
+/** 주주 목록 필터: 1차만 또는 1차+세부 */
+function matchesShareholderStatusFilter(
+  rawStatus: string | null | undefined,
+  primary: "" | PrimaryStatus,
+  detail: string,
+): boolean {
+  if (!primary) return true
+  const parsed = splitShareholderStatus(rawStatus)
+  if (parsed.primary !== primary) return false
+  const detailTrim = detail.trim()
+  if (!detailTrim) return true
+
+  return parsed.detail === detailTrim
+}
 
 function formatModifiedAtDisplay(iso: string): string {
   if (!iso || iso === "-" || iso === EMPTY_CELL) return EMPTY_CELL
@@ -540,7 +561,12 @@ const SHAREHOLDER_LIST_SORT_FIELD_OPTIONS: {
 
 type Filters = {
   search: string
-  status: string
+
+  /** 비어 있으면 업무 상태로 제한하지 않음 */
+  statusPrimary: "" | PrimaryStatus
+
+  /** 비어 있으면 1차만 매칭(세부 무관). 값이 있으면 해당 세부만 */
+  statusDetail: string
   stocksMin: string
   stocksMax: string
   modifier: string
@@ -552,7 +578,10 @@ type Filters = {
   /** 사진 있음 / 없음 / 전체 */
   photo: "" | "with" | "without"
 
-  /** 지도 좌표 변환 상태 (서버 조회 후 클라이언트 필터) */
+  /**
+   * 주소→좌표 변환 성공·대기·실패. 빈 문자열이면 전체.
+   * 기본 ok: 성공만 (DB null·빈 값은 성공으로 간주).
+   */
   geocode: "" | "ok" | "pending" | "failed"
 }
 
@@ -561,7 +590,15 @@ function describeShareholderListFilters(filters: Filters): string {
   if (filters.search.trim()) {
     parts.push(`검색「${filters.search.trim()}」`)
   }
-  if (filters.status) parts.push(`업무 상태 ${filters.status}`)
+  if (filters.statusPrimary) {
+    if (filters.statusDetail.trim()) {
+      parts.push(
+        `업무 ${filters.statusPrimary} · ${filters.statusDetail.trim()}`,
+      )
+    } else {
+      parts.push(`업무 1차 ${filters.statusPrimary}`)
+    }
+  }
   if (filters.stocksMin.trim() || filters.stocksMax.trim()) {
     parts.push(
       `주식수 ${filters.stocksMin.trim() || "—"} ~ ${filters.stocksMax.trim() || "—"}`,
@@ -577,12 +614,14 @@ function describeShareholderListFilters(filters: Filters): string {
   }
   if (filters.photo === "with") parts.push("사진 있음")
   if (filters.photo === "without") parts.push("사진 없음")
-  const geoMap: Record<string, string> = {
-    ok: "주소·좌표 반영됨",
-    pending: "좌표 변환 대기",
-    failed: "좌표 변환 실패",
+  if (filters.geocode === "") {
+    parts.push("주소 변환 전체(성공·대기·실패)")
+  } else if (filters.geocode === "pending") {
+    parts.push("주소 변환 대기만")
+  } else if (filters.geocode === "failed") {
+    parts.push("주소 변환 실패만")
   }
-  if (filters.geocode) parts.push(geoMap[filters.geocode] ?? filters.geocode)
+  // ok(성공만)은 목록 기본값이라 요약 문구에서 생략
 
   return parts.length > 0 ? parts.join(" · ") : "없음 (전체)"
 }
@@ -623,14 +662,15 @@ export default function ShareholderList({ listId, listName }: Props) {
   })
   const [filters, setFilters] = useState<Filters>({
     search: "",
-    status: "",
+    statusPrimary: "",
+    statusDetail: "",
     stocksMin: "",
     stocksMax: "",
     modifier: "",
     modifiedFrom: "",
     modifiedTo: "",
     photo: "",
-    geocode: "",
+    geocode: "ok",
   })
 
   const { data: session } = useSession()
@@ -791,6 +831,15 @@ export default function ShareholderList({ listId, listName }: Props) {
     setCurrentPage(1)
   }
 
+  const handleStatusPrimaryFilterChange = (value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      statusPrimary: value as Filters["statusPrimary"],
+      statusDetail: "",
+    }))
+    setCurrentPage(1)
+  }
+
   const filteredData = useMemo(() => {
     const rows = shareholdersData ?? []
 
@@ -806,8 +855,11 @@ export default function ShareholderList({ listId, listName }: Props) {
         item.address_original?.toLowerCase().includes(searchTerm) ||
         item.latlngaddress?.toLowerCase().includes(searchTerm)
 
-      const matchesStatus =
-        filters.status === "" || item.status === filters.status
+      const matchesStatus = matchesShareholderStatusFilter(
+        item.status,
+        filters.statusPrimary,
+        filters.statusDetail,
+      )
 
       const minN = filters.stocksMin.trim()
         ? parseInt(filters.stocksMin, 10)
@@ -1083,25 +1135,52 @@ export default function ShareholderList({ listId, listName }: Props) {
         <FilterWrap>
           <FilterGrid>
             <FormGroup>
-              <Label title="위임·현장 업무 진행 상태">
+              <Label title="1차 유형만 고르거나, 아래에서 세부까지 좁힐 수 있습니다.">
                 업무 상태
-                <FieldHint>미방문·완료·보류·실패</FieldHint>
+                <FieldHint>
+                  1차 유형 · 필요 시 2차 세부까지 (2차는 선택)
+                </FieldHint>
               </Label>
               <FilterSelect
-                value={filters.status}
-                onChange={(e) => handleFilterChange("status", e.target.value)}>
-                <option value="">모든 상태</option>
-                <option value="미방문">미방문</option>
-                <option value="완료">완료</option>
-                <option value="보류">보류</option>
-                <option value="실패">실패</option>
+                value={filters.statusPrimary}
+                onChange={(e) =>
+                  handleStatusPrimaryFilterChange(e.target.value)
+                }
+                aria-label="업무 상태 1차">
+                <option value="">전체</option>
+                {PRIMARY_STATUS_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </FilterSelect>
+              <FilterSelect
+                style={{ marginTop: "0.5rem" }}
+                value={filters.statusDetail}
+                disabled={!filters.statusPrimary}
+                onChange={(e) =>
+                  handleFilterChange("statusDetail", e.target.value)
+                }
+                aria-label="업무 상태 2차 세부">
+                <option value="">전체 (1차만 적용)</option>
+                {(filters.statusPrimary
+                  ? STATUS_DETAIL_OPTIONS[filters.statusPrimary]
+                  : []
+                ).map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </FilterSelect>
             </FormGroup>
 
             <FormGroup>
-              <Label title="주소를 지도 좌표로 바꾼 결과(지오코딩)">
-                주소·좌표
-                <FieldHint>지도 표시용 좌표 반영 여부</FieldHint>
+              <Label title="주소를 좌표로 바꾼 뒤 지도에 쓸 수 있는지에 대한 성공·대기·실패 구분입니다.">
+                주소 변환
+                <FieldHint>
+                  성공·대기·실패 기준 · 저장값 없음·null은 성공으로 봄 · 기본
+                  성공만
+                </FieldHint>
               </Label>
               <FilterSelect
                 value={filters.geocode}
@@ -1111,11 +1190,11 @@ export default function ShareholderList({ listId, listName }: Props) {
                     e.target.value as Filters["geocode"],
                   )
                 }
-                title="주소를 위도·경도로 바꾼 뒤 지도에 반영할 수 있는지 여부">
+                title="지오코딩: 주소 변환의 성공·대기·실패. 비어 있거나 null은 성공(ok)으로 간주합니다.">
+                <option value="ok">성공 (기본)</option>
+                <option value="pending">대기</option>
+                <option value="failed">실패</option>
                 <option value="">전체</option>
-                <option value="ok">반영됨</option>
-                <option value="pending">변환 대기</option>
-                <option value="failed">변환 실패</option>
               </FilterSelect>
             </FormGroup>
 
@@ -1230,14 +1309,15 @@ export default function ShareholderList({ listId, listName }: Props) {
               onClick={() => {
                 setFilters({
                   search: "",
-                  status: "",
+                  statusPrimary: "",
+                  statusDetail: "",
                   stocksMin: "",
                   stocksMax: "",
                   modifier: "",
                   modifiedFrom: "",
                   modifiedTo: "",
                   photo: "",
-                  geocode: "",
+                  geocode: "ok",
                 })
                 setCurrentPage(1)
               }}>

@@ -5,6 +5,8 @@ import {
   useShareholderLists,
   useAddWorkspaceMember,
   useRemoveWorkspaceMember,
+  useUpdateWorkspaceMember,
+  type WorkspaceMemberWithUser,
 } from "@/api/workspace"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
@@ -13,7 +15,7 @@ import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/router"
 import Modal from "@/components/ui/modal"
-import { Delete as DeleteIcon } from "@mui/icons-material"
+import { Delete as DeleteIcon, Edit as EditIcon } from "@mui/icons-material"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
 
@@ -276,6 +278,22 @@ const DeleteBtn = styled.button`
   }
 `
 
+const EditBtn = styled.button`
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  color: ${COLORS.blue[600]};
+  background: ${COLORS.blue[50]};
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  &:hover {
+    background: ${COLORS.blue[100]};
+  }
+`
+
 /** 워크스페이스 멤버 본문 (workspace 설정된 상태에서 사용) */
 export function MembersPageContent({
   initialWorkspace = null,
@@ -294,12 +312,19 @@ export function MembersPageContent({
   const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
   const addMember = useAddWorkspaceMember()
   const removeMember = useRemoveWorkspaceMember()
+  const updateMember = useUpdateWorkspaceMember()
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addEmail, setAddEmail] = useState("")
   const [addName, setAddName] = useState("")
   const [addPassword, setAddPassword] = useState("")
   const [addRole, setAddRole] = useState<WorkspaceRole>("field_agent")
   const [addAllowedListIds, setAddAllowedListIds] = useState<string[]>([])
+  const [editMember, setEditMember] = useState<WorkspaceMemberWithUser | null>(
+    null,
+  )
+  const [editRole, setEditRole] = useState<WorkspaceRole>("field_agent")
+  const [editAllowedListIds, setEditAllowedListIds] = useState<string[]>([])
+  const [editIsTeamLeader, setEditIsTeamLeader] = useState(false)
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<MemberSortKey>("name")
@@ -410,6 +435,40 @@ export function MembersPageContent({
       prev.includes(listId)
         ? prev.filter((id) => id !== listId)
         : [...prev, listId],
+    )
+  }
+
+  const openEditMember = (m: WorkspaceMemberWithUser) => {
+    setEditMember(m)
+    setEditRole(m.role as WorkspaceRole)
+    setEditAllowedListIds(
+      Array.isArray(m.allowed_list_ids) ? [...m.allowed_list_ids] : [],
+    )
+    setEditIsTeamLeader(Boolean(m.is_team_leader))
+  }
+
+  const toggleEditAllowedList = (listId: string) => {
+    setEditAllowedListIds((prev) =>
+      prev.includes(listId)
+        ? prev.filter((id) => id !== listId)
+        : [...prev, listId],
+    )
+  }
+
+  const handleSaveEditMember = () => {
+    if (!workspace?.id || !editMember) return
+    updateMember.mutate(
+      {
+        workspaceId: workspace.id,
+        memberId: editMember.id,
+        role: editRole,
+        allowed_list_ids:
+          editAllowedListIds.length > 0 ? editAllowedListIds : null,
+        is_team_leader: editIsTeamLeader,
+      },
+      {
+        onSuccess: () => setEditMember(null),
+      },
     )
   }
 
@@ -563,6 +622,105 @@ export function MembersPageContent({
           </ModalActions>
         </ModalContent>
       </Modal>
+      <Modal
+        open={!!editMember}
+        setOpen={(open) => {
+          if (!open) setEditMember(null)
+        }}>
+        <ModalContent>
+          <ModalTitle>멤버 수정</ModalTitle>
+          {editMember ? (
+            <>
+              <FieldLabel>이메일</FieldLabel>
+              <FieldInput
+                type="text"
+                value={editMember.email ?? ""}
+                disabled
+                readOnly
+                style={{ opacity: 0.85 }}
+              />
+              <FieldLabel>이름</FieldLabel>
+              <FieldInput
+                type="text"
+                value={editMember.name ?? ""}
+                disabled
+                readOnly
+                style={{ opacity: 0.85 }}
+              />
+              <FieldLabel>역할</FieldLabel>
+              <FieldSelect
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as WorkspaceRole)}>
+                {ROLES_IN_WORKSPACE_MEMBERS.map((r) => (
+                  <option key={r} value={r}>
+                    {WORKSPACE_ROLE_LABELS[r]}
+                  </option>
+                ))}
+              </FieldSelect>
+              {lists.length > 0 && (
+                <>
+                  <FieldLabel>
+                    담당 명부 (용역만 해당, 선택한 명부만 지도에서 조회 가능)
+                  </FieldLabel>
+                  <div
+                    style={{
+                      marginBottom: "1rem",
+                      maxHeight: "120px",
+                      overflowY: "auto",
+                    }}>
+                    {lists.map((list) => (
+                      <label
+                        key={list.id}
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          marginBottom: "0.25rem",
+                        }}>
+                        <input
+                          type="checkbox"
+                          checked={editAllowedListIds.includes(list.id)}
+                          onChange={() => toggleEditAllowedList(list.id)}
+                        />{" "}
+                        {list.name}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  fontSize: "0.875rem",
+                  marginBottom: "1rem",
+                }}>
+                <input
+                  type="checkbox"
+                  checked={editIsTeamLeader}
+                  onChange={(e) => setEditIsTeamLeader(e.target.checked)}
+                />
+                팀장
+              </label>
+              <ModalActions>
+                <ModalButton
+                  type="button"
+                  onClick={() => setEditMember(null)}
+                  disabled={updateMember.isPending}>
+                  취소
+                </ModalButton>
+                <ModalButton
+                  primary
+                  type="button"
+                  onClick={handleSaveEditMember}
+                  disabled={updateMember.isPending}>
+                  {updateMember.isPending ? "저장 중…" : "저장"}
+                </ModalButton>
+              </ModalActions>
+            </>
+          ) : null}
+        </ModalContent>
+      </Modal>
       <TableWrap>
         {isLoading ? (
           <div
@@ -674,14 +832,29 @@ export function MembersPageContent({
                       <Td>{formatAssignedLists(m.allowed_list_ids)}</Td>
                       <Td>{m.is_team_leader ? "예" : "-"}</Td>
                       <Td>
-                        <DeleteBtn
-                          type="button"
-                          onClick={() => handleRemoveMember(m.id)}
-                          disabled={removeMember.isPending}
-                          title="멤버 제거">
-                          <DeleteIcon sx={{ fontSize: 18 }} />
-                          삭제
-                        </DeleteBtn>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "0.5rem",
+                          }}>
+                          <EditBtn
+                            type="button"
+                            onClick={() => openEditMember(m)}
+                            disabled={updateMember.isPending}
+                            title="멤버 수정">
+                            <EditIcon sx={{ fontSize: 18 }} />
+                            수정
+                          </EditBtn>
+                          <DeleteBtn
+                            type="button"
+                            onClick={() => handleRemoveMember(m.id)}
+                            disabled={removeMember.isPending}
+                            title="멤버 제거">
+                            <DeleteIcon sx={{ fontSize: 18 }} />
+                            삭제
+                          </DeleteBtn>
+                        </div>
                       </Td>
                     </Tr>
                   )

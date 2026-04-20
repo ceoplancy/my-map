@@ -215,7 +215,9 @@ export default function IntegratedDashboardPage() {
   const { data: user } = useGetUserData()
   const { data: adminStatus, isLoading: adminStatusLoading } = useAdminStatus()
   const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
-  const { data: users } = useGetUsers(1, 100)
+
+  /** 집계·최근 목록용(최대 1000건). 전체 사용자 수는 metadata.totalCount */
+  const { data: users } = useGetUsers(1, 1000)
   const { data: workspaces = [] } = useAdminWorkspaces()
 
   if (adminStatusLoading) {

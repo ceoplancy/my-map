@@ -16,6 +16,11 @@ import {
 } from "@/api/workspace"
 import * as XLSX from "xlsx"
 import { type Tables, type WorkspaceRole } from "@/types/db"
+import {
+  getPrimaryStatusCategory,
+  PRIMARY_STATUS_OPTIONS,
+  type PrimaryStatus,
+} from "@/lib/shareholderStatus"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import Select from "@/components/ui/select"
 
@@ -301,8 +306,8 @@ const ListSelect = styled(Select)`
 
 const StatusCountGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.75rem;
   margin-bottom: 1rem;
 `
 
@@ -372,22 +377,41 @@ export function WorkspaceDashboardBody() {
     maker: filterMaker.trim() || undefined,
   })
 
-  const { byStatus, totalStocks } = useMemo(() => {
-    const byStatus: Record<string, number> = {
+  const { byPrimary, totalStocks } = useMemo(() => {
+    const byPrimary: Record<PrimaryStatus, number> = {
       미방문: 0,
-      보류: 0,
       완료: 0,
+      보류: 0,
       실패: 0,
+      전자투표: 0,
+      주주총회: 0,
     }
     let totalStocks = 0
     for (const s of shareholders as Tables<"shareholders">[]) {
-      const status = s.status ?? "미방문"
-      if (status in byStatus) byStatus[status]++
+      const p = getPrimaryStatusCategory(s.status)
+      byPrimary[p] += 1
       totalStocks += s.stocks ?? 0
     }
 
-    return { byStatus, totalStocks }
+    return { byPrimary, totalStocks }
   }, [shareholders])
+
+  const statusCardColor = (p: PrimaryStatus): string => {
+    switch (p) {
+      case "미방문":
+        return COLORS.gray[500]
+      case "완료":
+        return COLORS.green[500]
+      case "보류":
+        return COLORS.yellow[500]
+      case "실패":
+        return COLORS.red[500]
+      case "전자투표":
+        return COLORS.purple[500]
+      case "주주총회":
+        return COLORS.purple[700]
+    }
+  }
 
   const handleExportExcel = () => {
     if (shareholders.length === 0) {
@@ -476,22 +500,12 @@ export function WorkspaceDashboardBody() {
               </ListSelect>
             </ListSelectRow>
             <StatusCountGrid>
-              <StatusCountCard color={COLORS.gray[500]}>
-                <div>미방문</div>
-                <div>{byStatus["미방문"] ?? 0}</div>
-              </StatusCountCard>
-              <StatusCountCard color={COLORS.yellow[500]}>
-                <div>보류</div>
-                <div>{byStatus["보류"] ?? 0}</div>
-              </StatusCountCard>
-              <StatusCountCard color={COLORS.green[500]}>
-                <div>완료</div>
-                <div>{byStatus["완료"] ?? 0}</div>
-              </StatusCountCard>
-              <StatusCountCard color={COLORS.red[500]}>
-                <div>실패</div>
-                <div>{byStatus["실패"] ?? 0}</div>
-              </StatusCountCard>
+              {PRIMARY_STATUS_OPTIONS.map((p) => (
+                <StatusCountCard key={p} color={statusCardColor(p)}>
+                  <div>{p}</div>
+                  <div>{byPrimary[p] ?? 0}</div>
+                </StatusCountCard>
+              ))}
               <StatusCountCard color={COLORS.blue[500]}>
                 <div>주식 수</div>
                 <div>{totalStocks.toLocaleString()}</div>

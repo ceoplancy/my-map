@@ -10,6 +10,7 @@ import { useKakaoMaps } from "@/hooks/useKakaoMaps"
 import type { ImportSpreadsheetRow } from "@/types/importSpreadsheet"
 import type { Json, Tables, TablesInsert, TablesUpdate } from "@/types/db"
 import { dedupeKeyFromRow, parseSpreadsheetRow } from "@/lib/spreadsheetImport"
+import { downloadShareholderImportTemplateXlsx } from "@/lib/shareholderImportTemplate"
 import ExcelStagingQueue from "@/components/excel-import/ExcelStagingQueue"
 
 import AdminLayout from "@/layouts/AdminLayout"
@@ -327,6 +328,15 @@ export function ExcelImportPageContent() {
     const blob = new Blob([wbout], { type: "application/octet-stream" })
 
     downloadFile(blob, "주소변환실패현황.xlsx")
+  }
+
+  const handleDownloadImportTemplate = (): void => {
+    try {
+      downloadShareholderImportTemplateXlsx()
+      toast.success("명부 업로드 양식을 내려받았습니다.")
+    } catch (e) {
+      reportError(e, { toastMessage: "양식 파일을 만들지 못했습니다." })
+    }
   }
 
   const downloadFile = (blob: Blob, fileName: string): void => {
@@ -885,6 +895,7 @@ export function ExcelImportPageContent() {
         onEditFailedData={handleEditFailedData}
         onRetryAllFailedData={handleRetryAllFailedData}
         onDeferRow={handleDeferRow}
+        onDownloadImportTemplate={handleDownloadImportTemplate}
       />
       {listId && (
         <ExcelStagingQueue

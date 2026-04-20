@@ -89,9 +89,9 @@ function buildSummaryAoa(params: {
       options.includeCoordinates ? "예" : "아니오",
     ],
     [
-      "지오코딩 상태",
+      "주소 변환 상태(성공·대기·실패)",
       options.includeGeocodeStatus ? "예" : "아니오",
-      "지오코딩 기준 주소",
+      "주소 변환 기준 주소",
       options.includeResolvedAddress ? "예" : "아니오",
     ],
     ["담당(마커)", options.includeMaker ? "예" : "아니오"],
@@ -115,7 +115,7 @@ function buildSummaryAoa(params: {
     else geo.성공 += 1
   }
   aoa.push([])
-  aoa.push(["지오코딩 상태별(대상 내)", "", ""])
+  aoa.push(["주소 변환 상태별(대상 내)", "", ""])
   aoa.push(["구분", "인원", ""])
   aoa.push(["성공", geo.성공, ""])
   aoa.push(["대기", geo.대기, ""])
@@ -153,11 +153,11 @@ function buildDetailRecord(params: {
   }
 
   if (options.includeGeocodeStatus) {
-    o["지오코딩"] = geocodeStatusLabel(item.geocode_status)
+    o["주소 변환"] = geocodeStatusLabel(item.geocode_status)
   }
 
   if (options.includeResolvedAddress) {
-    o["지오코딩기준주소"] = item.latlngaddress ?? ""
+    o["주소 변환 기준"] = item.latlngaddress ?? ""
   }
 
   o["상태"] = item.status ?? ""
@@ -184,8 +184,8 @@ function detailKeysOrdered(
 ): string[] {
   const keys: string[] = ["주주ID", "이름", "회사명", "원본주소", "주소"]
   if (options.includeCoordinates) keys.push("위도", "경도")
-  if (options.includeGeocodeStatus) keys.push("지오코딩")
-  if (options.includeResolvedAddress) keys.push("지오코딩기준주소")
+  if (options.includeGeocodeStatus) keys.push("주소 변환")
+  if (options.includeResolvedAddress) keys.push("주소 변환 기준")
   keys.push("상태", "주식수", "메모")
   if (options.includeMaker) keys.push("담당")
   keys.push("사진", "최종수정자", "최종수정일")
@@ -215,8 +215,8 @@ function buildColInfosForKeys(keys: string[]): XLSX.ColInfo[] {
     주소: 40,
     위도: 12,
     경도: 12,
-    지오코딩: 10,
-    지오코딩기준주소: 40,
+    "주소 변환": 10,
+    "주소 변환 기준": 40,
     상태: 12,
     주식수: 8,
     메모: 30,

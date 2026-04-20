@@ -7,7 +7,7 @@ import { useFilterStore } from "@/store/filterState"
 import { PRIMARY_STATUS_OPTIONS } from "@/lib/shareholderStatus"
 
 export type StatsCardProps = {
-  /** 지도와 동일 파라미터(뷰포트·검색·필터)로 집계 */
+  /** 주주 집계용 파라미터(필터·명부). 지도 뷰포트는 포함하지 않는 것을 권장 */
   statsParams: ShareholdersParams
 }
 
@@ -87,9 +87,9 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
       <HeaderSection>
         <Title>의결권 현황</Title>
         <InfoText>
-          필터를 아무 것도 고르지 않으면 1차 상태·회사·지역 등 제한 없이
-          집계합니다. 지도와 동일하게 현재 지도 중심·줌(또는 주주 검색 시 검색
-          조건)이 반영됩니다. 필터를 바꾼 뒤 적용하면 함께 갱신됩니다.
+          숫자는 선택한 명부 전체를 기준으로 하며, 상단 필터(상태·회사·지역·주식
+          등)만 반영합니다. 지도에 보이는 마커(현재 위치·줌 범위)와 다를 수
+          있습니다. 주주 검색은 지도용이며 집계에는 포함되지 않습니다.
         </InfoText>
       </HeaderSection>
 
@@ -101,7 +101,7 @@ const StatsCard = ({ statsParams }: StatsCardProps) => {
         </FilterChipRow>
       ) : (
         <FilterHint>
-          적용 중인 필터 없음 · 조건 미선택 = 전체(명부·지도 화면과 동일 범위)
+          적용 중인 필터 없음 · 조건 미선택 = 명부 전체 집계
         </FilterHint>
       )}
 

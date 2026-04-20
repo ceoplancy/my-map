@@ -5,7 +5,6 @@ import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import UserDetailModal from "./UserDetailModal"
 import { User } from "@supabase/supabase-js"
-import { toast } from "react-toastify"
 import {
   Search,
   FilterList,
@@ -273,11 +272,8 @@ export default function UserList() {
   })
 
   const handleDeleteUser = (userId: string) => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      deleteUser(userId)
-    } else {
-      toast.error("사용자 삭제가 취소되었습니다.")
-    }
+    if (!confirm("정말 삭제하시겠습니까?")) return
+    deleteUser(userId)
   }
 
   return (

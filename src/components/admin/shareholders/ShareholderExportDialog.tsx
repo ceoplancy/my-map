@@ -95,7 +95,7 @@ export default function ShareholderExportDialog({
                 }
               />
             }
-            label="1번째 시트에 건수·1차 상태·지오코딩 집계·위 옵션 요약 포함"
+            label="1번째 시트에 건수·1차 상태·주소 변환 집계·위 옵션 요약 포함"
           />
         </FormControl>
 
@@ -185,7 +185,7 @@ export default function ShareholderExportDialog({
                 }
               />
             }
-            label="지오코딩 상태(성공·대기·실패)"
+            label="주소 변환 상태(성공·대기·실패)"
           />
           <FormControlLabel
             control={
@@ -199,7 +199,7 @@ export default function ShareholderExportDialog({
                 }
               />
             }
-            label="지오코딩 기준 주소"
+            label="주소 변환 기준 주소"
           />
         </FormGroup>
       </DialogContent>
