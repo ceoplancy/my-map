@@ -40,6 +40,11 @@ import {
   removeShareholderPhotoObject,
   uploadShareholderPhotoAndGetPublicUrl,
 } from "@/lib/shareholderPhotoStorage"
+import {
+  formatKoreanPhoneInput,
+  normalizePhoneForDb,
+  phoneDigitsOnly,
+} from "@/lib/formatKoreanPhone"
 
 export type MakerDataMutateOptions = {
   onSuccess?: () => void
@@ -111,7 +116,7 @@ const MakerPatchModalChildren = ({
       statusPrimary: splitShareholderStatus(makerData?.status).primary,
       statusDetail: splitShareholderStatus(makerData?.status).detail,
       memo: makerData?.memo ?? "",
-      phone: makerData?.phone ?? "",
+      phone: phoneDigitsOnly(makerData?.phone ?? ""),
       stocks: makerData?.stocks ?? 0,
       image: makerData?.image ?? "",
       proxy_document_image: makerData?.proxy_document_image ?? "",
@@ -143,7 +148,7 @@ const MakerPatchModalChildren = ({
         !hasPatchChanges(makerData, {
           status,
           memo: values.memo,
-          phone: values.phone || null,
+          phone: normalizePhoneForDb(values.phone),
           image: values.image || null,
           proxy_document_image: values.proxy_document_image?.trim()
             ? values.proxy_document_image
@@ -166,7 +171,7 @@ const MakerPatchModalChildren = ({
       const modified = {
         status,
         memo: values.memo,
-        phone: values.phone || null,
+        phone: normalizePhoneForDb(values.phone),
       }
       const name = user?.user?.user_metadata?.name
       const email = user?.user?.email ?? ""
@@ -204,7 +209,7 @@ const MakerPatchModalChildren = ({
         name: values.name,
         status,
         memo: values.memo,
-        phone: values.phone?.trim() ? values.phone.trim() : null,
+        phone: normalizePhoneForDb(values.phone),
         stocks: values.stocks,
         image: values.image,
         proxy_document_image: values.proxy_document_image?.trim()
@@ -250,7 +255,7 @@ const MakerPatchModalChildren = ({
         statusPrimary: parsed.primary,
         statusDetail: parsed.detail,
         memo: makerData.memo ?? "",
-        phone: makerData.phone ?? "",
+        phone: phoneDigitsOnly(makerData.phone ?? ""),
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
         proxy_document_image: makerData.proxy_document_image ?? "",
@@ -315,7 +320,8 @@ const MakerPatchModalChildren = ({
       (formik.values.proxy_document_image || "").trim() !==
       (makerData.proxy_document_image || "").trim()
     const phoneChanged =
-      (formik.values.phone || "").trim() !== (makerData.phone || "").trim()
+      phoneDigitsOnly(formik.values.phone) !==
+      phoneDigitsOnly(makerData.phone ?? "")
     if (pendingComposedStatus === null) {
       return false
     }
@@ -747,8 +753,13 @@ const MakerPatchModalChildren = ({
                     inputMode="tel"
                     autoComplete="tel"
                     placeholder="010-0000-0000"
-                    value={formik.values.phone}
-                    onChange={formik.handleChange}
+                    value={formatKoreanPhoneInput(formik.values.phone)}
+                    onChange={(e) =>
+                      void formik.setFieldValue(
+                        "phone",
+                        phoneDigitsOnly(e.target.value),
+                      )
+                    }
                     onBlur={formik.handleBlur}
                     disabled={isSaveBusy}
                   />

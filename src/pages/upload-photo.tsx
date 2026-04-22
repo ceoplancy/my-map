@@ -1,5 +1,5 @@
 import { useRouter } from "next/router"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import styled from "@emotion/styled"
 import { toast } from "react-toastify"
 
@@ -9,7 +9,14 @@ import GlobalSpinner from "@/components/ui/global-spinner"
 import { COLORS } from "@/styles/global-style"
 import { reportError } from "@/lib/reportError"
 import supabase from "@/lib/supabase/supabaseClient"
-import { uploadShareholderPhotoAndGetPublicUrl } from "@/lib/shareholderPhotoStorage"
+import {
+  SHAREHOLDER_PHOTO_BUCKET,
+  uploadShareholderPhotoAndGetPublicUrl,
+} from "@/lib/shareholderPhotoStorage"
+import {
+  formatKoreanPhoneInput,
+  phoneDigitsOnly,
+} from "@/lib/formatKoreanPhone"
 import type { Tables } from "@/types/db"
 import {
   composeShareholderStatus,
@@ -77,12 +84,53 @@ export default function UploadPhotoPage() {
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<Tables<"shareholders"> | null>(null)
   const [busy, setBusy] = useState(false)
+  const [recentFiles, setRecentFiles] = useState<
+    { name: string; publicUrl: string; updatedAt: string | null }[]
+  >([])
+  const [recentListError, setRecentListError] = useState<string | null>(null)
 
   const listId = tokenRow?.list_id ?? null
 
   const { data: shareholders = [], isPending } = useShareholders({
     listId,
   })
+
+  const refreshRecentUploads = useCallback(async () => {
+    if (!listId) return
+    setRecentListError(null)
+    const { data, error } = await supabase.storage
+      .from(SHAREHOLDER_PHOTO_BUCKET)
+      .list(listId, {
+        limit: 40,
+        sortBy: { column: "updated_at", order: "desc" },
+      })
+    if (error) {
+      setRecentListError(error.message)
+      setRecentFiles([])
+
+      return
+    }
+    const rows = (data ?? []).filter(
+      (f) => f.name && /\.(webp|png|jpe?g)$/i.test(f.name),
+    )
+    const mapped = rows.map((f) => {
+      const path = `${listId}/${f.name}`
+      const { data: pub } = supabase.storage
+        .from(SHAREHOLDER_PHOTO_BUCKET)
+        .getPublicUrl(path)
+
+      return {
+        name: f.name,
+        publicUrl: pub.publicUrl,
+        updatedAt: f.updated_at ?? null,
+      }
+    })
+    setRecentFiles(mapped)
+  }, [listId])
+
+  useEffect(() => {
+    void refreshRecentUploads()
+  }, [refreshRecentUploads])
 
   useEffect(() => {
     if (!router.isReady || !tokenStr) {
@@ -115,19 +163,30 @@ export default function UploadPhotoPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
+    const qDigits = phoneDigitsOnly(search)
     if (!q) {
       return shareholders.slice(0, 25)
     }
 
     return shareholders
-      .filter(
-        (s) =>
+      .filter((s) => {
+        const phoneMatch =
+          qDigits.length >= 3 &&
+          phoneDigitsOnly(s.phone ?? "").includes(qDigits)
+
+        return (
           (s.name ?? "").toLowerCase().includes(q) ||
           (s.company ?? "").toLowerCase().includes(q) ||
           (s.address ?? "").toLowerCase().includes(q) ||
           (s.address_original ?? "").toLowerCase().includes(q) ||
-          (s.latlngaddress ?? "").toLowerCase().includes(q),
-      )
+          (s.latlngaddress ?? "").toLowerCase().includes(q) ||
+          (s.memo ?? "").toLowerCase().includes(q) ||
+          phoneMatch ||
+          formatKoreanPhoneInput(s.phone ?? "")
+            .toLowerCase()
+            .includes(q)
+        )
+      })
       .slice(0, 40)
   }, [shareholders, search])
 
@@ -162,6 +221,7 @@ export default function UploadPhotoPage() {
       if (error) throw error
       toast.success("사진이 등록되었습니다.")
       setSelected(null)
+      await refreshRecentUploads()
     } catch (e) {
       reportError(e, { toastMessage: "업로드에 실패했습니다." })
     } finally {
@@ -209,10 +269,82 @@ export default function UploadPhotoPage() {
     <Page>
       <Title>주주 사진 등록</Title>
       <p style={{ color: COLORS.gray[600], fontSize: "0.875rem" }}>
-        주주를 선택한 뒤 사진을 촬영하거나 파일을 선택하세요.
+        주주를 선택한 뒤 사진을 촬영하거나 파일을 선택하세요. 업로드된 파일은
+        아래 &quot;최근 업로드&quot;에서 다시 열거나 저장해 두었다가, 관리자
+        화면에서 해당 주주에게 다시 등록할 수 있습니다.
       </p>
+      {recentListError ? (
+        <p style={{ color: COLORS.gray[500], fontSize: "0.8rem" }}>
+          최근 파일 목록을 불러오지 못했습니다 ({recentListError}). 스토리지
+          권한이 있으면 목록이 표시됩니다.
+        </p>
+      ) : recentFiles.length > 0 ? (
+        <section style={{ marginBottom: "1rem" }}>
+          <p
+            style={{
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              margin: "0 0 0.5rem",
+              color: COLORS.gray[800],
+            }}>
+            최근 업로드 ({recentFiles.length}건)
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+              maxHeight: "12rem",
+              overflowY: "auto",
+            }}>
+            {recentFiles.map((f) => (
+              <a
+                key={f.name}
+                href={f.publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.4rem 0.5rem",
+                  border: `1px solid ${COLORS.gray[200]}`,
+                  borderRadius: "0.5rem",
+                  background: "white",
+                  textDecoration: "none",
+                  color: COLORS.gray[800],
+                }}>
+                <img
+                  src={f.publicUrl}
+                  alt=""
+                  style={{
+                    width: 40,
+                    height: 40,
+                    objectFit: "cover",
+                    borderRadius: 4,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: "0.8rem", wordBreak: "break-all" }}>
+                  {f.name}
+                  {f.updatedAt ? (
+                    <small
+                      style={{
+                        display: "block",
+                        color: COLORS.gray[500],
+                        marginTop: 2,
+                      }}>
+                      {new Date(f.updatedAt).toLocaleString("ko-KR")}
+                    </small>
+                  ) : null}
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <Input
-        placeholder="이름·회사·주소로 검색…"
+        placeholder="이름·회사·주소·휴대폰으로 검색…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />

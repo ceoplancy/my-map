@@ -3,6 +3,10 @@ import { COLORS } from "@/styles/global-style"
 import { useState } from "react"
 import { reportError } from "@/lib/reportError"
 import {
+  formatKoreanPhoneInput,
+  normalizePhoneForDb,
+} from "@/lib/formatKoreanPhone"
+import {
   useCreateShareholder,
   type CreateShareholderInput,
 } from "@/api/workspace"
@@ -146,6 +150,7 @@ export default function AddShareholderModal({
       await createShareholder.mutateAsync({
         list_id: listId,
         ...form,
+        phone: normalizePhoneForDb(form.phone),
       })
       setForm(defaultForm)
       onSuccess?.()
@@ -239,8 +244,10 @@ export default function AddShareholderModal({
               type="tel"
               inputMode="tel"
               autoComplete="tel"
-              value={form.phone ?? ""}
-              onChange={(e) => update("phone", e.target.value || null)}
+              value={formatKoreanPhoneInput(form.phone ?? "")}
+              onChange={(e) =>
+                update("phone", normalizePhoneForDb(e.target.value))
+              }
               placeholder="010-0000-0000"
             />
           </FormGroup>

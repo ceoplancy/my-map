@@ -1,6 +1,6 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
 import { formatChangeHistoryTimestamp } from "@/lib/shareholderChangeHistoryValues"
@@ -24,6 +24,10 @@ import {
   STATUS_DETAIL_OPTIONS,
   type PrimaryStatus,
 } from "@/lib/shareholderStatus"
+import {
+  formatKoreanPhoneInput,
+  normalizePhoneForDb,
+} from "@/lib/formatKoreanPhone"
 
 const Overlay = styled.div`
   position: fixed;
@@ -294,7 +298,10 @@ export const FIELD_LABELS: Record<string, string> = {
 }
 
 export default function EditShareholderModal({ data, userId, onClose }: Props) {
-  const [formData, setFormData] = useState<Shareholder>(data)
+  const [formData, setFormData] = useState<Shareholder>(() => ({
+    ...data,
+    phone: normalizePhoneForDb(data.phone),
+  }))
   const [photoBusy, setPhotoBusy] = useState<"" | "id" | "proxy">("")
   const parsedStatus = splitShareholderStatus(data.status)
   const [statusPrimary, setStatusPrimary] = useState<PrimaryStatus>(
@@ -303,6 +310,17 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
   const [statusDetail, setStatusDetail] = useState(parsedStatus.detail)
   const patchShareholder = usePatchShareholder()
   const { data: changeHistoryBundle } = useShareholderChangeHistory(data.id)
+
+  useEffect(() => {
+    const parsed = splitShareholderStatus(data.status)
+    setFormData({
+      ...data,
+      phone: normalizePhoneForDb(data.phone),
+    })
+    setStatusPrimary(parsed.primary)
+    setStatusDetail(parsed.detail)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `data` 전체가 아니라 id·서버 필드만 바뀔 때 동기화
+  }, [data.id, data.status, data.phone])
   const changeHistoryRows = changeHistoryBundle?.rows ?? []
   const changedByUser = changeHistoryBundle?.changedByUser ?? {}
 
@@ -352,7 +370,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           stocks: formData.stocks,
           latlngaddress: formData.latlngaddress,
           memo: formData.memo,
-          phone: formData.phone,
+          phone: normalizePhoneForDb(formData.phone),
           maker: formData.maker,
           image: formData.image,
           proxy_document_image: formData.proxy_document_image,
@@ -513,9 +531,9 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder="010-0000-0000"
-                  value={formData.phone ?? ""}
+                  value={formatKoreanPhoneInput(formData.phone ?? "")}
                   onChange={(e) =>
-                    handleChange("phone", e.target.value || null)
+                    handleChange("phone", normalizePhoneForDb(e.target.value))
                   }
                 />
               </FormGroup>
@@ -832,10 +850,16 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                               <FieldName>{FIELD_LABELS.phone}</FieldName>
                               <ChangeContent>
                                 <span>
-                                  {history.changes.phone.original || "-"}
+                                  {formatKoreanPhoneInput(
+                                    history.changes.phone.original,
+                                  ) || "-"}
                                 </span>
                                 <span>→</span>
-                                <span>{history.changes.phone.modified}</span>
+                                <span>
+                                  {formatKoreanPhoneInput(
+                                    history.changes.phone.modified,
+                                  )}
+                                </span>
                               </ChangeContent>
                             </ChangeItem>
                           )}

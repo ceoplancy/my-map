@@ -25,6 +25,7 @@ import {
   getShareholderStatusChipColor,
   nextShareholderStatusAfterPhotoFieldsChange,
 } from "@/lib/shareholderStatus"
+import { normalizePhoneForDb } from "@/lib/formatKoreanPhone"
 
 export type { MapMarkerData } from "@/types/map"
 const isShareholder = isShareholderMarker
@@ -235,9 +236,7 @@ const CustomMapMarker = ({
         patch.status = rawStatus
       }
       patch.memo = patchData.memo ?? ""
-      patch.phone = (patchData.phone ?? "").trim()
-        ? String(patchData.phone).trim()
-        : null
+      patch.phone = normalizePhoneForDb(String(patchData.phone ?? ""))
       if ("image" in patchData) {
         const im = patchData.image
         patch.image = im === undefined ? null : im

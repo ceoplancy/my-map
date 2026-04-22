@@ -11,6 +11,7 @@ import {
   getShareholderStatusChipColor,
 } from "@/lib/shareholderStatus"
 import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
+import { formatKoreanPhoneInput } from "@/lib/formatKoreanPhone"
 
 export type HistoryChange = {
   memo?: { original: string; modified: string }
@@ -126,7 +127,7 @@ const MarkerDetailTable = ({
         <TableCell
           colSpan={hideRowLabels ? 2 : undefined}
           $hideLabels={hideRowLabels}>
-          {String(phoneVal).trim()}
+          {formatKoreanPhoneInput(String(phoneVal).trim())}
         </TableCell>
       </TableRow>
     ) : null
@@ -611,11 +612,13 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
             <FieldName>휴대폰</FieldName>
             <ChangeContent>
               <ChangeText>
-                {history.changes.phone.original || "(없음)"}
+                {formatKoreanPhoneInput(history.changes.phone.original) ||
+                  "(없음)"}
               </ChangeText>
               <ArrowIcon>→</ArrowIcon>
               <ChangeText highlight>
-                {history.changes.phone.modified || "(없음)"}
+                {formatKoreanPhoneInput(history.changes.phone.modified) ||
+                  "(없음)"}
               </ChangeText>
             </ChangeContent>
           </ChangeItem>

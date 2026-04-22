@@ -6,6 +6,11 @@ import { useUpdateShareholderList } from "@/api/workspace"
 import supabase from "@/lib/supabase/supabaseClient"
 import { toast } from "react-toastify"
 import { reportError } from "@/lib/reportError"
+import { QRCodeSVG } from "qrcode.react"
+import {
+  formatKoreanPhoneInput,
+  normalizePhoneForDb,
+} from "@/lib/formatKoreanPhone"
 
 const Overlay = styled.div`
   position: fixed;
@@ -133,6 +138,7 @@ export default function EditListModal({ list, onClose }: Props) {
   const [contactPhone, setContactPhone] = useState(list.contact_phone ?? "")
   const [contactNote, setContactNote] = useState(list.contact_note ?? "")
   const [qrBusy, setQrBusy] = useState(false)
+  const [issuedUploadUrl, setIssuedUploadUrl] = useState<string | null>(null)
   const updateList = useUpdateShareholderList()
 
   useEffect(() => {
@@ -140,8 +146,11 @@ export default function EditListModal({ list, onClose }: Props) {
     setActiveFrom(list.active_from ?? "")
     setActiveTo(list.active_to ?? "")
     setIsVisible(list.is_visible)
-    setContactPhone(list.contact_phone ?? "")
+    setContactPhone(
+      formatKoreanPhoneInput(normalizePhoneForDb(list.contact_phone) ?? ""),
+    )
     setContactNote(list.contact_note ?? "")
+    setIssuedUploadUrl(null)
   }, [list])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -153,7 +162,7 @@ export default function EditListModal({ list, onClose }: Props) {
         active_from: activeFrom.trim() || null,
         active_to: activeTo.trim() || null,
         is_visible: isVisible,
-        contact_phone: contactPhone.trim() || null,
+        contact_phone: normalizePhoneForDb(contactPhone),
         contact_note: contactNote.trim() || null,
       },
       {
@@ -176,8 +185,9 @@ export default function EditListModal({ list, onClose }: Props) {
       })
       if (error) throw error
       const url = `${window.location.origin}/upload-photo?t=${token}`
+      setIssuedUploadUrl(url)
       await navigator.clipboard.writeText(url)
-      toast.success("QR용 업로드 링크를 클립보드에 복사했습니다. (7일 유효)")
+      toast.success("업로드 링크를 클립보드에 복사했습니다. (7일 유효)")
     } catch (err) {
       reportError(err, { toastMessage: "링크 발급에 실패했습니다." })
     } finally {
@@ -228,9 +238,17 @@ export default function EditListModal({ list, onClose }: Props) {
             <Label>명부 연락처 (전화)</Label>
             <Input
               type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="현장 대표 번호 등"
+              onChange={(e) =>
+                setContactPhone(
+                  formatKoreanPhoneInput(
+                    normalizePhoneForDb(e.target.value) ?? "",
+                  ),
+                )
+              }
+              placeholder="02-0000-0000 또는 010-0000-0000"
             />
           </FormGroup>
           <FormGroup>
@@ -262,8 +280,41 @@ export default function EditListModal({ list, onClose }: Props) {
             }}
             disabled={qrBusy}
             onClick={() => void issueQrLink()}>
-            사진 업로드용 링크 발급 (클립보드 복사)
+            사진 업로드용 링크 발급 (클립보드 복사 · QR 표시)
           </Button>
+          {issuedUploadUrl ? (
+            <div
+              style={{
+                marginBottom: "0.75rem",
+                padding: "0.75rem",
+                borderRadius: "0.5rem",
+                border: `1px solid ${COLORS.gray[200]}`,
+                background: COLORS.gray[50],
+                textAlign: "center",
+              }}>
+              <div style={{ display: "inline-block", marginBottom: "0.5rem" }}>
+                <QRCodeSVG value={issuedUploadUrl} size={168} level="M" />
+              </div>
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  color: COLORS.gray[700],
+                  wordBreak: "break-all",
+                  margin: 0,
+                }}>
+                {issuedUploadUrl}
+              </p>
+              <p
+                style={{
+                  fontSize: "0.7rem",
+                  color: COLORS.gray[500],
+                  margin: "0.35rem 0 0",
+                }}>
+                현장요원이 로그인한 뒤 이 주소로 접속해 주주를 고른 뒤 사진을
+                올립니다. 아래 업로드 페이지에서 최근 파일도 확인할 수 있습니다.
+              </p>
+            </div>
+          ) : null}
           <ButtonGroup style={{ marginBottom: "0.75rem" }}>
             <Button
               type="button"

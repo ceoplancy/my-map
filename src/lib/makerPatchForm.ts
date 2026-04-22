@@ -1,4 +1,5 @@
 import type { MapMarkerData } from "@/types/map"
+import { phoneDigitsOnly } from "@/lib/formatKoreanPhone"
 
 /** 저장 로직과 동일하게 상태·메모를 비교하기 위한 정규화 */
 export function normalizeStatusForPatch(
@@ -28,7 +29,8 @@ export function hasPatchChanges(
     normalizeStatusForPatch(row.status)
   const memoChanged =
     normalizeMemoForPatch(values.memo) !== normalizeMemoForPatch(row.memo)
-  const phoneChanged = (values.phone ?? "").trim() !== (row.phone ?? "").trim()
+  const phoneChanged =
+    phoneDigitsOnly(values.phone ?? "") !== phoneDigitsOnly(row.phone ?? "")
   const imageChanged = (values.image ?? "").trim() !== (row.image ?? "").trim()
   const proxyChanged =
     (values.proxy_document_image ?? "").trim() !==
