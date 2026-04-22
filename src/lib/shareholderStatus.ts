@@ -9,9 +9,19 @@ export const PRIMARY_STATUS_OPTIONS = [
   "주주총회",
 ] as const
 
+/**
+ * 저장 `status` 문자열 ↔ 1차 분류
+ *
+ * - 신규·권장: composeShareholderStatus(1차, 세부) → "1차 - 세부" (STATUS_DELIMITER)
+ * - 1차 **완료** 세부: `completionDetailFromPhotos` — 의결권 서류·신분증 **사진 URL**로만 정함
+ * - 예전 데이터: 세부만 있거나 한 줄 자유 텍스트 → splitShareholderStatus /
+ *   getPrimaryStatusCategory 로 1차 추정
+ *
+ * 목록·집계·statusPrimaryFilter 필터는 모두 getPrimaryStatusCategory(= split…primary) 기준.
+ */
 export type PrimaryStatus = (typeof PRIMARY_STATUS_OPTIONS)[number]
 
-/** 완료(1차) 세부 — 저장 시 UI에서 강제하는 4가지 조합의 라벨 */
+/** 완료(1차) 세부 — 사진 유무로 만들어지는 4가지 정규 라벨(의결권 축 · 신분증 축) */
 export const COMPLETION_DOC_LABEL_DONE = "의결권 서류 완료"
 export const COMPLETION_DOC_LABEL_HOLD = "의결권 서류 보류"
 export const COMPLETION_ID_LABEL_DONE = "신분증 확보 완료"
@@ -29,6 +39,51 @@ export function composeCompletionDetail(
     id === "done" ? COMPLETION_ID_LABEL_DONE : COMPLETION_ID_LABEL_HOLD
 
   return `${docPart}${COMPLETION_DETAIL_JOINER}${idPart}`
+}
+
+/**
+ * 1차 "완료"의 저장 세부 문자열 — **의결권 서류·신분증 사진 URL** 유무로만 정합니다.
+ * (`proxy_document_image` = 의결권 서류, `image` = 신분증)
+ */
+export function completionDetailFromPhotos(
+  proxyDocumentImageUrl: string | null | undefined,
+  idCardImageUrl: string | null | undefined,
+): string {
+  const doc = proxyDocumentImageUrl?.trim() ? "done" : "hold"
+  const id = idCardImageUrl?.trim() ? "done" : "hold"
+
+  return composeCompletionDetail(doc, id)
+}
+
+type ShareholderPhotoFields = {
+  status: string | null
+  image?: string | null
+  proxy_document_image?: string | null
+}
+
+/**
+ * 현재 행이 1차 완료일 때만, 사진 필드 변경 후의 `status` 전체 문자열을 돌려줍니다.
+ * 세부가 기존과 같으면 `null`(불필요한 업데이트·이력 생략).
+ */
+export function nextShareholderStatusAfterPhotoFieldsChange(
+  row: ShareholderPhotoFields,
+  patch: Partial<{ image: string | null; proxy_document_image: string | null }>,
+): string | null {
+  if (getPrimaryStatusCategory(row.status) !== "완료") return null
+  const nextImage =
+    patch.image !== undefined ? patch.image : (row.image ?? null)
+  const nextProxy =
+    patch.proxy_document_image !== undefined
+      ? patch.proxy_document_image
+      : (row.proxy_document_image ?? null)
+  const next = composeShareholderStatus(
+    "완료",
+    completionDetailFromPhotos(nextProxy, nextImage),
+  )
+  const cur = (row.status ?? "").trim()
+  if (next === cur) return null
+
+  return next
 }
 
 const CANONICAL_COMPLETION_DETAILS = [

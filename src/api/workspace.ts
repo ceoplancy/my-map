@@ -291,6 +291,36 @@ export const useShareholderLists = (workspaceId: string | null) => {
   })
 }
 
+/** 대시보드 등: 명부별 담당(maker)·상태 집계용 경량 행 */
+export type ShareholderMakerSummaryRow = Pick<
+  Tables<"shareholders">,
+  "list_id" | "maker" | "status" | "stocks"
+>
+
+/** 워크스페이스 소속 명부 전체에 대한 담당·상태 요약 행 (한 번 조회) */
+export const useShareholdersMakerSummaryRows = (listIds: string[]) => {
+  const key = [...listIds].sort().join(",")
+
+  return useQuery({
+    queryKey: ["shareholdersMakerSummaryRows", key],
+    queryFn: async (): Promise<ShareholderMakerSummaryRow[]> => {
+      if (listIds.length === 0) return []
+      const { data, error } = await supabase
+        .from("shareholders")
+        .select("list_id, maker, status, stocks")
+        .in("list_id", listIds)
+      if (error) {
+        reportError(error)
+        throw new Error(error.message)
+      }
+
+      return (data ?? []) as ShareholderMakerSummaryRow[]
+    },
+    enabled: listIds.length > 0,
+    staleTime: 60_000,
+  })
+}
+
 /** List IDs the current user can see on the map (is_visible, active period, field_agent allowed_list_ids). */
 export function useVisibleListIds(
   workspaceId: string | null,

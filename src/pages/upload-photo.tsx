@@ -11,6 +11,11 @@ import { reportError } from "@/lib/reportError"
 import supabase from "@/lib/supabase/supabaseClient"
 import { uploadShareholderPhotoAndGetPublicUrl } from "@/lib/shareholderPhotoStorage"
 import type { Tables } from "@/types/db"
+import {
+  composeShareholderStatus,
+  completionDetailFromPhotos,
+  getPrimaryStatusCategory,
+} from "@/lib/shareholderStatus"
 
 const Page = styled.div`
   min-height: 100vh;
@@ -139,9 +144,19 @@ export default function UploadPhotoPage() {
         listId,
         selected.id,
       )
+      const completionPatch =
+        getPrimaryStatusCategory(selected.status) === "완료"
+          ? {
+              status: composeShareholderStatus(
+                "완료",
+                completionDetailFromPhotos(selected.proxy_document_image, url),
+              ),
+            }
+          : {}
+
       const { error } = await supabase
         .from("shareholders")
-        .update({ image: url })
+        .update({ image: url, ...completionPatch })
         .eq("id", selected.id)
         .eq("list_id", listId)
       if (error) throw error

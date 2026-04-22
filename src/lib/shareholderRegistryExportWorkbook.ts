@@ -38,6 +38,11 @@ function geocodeStatusLabel(gs: string | null | undefined): string {
   return "성공"
 }
 
+/** 사진 유무를 엑셀에서 한눈에 — 있음 O / 없음 X */
+function photoOx(url: string | null | undefined): "O" | "X" {
+  return url?.trim() ? "O" : "X"
+}
+
 function safeSheetName(name: string): string {
   return name.replace(/[\\/?*[\]:]/g, "").slice(0, 31) || "Sheet"
 }
@@ -168,7 +173,8 @@ function buildDetailRecord(params: {
     o["담당"] = item.maker ?? ""
   }
 
-  o["사진"] = item.image ? "Y" : ""
+  o["신분증 사진"] = photoOx(item.image)
+  o["의결권 서류 사진"] = photoOx(item.proxy_document_image)
   o["최종수정자"] = String(getLatestModifier(item.id))
   o["최종수정일"] = String(getLatestModifiedDate(item.id))
 
@@ -188,7 +194,7 @@ function detailKeysOrdered(
   if (options.includeResolvedAddress) keys.push("주소 변환 기준")
   keys.push("상태", "주식수", "메모")
   if (options.includeMaker) keys.push("담당")
-  keys.push("사진", "최종수정자", "최종수정일")
+  keys.push("신분증 사진", "의결권 서류 사진", "최종수정자", "최종수정일")
   if (options.changeHistoryMode === "inline") keys.push("변경이력")
 
   return keys
@@ -221,7 +227,8 @@ function buildColInfosForKeys(keys: string[]): XLSX.ColInfo[] {
     주식수: 8,
     메모: 30,
     담당: 12,
-    사진: 6,
+    "신분증 사진": 8,
+    "의결권 서류 사진": 12,
     최종수정자: 20,
     최종수정일: 22,
     변경이력: 60,

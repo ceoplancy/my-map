@@ -23,6 +23,7 @@ import {
   getPrimaryStatusCategory,
   getShareholderStatusChipBackground,
   getShareholderStatusChipColor,
+  nextShareholderStatusAfterPhotoFieldsChange,
 } from "@/lib/shareholderStatus"
 
 export type { MapMarkerData } from "@/types/map"
@@ -224,6 +225,7 @@ const CustomMapMarker = ({
         status: string
         memo: string
         image: string | null
+        proxy_document_image: string | null
       }> & { id: string } = {
         id: String((patchData as { id: string | number }).id),
       }
@@ -235,6 +237,36 @@ const CustomMapMarker = ({
       if ("image" in patchData) {
         const im = patchData.image
         patch.image = im === undefined ? null : im
+      }
+      if ("proxy_document_image" in patchData) {
+        const u = patchData.proxy_document_image
+        patch.proxy_document_image = u === undefined ? null : u
+      }
+      const m = markerForDetail
+      const p = patchData
+      const imageTouched =
+        "image" in patchData && (p.image ?? null) !== (m.image ?? null)
+      const proxyTouched =
+        "proxy_document_image" in patchData &&
+        (p.proxy_document_image ?? null) !== (m.proxy_document_image ?? null)
+      if (imageTouched || proxyTouched) {
+        const mergedForCompletion: {
+          status: string | null
+          image?: string | null
+          proxy_document_image?: string | null
+        } = {
+          status: p.status ?? m.status,
+          image: p.image ?? m.image,
+          proxy_document_image:
+            p.proxy_document_image ?? m.proxy_document_image,
+        }
+        const refreshedStatus = nextShareholderStatusAfterPhotoFieldsChange(
+          mergedForCompletion,
+          {},
+        )
+        if (refreshedStatus) {
+          patch.status = refreshedStatus
+        }
       }
       patchShareholder(
         {
@@ -248,7 +280,7 @@ const CustomMapMarker = ({
         },
       )
     },
-    [isShareholderMarker, patchShareholder, userId],
+    [isShareholderMarker, markerForDetail, patchShareholder, userId],
   )
 
   const handleAddressCopy = (e: React.MouseEvent<HTMLButtonElement>) => {

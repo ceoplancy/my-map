@@ -2,13 +2,18 @@ import supabase from "@/lib/supabase/supabaseClient"
 
 export const SHAREHOLDER_PHOTO_BUCKET = "shareholder-photos"
 
+/** 신분증 등 기존 `image` 컬럼 — `proxy`는 의결권 서류 등 `proxy_document_image` */
+export type ShareholderPhotoVariant = "id" | "proxy"
+
 export async function uploadShareholderPhotoAndGetPublicUrl(
   file: File,
   listId: string,
   shareholderId: string,
+  variant: ShareholderPhotoVariant = "id",
 ): Promise<string> {
   const ext = file.type.includes("png") ? "png" : "webp"
-  const path = `${listId}/${shareholderId}.${ext}`
+  const suffix = variant === "proxy" ? "-proxy" : ""
+  const path = `${listId}/${shareholderId}${suffix}.${ext}`
 
   const { error } = await supabase.storage
     .from(SHAREHOLDER_PHOTO_BUCKET)

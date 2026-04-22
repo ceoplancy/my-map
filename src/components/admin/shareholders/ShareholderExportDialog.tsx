@@ -29,6 +29,12 @@ type Props = {
   /** 요약 시트 상단에 표시할 조건 설명 */
   filterDescriptionPreview: string
   rowCount: number
+
+  /**
+   * 보내기 대상 설명 아래 괄호 문구.
+   * 기본: 명부 목록(필터·정렬). 대시보드 등에서 다른 문구로 바꿀 수 있음.
+   */
+  scopeFootnote?: string
 }
 
 export default function ShareholderExportDialog({
@@ -37,6 +43,7 @@ export default function ShareholderExportDialog({
   onConfirm,
   filterDescriptionPreview,
   rowCount,
+  scopeFootnote = "(현재 목록 필터·정렬 적용 결과)",
 }: Props) {
   const [opts, setOpts] = React.useState<ShareholderRegistryExportOptions>({
     ...DEFAULT_SHAREHOLDER_REGISTRY_EXPORT_OPTIONS,
@@ -69,8 +76,8 @@ export default function ShareholderExportDialog({
           overflowY: "auto",
         }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          내보내 대상: <strong>{rowCount.toLocaleString("ko-KR")}명</strong>
-          (현재 목록 필터·정렬 적용 결과)
+          보내기 대상: <strong>{rowCount.toLocaleString("ko-KR")}명</strong>{" "}
+          {scopeFootnote}
         </Typography>
         <Typography
           variant="caption"

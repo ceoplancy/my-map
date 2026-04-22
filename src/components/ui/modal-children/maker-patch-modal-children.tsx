@@ -25,10 +25,8 @@ import {
 } from "@/lib/makerPatchForm"
 import {
   composeShareholderStatus,
-  composeCompletionDetail,
-  inferCompletionAxes,
+  completionDetailFromPhotos,
   isAllowedStatusDetail,
-  isCanonicalCompletionDetail,
   PRIMARY_STATUS_OPTIONS,
   splitShareholderStatus,
   AGMEETING_DETAIL_OPTIONS_FOR_UI,
@@ -36,7 +34,6 @@ import {
   getShareholderStatusChipBackground,
   getShareholderStatusChipColor,
 } from "@/lib/shareholderStatus"
-import CompletionStatusChecklist from "../completion-status-checklist"
 import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
 import OpenInNew from "@mui/icons-material/OpenInNew"
 import {
@@ -94,14 +91,11 @@ const MakerPatchModalChildren = ({
   const { data: user } = useGetUserData()
   const saveInFlightRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState<"" | "id" | "proxy">("")
   const saveSucceededRef = useRef(false)
 
-  /** 완료(1차)일 때 의결권·신분증 각각 한 축 선택 — formik.statusDetail과 동기 */
-  const [completionDoc, setCompletionDoc] = useState<"" | "done" | "hold">("")
-  const [completionId, setCompletionId] = useState<"" | "done" | "hold">("")
-
   const isSaveBusy = isSaving || mutateIsPending
+  const photoUploadLocked = photoBusy !== "" || isSaveBusy
 
   const formik = useFormik({
     initialValues: {
@@ -119,22 +113,26 @@ const MakerPatchModalChildren = ({
       memo: makerData?.memo ?? "",
       stocks: makerData?.stocks ?? 0,
       image: makerData?.image ?? "",
+      proxy_document_image: makerData?.proxy_document_image ?? "",
       history: makerData?.history ?? [],
     },
     onSubmit: (values) => {
       if (!makerData || saveInFlightRef.current) return
 
       const statusPrimary = values.statusPrimary
-      const statusDetail = (values.statusDetail ?? "").trim()
-      const detailOk =
+      const statusDetail =
         statusPrimary === "완료"
-          ? isCanonicalCompletionDetail(statusDetail)
-          : isAllowedStatusDetail(statusPrimary, statusDetail)
-      if (!detailOk) {
+          ? completionDetailFromPhotos(
+              values.proxy_document_image,
+              values.image,
+            )
+          : (values.statusDetail ?? "").trim()
+      if (
+        statusPrimary !== "완료" &&
+        !isAllowedStatusDetail(statusPrimary, statusDetail)
+      ) {
         toast.error(
-          statusPrimary === "완료"
-            ? "완료로 저장하려면 의결권 서류·신분증 항목을 각각 하나씩 선택해 주세요."
-            : "1차 상태를 고른 뒤, 세부 상태까지 선택해야 저장할 수 있습니다.",
+          "1차 상태를 고른 뒤, 세부 상태까지 선택해야 저장할 수 있습니다.",
         )
 
         return
@@ -144,6 +142,10 @@ const MakerPatchModalChildren = ({
         !hasPatchChanges(makerData, {
           status,
           memo: values.memo,
+          image: values.image || null,
+          proxy_document_image: values.proxy_document_image?.trim()
+            ? values.proxy_document_image
+            : null,
         })
       ) {
         return
@@ -200,6 +202,9 @@ const MakerPatchModalChildren = ({
         memo: values.memo,
         stocks: values.stocks,
         image: values.image,
+        proxy_document_image: values.proxy_document_image?.trim()
+          ? values.proxy_document_image
+          : null,
         history: historyPayload,
       }
       makerDataMutate(patchData, {
@@ -227,14 +232,6 @@ const MakerPatchModalChildren = ({
   useEffect(() => {
     if (makerData) {
       const parsed = splitShareholderStatus(makerData.status)
-      if (parsed.primary === "완료") {
-        const ax = inferCompletionAxes(parsed.detail)
-        setCompletionDoc(ax.doc === "done" || ax.doc === "hold" ? ax.doc : "")
-        setCompletionId(ax.id === "done" || ax.id === "hold" ? ax.id : "")
-      } else {
-        setCompletionDoc("")
-        setCompletionId("")
-      }
       formik.setValues({
         id: makerData.id,
         address: makerData.address ?? "",
@@ -250,19 +247,17 @@ const MakerPatchModalChildren = ({
         memo: makerData.memo ?? "",
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
+        proxy_document_image: makerData.proxy_document_image ?? "",
         history: makerData.history ?? [],
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- makerData 변경 시만 폼 동기화
   }, [makerData])
 
-  const statusComplete =
-    formik.values.statusPrimary === "완료"
-      ? isCanonicalCompletionDetail(formik.values.statusDetail)
-      : isAllowedStatusDetail(
-          formik.values.statusPrimary,
-          formik.values.statusDetail,
-        )
+  const statusCompleteNonComplete = isAllowedStatusDetail(
+    formik.values.statusPrimary,
+    (formik.values.statusDetail ?? "").trim(),
+  )
 
   const detailChipOptions = useMemo(() => {
     const p = formik.values.statusPrimary
@@ -280,30 +275,59 @@ const MakerPatchModalChildren = ({
   }, [formik.values.statusPrimary, formik.values.statusDetail])
 
   const pendingComposedStatus = useMemo(() => {
-    if (!statusComplete) return null
+    if (formik.values.statusPrimary === "완료") {
+      return composeShareholderStatus(
+        "완료",
+        completionDetailFromPhotos(
+          formik.values.proxy_document_image,
+          formik.values.image,
+        ),
+      )
+    }
+    if (!statusCompleteNonComplete) return null
 
     return composeShareholderStatus(
       formik.values.statusPrimary,
-      formik.values.statusDetail.trim(),
+      (formik.values.statusDetail ?? "").trim(),
     )
-  }, [statusComplete, formik.values.statusPrimary, formik.values.statusDetail])
+  }, [
+    formik.values.statusPrimary,
+    formik.values.statusDetail,
+    formik.values.proxy_document_image,
+    formik.values.image,
+    statusCompleteNonComplete,
+  ])
 
   const hasEditableChanges = useMemo(() => {
     if (!makerData) return false
     const memoChanged =
       normalizeMemoForPatch(formik.values.memo) !==
       normalizeMemoForPatch(makerData.memo)
-    if (!statusComplete || pendingComposedStatus === null) {
+    const imageChanged =
+      (formik.values.image || "").trim() !== (makerData.image || "").trim()
+    const proxyChanged =
+      (formik.values.proxy_document_image || "").trim() !==
+      (makerData.proxy_document_image || "").trim()
+    if (pendingComposedStatus === null) {
       return false
     }
     const statusChanged =
       normalizeStatusForPatch(pendingComposedStatus) !==
       normalizeStatusForPatch(makerData.status)
 
-    return statusChanged || memoChanged
-  }, [makerData, formik.values.memo, statusComplete, pendingComposedStatus])
+    return statusChanged || memoChanged || imageChanged || proxyChanged
+  }, [
+    makerData,
+    formik.values.memo,
+    pendingComposedStatus,
+    formik.values.image,
+    formik.values.proxy_document_image,
+  ])
 
-  const canSubmit = hasEditableChanges && statusComplete && !isSaveBusy
+  const canSubmit =
+    hasEditableChanges &&
+    (formik.values.statusPrimary === "완료" || statusCompleteNonComplete) &&
+    !isSaveBusy
 
   const mapLink = makerData
     ? getKakaoMapLinkUrl({
@@ -314,13 +338,12 @@ const MakerPatchModalChildren = ({
       })
     : null
 
-  const submitBlockReason = !statusComplete
-    ? formik.values.statusPrimary === "완료"
-      ? "완료 시 의결권 서류·신분증 항목을 각각 하나씩 선택해 주세요"
-      : "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
-    : !hasEditableChanges
-      ? "상태 또는 메모를 변경한 뒤 저장할 수 있습니다"
-      : undefined
+  const submitBlockReason =
+    formik.values.statusPrimary !== "완료" && !statusCompleteNonComplete
+      ? "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
+      : !hasEditableChanges
+        ? "상태·메모·사진 중 변경한 뒤 저장할 수 있습니다"
+        : undefined
 
   return (
     <>
@@ -397,9 +420,21 @@ const MakerPatchModalChildren = ({
                     disabled={isSaveBusy}
                     onClick={() => {
                       formik.setFieldValue("statusPrimary", opt)
-                      formik.setFieldValue("statusDetail", "")
-                      setCompletionDoc("")
-                      setCompletionId("")
+                      if (opt === "완료") {
+                        const d = completionDetailFromPhotos(
+                          formik.values.proxy_document_image,
+                          formik.values.image,
+                        )
+                        formik.setFieldValue("statusDetail", d)
+                        formik.setFieldValue(
+                          "status",
+                          normalizeStatusForPatch(
+                            composeShareholderStatus("완료", d),
+                          ),
+                        )
+                      } else {
+                        formik.setFieldValue("statusDetail", "")
+                      }
                     }}>
                     {opt}
                   </StatusChip>
@@ -408,9 +443,11 @@ const MakerPatchModalChildren = ({
 
               <FieldLabel id="label-detail" style={{ marginTop: "1rem" }}>
                 {formik.values.statusPrimary === "완료"
-                  ? "2차 · 완료 확인 (필수)"
+                  ? "2차 · 완료 (사진 기준 자동)"
                   : "2차 · 세부 상태"}
-                <RequiredMark aria-hidden> (필수)</RequiredMark>
+                {formik.values.statusPrimary !== "완료" ? (
+                  <RequiredMark aria-hidden> (필수)</RequiredMark>
+                ) : null}
               </FieldLabel>
               {!formik.values.statusDetail &&
                 formik.values.statusPrimary &&
@@ -422,52 +459,11 @@ const MakerPatchModalChildren = ({
               {formik.values.statusPrimary === "완료" ? (
                 <>
                   <StepHint>
-                    의결권 서류·신분증 각 줄에서 하나씩 선택해야 저장할 수
-                    있습니다.
+                    아래에서 의결권 서류·신분증 사진을 올리면, 저장 시
+                    &nbsp;&quot;완료&quot; 세부가 자동으로 맞춰집니다. (의결권{" "}
+                    {formik.values.proxy_document_image?.trim() ? "O" : "X"} ·
+                    신분증 {formik.values.image?.trim() ? "O" : "X"})
                   </StepHint>
-                  <CompletionStatusChecklist
-                    doc={completionDoc}
-                    id={completionId}
-                    disabled={isSaveBusy}
-                    onDoc={(v) => {
-                      setCompletionDoc(v)
-                      setCompletionId((curId) => {
-                        if (curId === "done" || curId === "hold") {
-                          const detail = composeCompletionDetail(v, curId)
-                          formik.setFieldValue("statusDetail", detail)
-                          formik.setFieldValue(
-                            "status",
-                            normalizeStatusForPatch(
-                              composeShareholderStatus("완료", detail),
-                            ),
-                          )
-                        } else {
-                          formik.setFieldValue("statusDetail", "")
-                        }
-
-                        return curId
-                      })
-                    }}
-                    onId={(v) => {
-                      setCompletionId(v)
-                      setCompletionDoc((curDoc) => {
-                        if (curDoc === "done" || curDoc === "hold") {
-                          const detail = composeCompletionDetail(curDoc, v)
-                          formik.setFieldValue("statusDetail", detail)
-                          formik.setFieldValue(
-                            "status",
-                            normalizeStatusForPatch(
-                              composeShareholderStatus("완료", detail),
-                            ),
-                          )
-                        } else {
-                          formik.setFieldValue("statusDetail", "")
-                        }
-
-                        return curDoc
-                      })
-                    }}
-                  />
                 </>
               ) : (
                 <ChipRow role="group" aria-labelledby="label-detail" $dense>
@@ -494,13 +490,12 @@ const MakerPatchModalChildren = ({
                   ))}
                 </ChipRow>
               )}
-              {!statusComplete && (
-                <ValidationHint role="status">
-                  {formik.values.statusPrimary === "완료"
-                    ? "의결권 서류·신분증을 각각 선택해 주세요."
-                    : "세부 상태를 선택해야 저장할 수 있습니다."}
-                </ValidationHint>
-              )}
+              {formik.values.statusPrimary !== "완료" &&
+                !statusCompleteNonComplete && (
+                  <ValidationHint role="status">
+                    세부 상태를 선택해야 저장할 수 있습니다.
+                  </ValidationHint>
+                )}
             </Section>
 
             <Section>
@@ -516,89 +511,232 @@ const MakerPatchModalChildren = ({
             </Section>
 
             {makerData && (
-              <Section>
-                <SectionTitle>사진 (1인 1장)</SectionTitle>
-                {formik.values.image ? (
-                  <img
-                    src={formik.values.image}
-                    alt=""
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: 140,
-                      borderRadius: 8,
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  <PhotoHint>등록된 사진이 없습니다.</PhotoHint>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  disabled={isSaveBusy || photoBusy}
-                  style={{ marginTop: 8 }}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ""
-                    if (!file || !makerData) return
-                    setPhotoBusy(true)
-                    try {
-                      const url = await uploadShareholderPhotoAndGetPublicUrl(
-                        file,
-                        makerData.list_id,
-                        String(makerData.id),
-                      )
-                      formik.setFieldValue("image", url)
-                      makerDataMutate(
-                        { ...makerData, image: url },
-                        {
-                          onSuccess: () =>
-                            toast.success("사진을 저장했습니다."),
-                          onError: () =>
-                            toast.error("사진 저장에 실패했습니다."),
-                        },
-                      )
-                    } catch {
-                      toast.error("사진을 올릴 수 없습니다.")
-                    } finally {
-                      setPhotoBusy(false)
-                    }
-                  }}
-                />
-                {formik.values.image ? (
-                  <PhotoRemoveBtn
-                    type="button"
-                    disabled={isSaveBusy || photoBusy}
-                    onClick={async () => {
-                      if (!makerData) return
-                      setPhotoBusy(true)
+              <>
+                <Section>
+                  <SectionTitle>신분증 사진</SectionTitle>
+                  {formik.values.image ? (
+                    <img
+                      src={formik.values.image}
+                      alt=""
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 140,
+                        borderRadius: 8,
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <PhotoHint>등록된 신분증 사진이 없습니다.</PhotoHint>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    disabled={photoUploadLocked}
+                    style={{ marginTop: 8 }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (!file || !makerData) return
+                      setPhotoBusy("id")
                       try {
-                        await removeShareholderPhotoObject(
+                        const url = await uploadShareholderPhotoAndGetPublicUrl(
+                          file,
                           makerData.list_id,
                           String(makerData.id),
-                          formik.values.image,
+                          "id",
                         )
-                        formik.setFieldValue("image", "")
+                        formik.setFieldValue("image", url)
+                        if (formik.values.statusPrimary === "완료") {
+                          const d = completionDetailFromPhotos(
+                            formik.values.proxy_document_image,
+                            url,
+                          )
+                          formik.setFieldValue("statusDetail", d)
+                          formik.setFieldValue(
+                            "status",
+                            normalizeStatusForPatch(
+                              composeShareholderStatus("완료", d),
+                            ),
+                          )
+                        }
                         makerDataMutate(
-                          { ...makerData, image: null },
+                          { ...makerData, image: url },
                           {
                             onSuccess: () =>
-                              toast.success("사진을 삭제했습니다."),
+                              toast.success("신분증 사진을 저장했습니다."),
                             onError: () =>
-                              toast.error("삭제 반영에 실패했습니다."),
+                              toast.error("신분증 사진 저장에 실패했습니다."),
                           },
                         )
                       } catch {
-                        toast.error("스토리지에서 삭제하지 못했습니다.")
+                        toast.error("신분증 사진을 올릴 수 없습니다.")
                       } finally {
-                        setPhotoBusy(false)
+                        setPhotoBusy("")
                       }
-                    }}>
-                    사진 삭제
-                  </PhotoRemoveBtn>
-                ) : null}
-              </Section>
+                    }}
+                  />
+                  {formik.values.image ? (
+                    <PhotoRemoveBtn
+                      type="button"
+                      disabled={photoUploadLocked}
+                      onClick={async () => {
+                        if (!makerData) return
+                        setPhotoBusy("id")
+                        try {
+                          await removeShareholderPhotoObject(
+                            makerData.list_id,
+                            String(makerData.id),
+                            formik.values.image,
+                          )
+                          formik.setFieldValue("image", "")
+                          if (formik.values.statusPrimary === "완료") {
+                            const d = completionDetailFromPhotos(
+                              formik.values.proxy_document_image,
+                              "",
+                            )
+                            formik.setFieldValue("statusDetail", d)
+                            formik.setFieldValue(
+                              "status",
+                              normalizeStatusForPatch(
+                                composeShareholderStatus("완료", d),
+                              ),
+                            )
+                          }
+                          makerDataMutate(
+                            { ...makerData, image: null },
+                            {
+                              onSuccess: () =>
+                                toast.success("신분증 사진을 삭제했습니다."),
+                              onError: () =>
+                                toast.error("삭제 반영에 실패했습니다."),
+                            },
+                          )
+                        } catch {
+                          toast.error("스토리지에서 삭제하지 못했습니다.")
+                        } finally {
+                          setPhotoBusy("")
+                        }
+                      }}>
+                      신분증 사진 삭제
+                    </PhotoRemoveBtn>
+                  ) : null}
+                </Section>
+                <Section>
+                  <SectionTitle>의결권 서류 사진</SectionTitle>
+                  {formik.values.proxy_document_image ? (
+                    <img
+                      src={formik.values.proxy_document_image}
+                      alt=""
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 140,
+                        borderRadius: 8,
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <PhotoHint>등록된 의결권 서류 사진이 없습니다.</PhotoHint>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    disabled={photoUploadLocked}
+                    style={{ marginTop: 8 }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (!file || !makerData) return
+                      setPhotoBusy("proxy")
+                      try {
+                        const url = await uploadShareholderPhotoAndGetPublicUrl(
+                          file,
+                          makerData.list_id,
+                          String(makerData.id),
+                          "proxy",
+                        )
+                        formik.setFieldValue("proxy_document_image", url)
+                        if (formik.values.statusPrimary === "완료") {
+                          const d = completionDetailFromPhotos(
+                            url,
+                            formik.values.image,
+                          )
+                          formik.setFieldValue("statusDetail", d)
+                          formik.setFieldValue(
+                            "status",
+                            normalizeStatusForPatch(
+                              composeShareholderStatus("완료", d),
+                            ),
+                          )
+                        }
+                        makerDataMutate(
+                          { ...makerData, proxy_document_image: url },
+                          {
+                            onSuccess: () =>
+                              toast.success("의결권 서류 사진을 저장했습니다."),
+                            onError: () =>
+                              toast.error(
+                                "의결권 서류 사진 저장에 실패했습니다.",
+                              ),
+                          },
+                        )
+                      } catch {
+                        toast.error("의결권 서류 사진을 올릴 수 없습니다.")
+                      } finally {
+                        setPhotoBusy("")
+                      }
+                    }}
+                  />
+                  {formik.values.proxy_document_image ? (
+                    <PhotoRemoveBtn
+                      type="button"
+                      disabled={photoUploadLocked}
+                      onClick={async () => {
+                        if (!makerData) return
+                        setPhotoBusy("proxy")
+                        try {
+                          await removeShareholderPhotoObject(
+                            makerData.list_id,
+                            String(makerData.id),
+                            formik.values.proxy_document_image,
+                          )
+                          formik.setFieldValue("proxy_document_image", "")
+                          if (formik.values.statusPrimary === "완료") {
+                            const d = completionDetailFromPhotos(
+                              "",
+                              formik.values.image,
+                            )
+                            formik.setFieldValue("statusDetail", d)
+                            formik.setFieldValue(
+                              "status",
+                              normalizeStatusForPatch(
+                                composeShareholderStatus("완료", d),
+                              ),
+                            )
+                          }
+                          makerDataMutate(
+                            { ...makerData, proxy_document_image: null },
+                            {
+                              onSuccess: () =>
+                                toast.success(
+                                  "의결권 서류 사진을 삭제했습니다.",
+                                ),
+                              onError: () =>
+                                toast.error("삭제 반영에 실패했습니다."),
+                            },
+                          )
+                        } catch {
+                          toast.error("스토리지에서 삭제하지 못했습니다.")
+                        } finally {
+                          setPhotoBusy("")
+                        }
+                      }}>
+                      의결권 서류 사진 삭제
+                    </PhotoRemoveBtn>
+                  ) : null}
+                </Section>
+              </>
             )}
 
             <ButtonGroup>

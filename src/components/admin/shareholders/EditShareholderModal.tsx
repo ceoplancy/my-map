@@ -1,6 +1,6 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
 import { formatChangeHistoryTimestamp } from "@/lib/shareholderChangeHistoryValues"
@@ -15,13 +15,10 @@ import {
   uploadShareholderPhotoAndGetPublicUrl,
 } from "@/lib/shareholderPhotoStorage"
 import Select from "@/components/ui/select"
-import CompletionStatusChecklist from "@/components/ui/completion-status-checklist"
 import {
   AGMEETING_DETAIL_OPTIONS_FOR_UI,
   composeShareholderStatus,
-  composeCompletionDetail,
-  inferCompletionAxes,
-  isCanonicalCompletionDetail,
+  completionDetailFromPhotos,
   PRIMARY_STATUS_OPTIONS,
   splitShareholderStatus,
   STATUS_DETAIL_OPTIONS,
@@ -257,6 +254,21 @@ const StatusBadge = styled.span<{ status: string }>`
 
 type Shareholder = Tables<"shareholders">
 
+function completionStatusPatchIfPrimaryComplete(
+  primary: PrimaryStatus,
+  proxyUrl: string | null | undefined,
+  idCardUrl: string | null | undefined,
+): { status?: string } {
+  if (primary !== "완료") return {}
+
+  return {
+    status: composeShareholderStatus(
+      "완료",
+      completionDetailFromPhotos(proxyUrl, idCardUrl),
+    ),
+  }
+}
+
 interface Props {
   data: Shareholder
   userId: string
@@ -276,32 +288,19 @@ export const FIELD_LABELS: Record<string, string> = {
   maker: "마커(구분2)",
   stocks: "주식수",
   memo: "메모",
-  image: "사진 URL",
+  image: "신분증 사진 URL",
+  proxy_document_image: "의결권 서류 사진 URL",
 }
 
 export default function EditShareholderModal({ data, userId, onClose }: Props) {
   const [formData, setFormData] = useState<Shareholder>(data)
-  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState<"" | "id" | "proxy">("")
   const parsedStatus = splitShareholderStatus(data.status)
   const [statusPrimary, setStatusPrimary] = useState<PrimaryStatus>(
     parsedStatus.primary,
   )
   const [statusDetail, setStatusDetail] = useState(parsedStatus.detail)
-  const [completionDoc, setCompletionDoc] = useState<"" | "done" | "hold">("")
-  const [completionId, setCompletionId] = useState<"" | "done" | "hold">("")
   const patchShareholder = usePatchShareholder()
-
-  useEffect(() => {
-    const p = splitShareholderStatus(data.status)
-    if (p.primary === "완료") {
-      const ax = inferCompletionAxes(p.detail)
-      setCompletionDoc(ax.doc === "done" || ax.doc === "hold" ? ax.doc : "")
-      setCompletionId(ax.id === "done" || ax.id === "hold" ? ax.id : "")
-    } else {
-      setCompletionDoc("")
-      setCompletionId("")
-    }
-  }, [data.id, data.status])
   const { data: changeHistoryBundle } = useShareholderChangeHistory(data.id)
   const changeHistoryRows = changeHistoryBundle?.rows ?? []
   const changedByUser = changeHistoryBundle?.changedByUser ?? {}
@@ -328,18 +327,15 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!statusDetail.trim()) {
+    const effectiveDetail =
+      statusPrimary === "완료"
+        ? completionDetailFromPhotos(
+            formData.proxy_document_image,
+            formData.image,
+          )
+        : statusDetail.trim()
+    if (statusPrimary !== "완료" && !effectiveDetail) {
       toast.error("상세 상태를 선택해야 저장할 수 있습니다.")
-
-      return
-    }
-    if (
-      statusPrimary === "완료" &&
-      !isCanonicalCompletionDetail(statusDetail.trim())
-    ) {
-      toast.error(
-        "완료로 저장하려면 의결권 서류·신분증 항목을 각각 하나씩 선택해 주세요.",
-      )
 
       return
     }
@@ -350,13 +346,14 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           id: data.id,
           name: formData.name,
           address: formData.address,
-          status: composeShareholderStatus(statusPrimary, statusDetail),
+          status: composeShareholderStatus(statusPrimary, effectiveDetail),
           company: formData.company,
           stocks: formData.stocks,
           latlngaddress: formData.latlngaddress,
           memo: formData.memo,
           maker: formData.maker,
           image: formData.image,
+          proxy_document_image: formData.proxy_document_image,
         },
         userId,
       })
@@ -422,10 +419,13 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   onChange={(e) => {
                     const nextPrimary = e.target.value as PrimaryStatus
                     setStatusPrimary(nextPrimary)
-                    setCompletionDoc("")
-                    setCompletionId("")
                     if (nextPrimary === "완료") {
-                      setStatusDetail("")
+                      setStatusDetail(
+                        completionDetailFromPhotos(
+                          formData.proxy_document_image,
+                          formData.image,
+                        ),
+                      )
                     } else {
                       setStatusDetail(
                         STATUS_DETAIL_OPTIONS[nextPrimary][0] ?? "",
@@ -439,37 +439,18 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   ))}
                 </ModalSelect>
                 {statusPrimary === "완료" ? (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <CompletionStatusChecklist
-                      doc={completionDoc}
-                      id={completionId}
-                      disabled={patchShareholder.isPending}
-                      onDoc={(v) => {
-                        setCompletionDoc(v)
-                        setCompletionId((curId) => {
-                          if (curId === "done" || curId === "hold") {
-                            setStatusDetail(composeCompletionDetail(v, curId))
-                          } else {
-                            setStatusDetail("")
-                          }
-
-                          return curId
-                        })
-                      }}
-                      onId={(v) => {
-                        setCompletionId(v)
-                        setCompletionDoc((curDoc) => {
-                          if (curDoc === "done" || curDoc === "hold") {
-                            setStatusDetail(composeCompletionDetail(curDoc, v))
-                          } else {
-                            setStatusDetail("")
-                          }
-
-                          return curDoc
-                        })
-                      }}
-                    />
-                  </div>
+                  <p
+                    style={{
+                      marginTop: "0.5rem",
+                      fontSize: "0.875rem",
+                      color: COLORS.gray[600],
+                      lineHeight: 1.55,
+                    }}>
+                    완료 세부는 아래 &quot;의결권 서류 사진&quot;·&quot;신분증
+                    사진&quot; 등록 여부로 자동 반영됩니다. (의결권{" "}
+                    {formData.proxy_document_image?.trim() ? "O" : "X"} · 신분증{" "}
+                    {formData.image?.trim() ? "O" : "X"})
+                  </p>
                 ) : (
                   <ModalSelect
                     style={{ marginTop: "0.5rem" }}
@@ -532,7 +513,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                 />
               </FormGroup>
               <FormGroup>
-                <Label>사진</Label>
+                <Label>신분증 사진</Label>
                 {formData.image ? (
                   <img
                     src={formData.image}
@@ -550,37 +531,53 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                 <input
                   type="file"
                   accept="image/*"
-                  disabled={photoBusy || patchShareholder.isPending}
+                  disabled={photoBusy !== "" || patchShareholder.isPending}
                   onChange={async (e) => {
                     const file = e.target.files?.[0]
                     e.target.value = ""
                     if (!file) return
-                    setPhotoBusy(true)
+                    setPhotoBusy("id")
                     try {
                       const url = await uploadShareholderPhotoAndGetPublicUrl(
                         file,
                         data.list_id,
                         data.id,
+                        "id",
                       )
                       setFormData((prev) => ({ ...prev, image: url }))
+                      const nextDetail = completionDetailFromPhotos(
+                        formData.proxy_document_image,
+                        url,
+                      )
+                      if (statusPrimary === "완료") {
+                        setStatusDetail(nextDetail)
+                      }
                       await patchShareholder.mutateAsync({
-                        patch: { id: data.id, image: url },
+                        patch: {
+                          id: data.id,
+                          image: url,
+                          ...completionStatusPatchIfPrimaryComplete(
+                            statusPrimary,
+                            formData.proxy_document_image,
+                            url,
+                          ),
+                        },
                         userId,
                       })
-                      toast.success("사진을 반영했습니다.")
+                      toast.success("신분증 사진을 반영했습니다.")
                     } catch (err) {
                       reportError(err, {
-                        toastMessage: "사진 업로드에 실패했습니다.",
+                        toastMessage: "신분증 사진 업로드에 실패했습니다.",
                       })
                     } finally {
-                      setPhotoBusy(false)
+                      setPhotoBusy("")
                     }
                   }}
                 />
                 {formData.image ? (
                   <button
                     type="button"
-                    disabled={photoBusy || patchShareholder.isPending}
+                    disabled={photoBusy !== "" || patchShareholder.isPending}
                     style={{
                       marginTop: 8,
                       padding: "6px 12px",
@@ -592,7 +589,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                       cursor: "pointer",
                     }}
                     onClick={async () => {
-                      setPhotoBusy(true)
+                      setPhotoBusy("id")
                       try {
                         await removeShareholderPhotoObject(
                           data.list_id,
@@ -600,20 +597,158 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                           formData.image,
                         )
                         setFormData((prev) => ({ ...prev, image: null }))
+                        const nextDetail = completionDetailFromPhotos(
+                          formData.proxy_document_image,
+                          null,
+                        )
+                        if (statusPrimary === "완료") {
+                          setStatusDetail(nextDetail)
+                        }
                         await patchShareholder.mutateAsync({
-                          patch: { id: data.id, image: null },
+                          patch: {
+                            id: data.id,
+                            image: null,
+                            ...completionStatusPatchIfPrimaryComplete(
+                              statusPrimary,
+                              formData.proxy_document_image,
+                              null,
+                            ),
+                          },
                           userId,
                         })
-                        toast.success("사진을 삭제했습니다.")
+                        toast.success("신분증 사진을 삭제했습니다.")
                       } catch (err) {
                         reportError(err, {
-                          toastMessage: "사진 삭제에 실패했습니다.",
+                          toastMessage: "신분증 사진 삭제에 실패했습니다.",
                         })
                       } finally {
-                        setPhotoBusy(false)
+                        setPhotoBusy("")
                       }
                     }}>
-                    사진 삭제
+                    신분증 사진 삭제
+                  </button>
+                ) : null}
+              </FormGroup>
+              <FormGroup>
+                <Label>의결권 서류 사진</Label>
+                {formData.proxy_document_image ? (
+                  <img
+                    src={formData.proxy_document_image}
+                    alt=""
+                    style={{
+                      maxWidth: 160,
+                      maxHeight: 120,
+                      borderRadius: 8,
+                      objectFit: "cover",
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  />
+                ) : null}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={photoBusy !== "" || patchShareholder.isPending}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ""
+                    if (!file) return
+                    setPhotoBusy("proxy")
+                    try {
+                      const url = await uploadShareholderPhotoAndGetPublicUrl(
+                        file,
+                        data.list_id,
+                        data.id,
+                        "proxy",
+                      )
+                      setFormData((prev) => ({
+                        ...prev,
+                        proxy_document_image: url,
+                      }))
+                      const nextDetail = completionDetailFromPhotos(
+                        url,
+                        formData.image,
+                      )
+                      if (statusPrimary === "완료") {
+                        setStatusDetail(nextDetail)
+                      }
+                      await patchShareholder.mutateAsync({
+                        patch: {
+                          id: data.id,
+                          proxy_document_image: url,
+                          ...completionStatusPatchIfPrimaryComplete(
+                            statusPrimary,
+                            url,
+                            formData.image,
+                          ),
+                        },
+                        userId,
+                      })
+                      toast.success("의결권 서류 사진을 반영했습니다.")
+                    } catch (err) {
+                      reportError(err, {
+                        toastMessage: "의결권 서류 사진 업로드에 실패했습니다.",
+                      })
+                    } finally {
+                      setPhotoBusy("")
+                    }
+                  }}
+                />
+                {formData.proxy_document_image ? (
+                  <button
+                    type="button"
+                    disabled={photoBusy !== "" || patchShareholder.isPending}
+                    style={{
+                      marginTop: 8,
+                      padding: "6px 12px",
+                      fontSize: "0.8125rem",
+                      color: COLORS.red[700],
+                      background: COLORS.red[50],
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                    onClick={async () => {
+                      setPhotoBusy("proxy")
+                      try {
+                        await removeShareholderPhotoObject(
+                          data.list_id,
+                          data.id,
+                          formData.proxy_document_image,
+                        )
+                        setFormData((prev) => ({
+                          ...prev,
+                          proxy_document_image: null,
+                        }))
+                        const nextDetail = completionDetailFromPhotos(
+                          null,
+                          formData.image,
+                        )
+                        if (statusPrimary === "완료") {
+                          setStatusDetail(nextDetail)
+                        }
+                        await patchShareholder.mutateAsync({
+                          patch: {
+                            id: data.id,
+                            proxy_document_image: null,
+                            ...completionStatusPatchIfPrimaryComplete(
+                              statusPrimary,
+                              null,
+                              formData.image,
+                            ),
+                          },
+                          userId,
+                        })
+                        toast.success("의결권 서류 사진을 삭제했습니다.")
+                      } catch (err) {
+                        reportError(err, {
+                          toastMessage: "의결권 서류 사진 삭제에 실패했습니다.",
+                        })
+                      } finally {
+                        setPhotoBusy("")
+                      }
+                    }}>
+                    의결권 서류 사진 삭제
                   </button>
                 ) : null}
               </FormGroup>

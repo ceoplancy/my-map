@@ -368,6 +368,9 @@ export type Database = {
           history: Json | null
           id: string
           image: string | null
+
+          /** 의결권 서류 등 — 신분증 `image`와 별도 스토리지 객체 */
+          proxy_document_image: string | null
           lat: number | null
           latlngaddress: string | null
           list_id: string
@@ -388,6 +391,7 @@ export type Database = {
           history?: Json | null
           id?: string
           image?: string | null
+          proxy_document_image?: string | null
           lat?: number | null
           latlngaddress?: string | null
           list_id: string
@@ -408,6 +412,7 @@ export type Database = {
           history?: Json | null
           id?: string
           image?: string | null
+          proxy_document_image?: string | null
           lat?: number | null
           latlngaddress?: string | null
           list_id?: string

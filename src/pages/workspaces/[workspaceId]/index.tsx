@@ -511,7 +511,13 @@ const WorkspaceMapPage = () => {
             />
           )}
 
-          <MenuButton onClick={() => setIsVisibleMenu(!isVisibleMenu)}>
+          <MenuButton
+            type="button"
+            $menuOpen={isVisibleMenu}
+            onClick={() => setIsVisibleMenu(!isVisibleMenu)}
+            aria-expanded={isVisibleMenu}
+            aria-controls="workspace-map-side-menu"
+            aria-label={isVisibleMenu ? "대시보드 닫기" : "대시보드 열기"}>
             <Menu />
           </MenuButton>
 
@@ -520,7 +526,7 @@ const WorkspaceMapPage = () => {
             onClick={() => setIsVisibleMenu(false)}
           />
 
-          <SideMenu isVisible={isVisibleMenu}>
+          <SideMenu id="workspace-map-side-menu" isVisible={isVisibleMenu}>
             <MenuHeader>
               <MenuTitle>대시보드</MenuTitle>
               <CloseButton
@@ -711,11 +717,12 @@ const SpinnerFrame = styled.div`
   z-index: 100;
 `
 
-const MenuButton = styled.button`
+const MenuButton = styled.button<{ $menuOpen: boolean }>`
   position: fixed;
   top: max(1rem, env(safe-area-inset-top));
   left: max(1rem, env(safe-area-inset-left));
-  z-index: 160;
+  /* 열린 땐 오버레이·대시보드 시트(140·150) 아래로 — 햄버거가 시트 위에 겹치지 않게 */
+  z-index: ${(p) => (p.$menuOpen ? 120 : 160)};
   background-color: white;
   min-width: 2.75rem;
   min-height: 2.75rem;

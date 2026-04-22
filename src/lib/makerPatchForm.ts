@@ -15,11 +15,22 @@ export function normalizeMemoForPatch(raw: string | null | undefined): string {
 
 export function hasPatchChanges(
   row: MapMarkerData,
-  values: { status: string; memo: string },
+  values: {
+    status: string
+    memo: string
+    image?: string | null
+    proxy_document_image?: string | null
+  },
 ): boolean {
-  return (
+  const statusChanged =
     normalizeStatusForPatch(values.status) !==
-      normalizeStatusForPatch(row.status) ||
+    normalizeStatusForPatch(row.status)
+  const memoChanged =
     normalizeMemoForPatch(values.memo) !== normalizeMemoForPatch(row.memo)
-  )
+  const imageChanged = (values.image ?? "").trim() !== (row.image ?? "").trim()
+  const proxyChanged =
+    (values.proxy_document_image ?? "").trim() !==
+    (row.proxy_document_image ?? "").trim()
+
+  return statusChanged || memoChanged || imageChanged || proxyChanged
 }

@@ -4,17 +4,23 @@ import { FullPageLoader } from "@/components/FullPageLoader"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import { toast } from "react-toastify"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/router"
 import { useCurrentWorkspace } from "@/store/workspaceState"
-import { buildShareholderRegistryExportFileName } from "@/lib/shareholderRegistryExportFilename"
+import ShareholderExportDialog from "@/components/admin/shareholders/ShareholderExportDialog"
+import { FIELD_LABELS } from "@/components/admin/shareholders/EditShareholderModal"
+import {
+  downloadShareholderRegistryWorkbook,
+  type ShareholderRegistryExportOptions,
+} from "@/lib/shareholderRegistryExportWorkbook"
 import { getWorkspaceAdminBase } from "@/lib/utils"
 import {
   useShareholderLists,
   useShareholders,
+  useShareholdersMakerSummaryRows,
   useWorkspaceMembersWithUsers,
+  type WorkspaceMemberWithUser,
 } from "@/api/workspace"
-import * as XLSX from "xlsx"
 import { type Tables, type WorkspaceRole } from "@/types/db"
 import {
   getPrimaryStatusCategory,
@@ -22,6 +28,7 @@ import {
   splitShareholderStatus,
   type PrimaryStatus,
 } from "@/lib/shareholderStatus"
+import GlobalSpinner from "@/components/ui/global-spinner"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import Select from "@/components/ui/select"
 
@@ -289,6 +296,16 @@ const ListDashboardSection = styled.div`
   margin-bottom: 2rem;
 `
 
+const ListDashboardGrid = styled.div`
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (min-width: 1180px) {
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  }
+`
+
 const ListSelectRow = styled.div`
   display: flex;
   align-items: center;
@@ -338,12 +355,21 @@ const DetailTableScroll = styled.div`
   border: 1px solid ${COLORS.gray[100]};
   border-radius: 0.65rem;
   -webkit-overflow-scrolling: touch;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 `
 
 const DetailTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8125rem;
+
+  tbody tr:nth-of-type(odd) {
+    background: ${COLORS.gray[50]};
+  }
+
+  tbody tr:hover td {
+    background: ${COLORS.gray[100]};
+  }
 `
 
 const DetailTh = styled.th`
@@ -369,6 +395,96 @@ const DetailTdNum = styled(DetailTd)`
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+`
+
+const PrimaryPill = styled.span<{ $bg: string }>`
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  background: ${(p) => p.$bg};
+  white-space: nowrap;
+`
+
+const DetailTfoot = styled.tfoot`
+  font-weight: 700;
+  color: ${COLORS.gray[900]};
+  background: ${COLORS.gray[100]};
+`
+
+const DetailThFoot = styled.th`
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-top: 2px solid ${COLORS.gray[200]};
+  font-size: 0.75rem;
+`
+
+const DetailTdFoot = styled.td`
+  padding: 0.5rem 0.65rem;
+  border-top: 2px solid ${COLORS.gray[200]};
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+`
+
+const ScopeFilterSection = styled.div`
+  margin-top: 1.5rem;
+  padding: 1rem 1rem 1.125rem;
+  border-radius: 0.75rem;
+  border: 1px solid ${COLORS.gray[200]};
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 45%);
+`
+
+const ScopeFilterSectionTitle = styled.div`
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: ${COLORS.gray[800]};
+  margin-bottom: 0.25rem;
+`
+
+const ScopeFilterSectionHint = styled.p`
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.45;
+`
+
+const ScopeFilterPanels = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: stretch;
+`
+
+const ScopeFilterPanel = styled.div`
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid ${COLORS.gray[100]};
+  background: #fff;
+`
+
+const ScopeFilterPanelTitle = styled.div`
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: ${COLORS.gray[500]};
+  margin-bottom: 0.5rem;
+`
+
+const ExportToolbar = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed ${COLORS.gray[200]};
 `
 
 const StatusCountCard = styled.div<{ color: string }>`
@@ -414,7 +530,62 @@ const ExportButton = styled.button`
   }
 `
 
-const STATUS_OPTIONS = ["미방문", "보류", "완료", "실패"] as const
+function makerMatchesFieldAgent(
+  maker: string | null,
+  agent: WorkspaceMemberWithUser,
+): boolean {
+  const m = (maker ?? "").trim()
+  if (!m) return false
+  const keys = [agent.name, agent.email, agent.user_id]
+    .map((s) => (s ?? "").trim())
+    .filter((s) => s.length > 0)
+
+  return keys.some((k) => k === m)
+}
+
+/** 멤버에 배정된 명부만; 배정이 비어 있으면 워크스페이스 명부 전체(지도와 동일 취지) */
+function listIdsInScopeForFieldAgent(
+  agent: WorkspaceMemberWithUser,
+  allLists: { id: string }[],
+): string[] {
+  const allIds = allLists.map((l) => l.id)
+  const allowed = agent.allowed_list_ids
+  if (Array.isArray(allowed) && allowed.length > 0) {
+    return allowed.filter((id) => allIds.includes(id))
+  }
+
+  return allIds
+}
+
+function buildDashboardExportFilterDescription(input: {
+  listName: string
+  filterPrimary: PrimaryStatus[]
+  filterCompany: string
+  filterMaker: string
+}): string {
+  const bits: string[] = []
+  const ln = input.listName.trim()
+  bits.push(ln ? `명부: ${ln}` : "명부: —")
+
+  const extras: string[] = []
+  if (input.filterPrimary.length) {
+    extras.push(`1차 상태: ${input.filterPrimary.join(", ")}`)
+  }
+  if (input.filterCompany.trim()) {
+    extras.push(`회사: ${input.filterCompany.trim()}`)
+  }
+  if (input.filterMaker.trim()) {
+    extras.push(`담당: ${input.filterMaker.trim()}`)
+  }
+  if (extras.length === 0) {
+    bits.push("범위: 명부 전체")
+  } else {
+    bits.push(...extras)
+  }
+  bits.push("출처: 워크스페이스 관리 대시보드")
+
+  return bits.join(" · ")
+}
 
 /** 워크스페이스 대시보드 본문 (useCurrentWorkspace 기준). /admin 또는 /workspaces/[id]/admin 에서 사용 */
 export function WorkspaceDashboardBody() {
@@ -425,14 +596,19 @@ export function WorkspaceDashboardBody() {
   )
   const { data: lists = [] } = useShareholderLists(workspace?.id ?? null)
   const [selectedListId, setSelectedListId] = useState<string>("")
-  const [filterStatus, setFilterStatus] = useState<string[]>([])
+  const [filterPrimary, setFilterPrimary] = useState<PrimaryStatus[]>([])
   const [filterCompany, setFilterCompany] = useState("")
   const [filterMaker, setFilterMaker] = useState("")
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
   const effectiveListId = (selectedListId || lists[0]?.id) ?? null
+  const effectiveListName =
+    effectiveListId != null
+      ? (lists.find((l) => l.id === effectiveListId)?.name ?? "")
+      : ""
   const { data: shareholders = [] } = useShareholders({
     listId: effectiveListId,
-    status: filterStatus.length > 0 ? filterStatus : undefined,
+    statusPrimaryFilter: filterPrimary.length > 0 ? filterPrimary : undefined,
     company: filterCompany.trim() ? [filterCompany.trim()] : undefined,
     maker: filterMaker.trim() || undefined,
   })
@@ -487,6 +663,88 @@ export function WorkspaceDashboardBody() {
     })
   }, [shareholders])
 
+  const detailTotals = useMemo(() => {
+    return detailBreakdownRows.reduce(
+      (acc, r) => ({
+        count: acc.count + r.count,
+        stocks: acc.stocks + r.stocks,
+      }),
+      { count: 0, stocks: 0 },
+    )
+  }, [detailBreakdownRows])
+
+  const dashboardExportFilterPreview = useMemo(
+    () =>
+      buildDashboardExportFilterDescription({
+        listName: effectiveListName,
+        filterPrimary,
+        filterCompany,
+        filterMaker,
+      }),
+    [effectiveListName, filterPrimary, filterCompany, filterMaker],
+  )
+
+  const workspaceListIds = useMemo(() => lists.map((l) => l.id), [lists])
+  const { data: makerSummaryRows = [], isLoading: makerSummaryLoading } =
+    useShareholdersMakerSummaryRows(workspaceListIds)
+
+  const fieldAgentProjectRows = useMemo(() => {
+    type Row = {
+      userId: string
+      agentLabel: string
+      listId: string
+      listName: string
+      assignedCount: number
+      completedCount: number
+      totalStocks: number
+    }
+    const out: Row[] = []
+    const agents = workspaceMembersWithUsers.filter(
+      (m) => m.role === "field_agent",
+    )
+    const listNameOf = (id: string) =>
+      lists.find((l) => l.id === id)?.name?.trim() || "이름 없는 명부"
+
+    for (const agent of agents) {
+      const agentLabel =
+        agent.name?.trim() || agent.email?.trim() || agent.user_id
+      const scope = listIdsInScopeForFieldAgent(agent, lists)
+      for (const listId of scope) {
+        let assignedCount = 0
+        let completedCount = 0
+        let totalStocks = 0
+        for (const r of makerSummaryRows) {
+          if (r.list_id !== listId) continue
+          if (!makerMatchesFieldAgent(r.maker, agent)) continue
+          assignedCount += 1
+          totalStocks += Number(r.stocks ?? 0)
+          if (getPrimaryStatusCategory(r.status) === "완료") {
+            completedCount += 1
+          }
+        }
+        if (assignedCount > 0) {
+          out.push({
+            userId: agent.user_id,
+            agentLabel,
+            listId,
+            listName: listNameOf(listId),
+            assignedCount,
+            completedCount,
+            totalStocks,
+          })
+        }
+      }
+    }
+    out.sort((a, b) => {
+      const c = a.agentLabel.localeCompare(b.agentLabel, "ko")
+      if (c !== 0) return c
+
+      return a.listName.localeCompare(b.listName, "ko")
+    })
+
+    return out
+  }, [workspaceMembersWithUsers, lists, makerSummaryRows])
+
   const statusCardColor = (p: PrimaryStatus): string => {
     switch (p) {
       case "미방문":
@@ -504,37 +762,48 @@ export function WorkspaceDashboardBody() {
     }
   }
 
-  const handleExportExcel = () => {
-    if (shareholders.length === 0) {
-      toast.info("내보낼 데이터가 없습니다.")
+  const runDashboardExport = useCallback(
+    (opts: ShareholderRegistryExportOptions) => {
+      if (shareholders.length === 0) {
+        toast.info("보낼 데이터가 없습니다.")
 
-      return
-    }
-    const listName =
-      effectiveListId != null
-        ? (lists.find((l) => l.id === effectiveListId)?.name ?? "")
-        : ""
+        return
+      }
+      const base =
+        effectiveListName.trim().length > 0
+          ? `대시보드_${effectiveListName.trim()}`
+          : "대시보드_주주명부"
 
-    const fileName = buildShareholderRegistryExportFileName(
-      listName || undefined,
-    )
-
-    const rows = (shareholders as Tables<"shareholders">[]).map((s) => ({
-      주주ID: s.id,
-      이름: s.name ?? "",
-      상태: s.status ?? "",
-      주식수: s.stocks ?? 0,
-      주소: s.address ?? "",
-      회사: s.company ?? "",
-      담당: s.maker ?? "",
-      메모: s.memo ?? "",
-    }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "주주명부")
-    XLSX.writeFile(wb, fileName)
-    toast.success("스프레드시트 파일이 다운로드되었습니다.")
-  }
+      downloadShareholderRegistryWorkbook({
+        listName: effectiveListName.trim() || null,
+        filterDescription: buildDashboardExportFilterDescription({
+          listName: effectiveListName,
+          filterPrimary,
+          filterCompany,
+          filterMaker,
+        }),
+        rows: shareholders as Tables<"shareholders">[],
+        options: opts,
+        fileBaseName: base,
+        ctx: {
+          formatHistoryInline: () => "",
+          getLatestModifier: () => "",
+          getLatestModifiedDate: () => "",
+          allChanges: {},
+          usersMap: {},
+          fieldLabels: FIELD_LABELS,
+        },
+      })
+      toast.success("엑셀 파일을 저장했습니다.")
+    },
+    [
+      shareholders,
+      effectiveListName,
+      filterPrimary,
+      filterCompany,
+      filterMaker,
+    ],
+  )
 
   // /admin 은 워크스페이스 전용 대시보드. 통합(플랫폼) 현황은 /admin/integrated
   const memberCount = workspaceMembersWithUsers.length
@@ -574,69 +843,251 @@ export function WorkspaceDashboardBody() {
 
       {lists.length > 0 && (
         <ListDashboardSection>
-          <ContentCard>
-            <CardHeader>
-              <CardTitle>주주명부 현황</CardTitle>
-            </CardHeader>
-            <ListSelectRow>
-              <ListSelectLabel>명부 선택</ListSelectLabel>
-              <ListSelect
-                value={effectiveListId ?? ""}
-                onChange={(e) => setSelectedListId(e.target.value)}>
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name}
-                  </option>
+          <ListDashboardGrid>
+            <ContentCard>
+              <CardHeader>
+                <CardTitle>주주명부 현황</CardTitle>
+              </CardHeader>
+              <ListSelectRow>
+                <ListSelectLabel>명부 선택</ListSelectLabel>
+                <ListSelect
+                  value={effectiveListId ?? ""}
+                  onChange={(e) => setSelectedListId(e.target.value)}>
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </ListSelect>
+              </ListSelectRow>
+              <StatusCountGrid>
+                {PRIMARY_STATUS_OPTIONS.map((p) => (
+                  <StatusCountCard key={p} color={statusCardColor(p)}>
+                    <div>{p}</div>
+                    <div>{byPrimary[p] ?? 0}</div>
+                  </StatusCountCard>
                 ))}
-              </ListSelect>
-            </ListSelectRow>
-            <StatusCountGrid>
-              {PRIMARY_STATUS_OPTIONS.map((p) => (
-                <StatusCountCard key={p} color={statusCardColor(p)}>
-                  <div>{p}</div>
-                  <div>{byPrimary[p] ?? 0}</div>
+                <StatusCountCard color={COLORS.blue[500]}>
+                  <div>주식 수</div>
+                  <div>{totalStocks.toLocaleString()}</div>
                 </StatusCountCard>
-              ))}
-              <StatusCountCard color={COLORS.blue[500]}>
-                <div>주식 수</div>
-                <div>{totalStocks.toLocaleString()}</div>
-              </StatusCountCard>
-            </StatusCountGrid>
-            <DetailBreakdownBlock>
-              <DetailBreakdownTitle>세부 상태별</DetailBreakdownTitle>
-              <DetailBreakdownHint>
-                위 명부·필터와 동일한 주주 목록을 기준으로, 저장된 상태
-                문자열에서 1차·세부를 나눈 뒤 세부별로 집계합니다.
+              </StatusCountGrid>
+              <DetailBreakdownBlock>
+                <DetailBreakdownTitle>세부 상태별</DetailBreakdownTitle>
+                <DetailBreakdownHint>
+                  위 1차 요약·아래 범위 조건과 동일한 주주 목록을 기준으로,
+                  저장된 상태 문자열에서 1차·세부를 나눈 뒤 세부별로 집계합니다.
+                </DetailBreakdownHint>
+                {detailBreakdownRows.length === 0 ? (
+                  <DetailBreakdownHint style={{ marginBottom: 0 }}>
+                    표시할 주주가 없습니다.
+                  </DetailBreakdownHint>
+                ) : (
+                  <DetailTableScroll>
+                    <DetailTable>
+                      <thead>
+                        <tr>
+                          <DetailTh scope="col" style={{ width: "7.5rem" }}>
+                            1차
+                          </DetailTh>
+                          <DetailTh scope="col">세부 상태</DetailTh>
+                          <DetailTh scope="col" style={{ textAlign: "right" }}>
+                            인원
+                          </DetailTh>
+                          <DetailTh scope="col" style={{ textAlign: "right" }}>
+                            주식수
+                          </DetailTh>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailBreakdownRows.map((row) => (
+                          <tr key={`${row.primary}\t${row.detail}`}>
+                            <DetailTd>
+                              <PrimaryPill $bg={statusCardColor(row.primary)}>
+                                {row.primary}
+                              </PrimaryPill>
+                            </DetailTd>
+                            <DetailTd>{row.detail}</DetailTd>
+                            <DetailTdNum>
+                              {row.count.toLocaleString()}명
+                            </DetailTdNum>
+                            <DetailTdNum>
+                              {row.stocks.toLocaleString()}
+                            </DetailTdNum>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <DetailTfoot>
+                        <tr>
+                          <DetailThFoot colSpan={2} scope="row">
+                            합계 ({detailBreakdownRows.length}개 세부 구간)
+                          </DetailThFoot>
+                          <DetailTdFoot>
+                            {detailTotals.count.toLocaleString()}명
+                          </DetailTdFoot>
+                          <DetailTdFoot>
+                            {detailTotals.stocks.toLocaleString()}
+                          </DetailTdFoot>
+                        </tr>
+                      </DetailTfoot>
+                    </DetailTable>
+                  </DetailTableScroll>
+                )}
+              </DetailBreakdownBlock>
+              <ScopeFilterSection>
+                <ScopeFilterSectionTitle>명부 범위</ScopeFilterSectionTitle>
+                <ScopeFilterSectionHint>
+                  아래는 위 집계·표와 같은 주주 목록을 좁히는 조건입니다. 1차
+                  상태는 저장된 상태 문자열을 위 세부 표와 같은 규칙으로 1차로
+                  분류한 뒤, 체크한 1차에 해당하는 주주만 남깁니다. 회사·담당은
+                  DB 값과 입력값이 정확히 일치할 때만 포함됩니다.
+                </ScopeFilterSectionHint>
+                <ScopeFilterPanels>
+                  <ScopeFilterPanel>
+                    <ScopeFilterPanelTitle>
+                      1차 상태로 좁히기
+                    </ScopeFilterPanelTitle>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        flexWrap: "wrap",
+                      }}>
+                      {PRIMARY_STATUS_OPTIONS.map((st) => (
+                        <label key={st}>
+                          <input
+                            type="checkbox"
+                            checked={filterPrimary.includes(st)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFilterPrimary((prev) => [...prev, st])
+                              } else {
+                                setFilterPrimary((prev) =>
+                                  prev.filter((x) => x !== st),
+                                )
+                              }
+                            }}
+                          />
+                          {st}
+                        </label>
+                      ))}
+                    </div>
+                  </ScopeFilterPanel>
+                  <ScopeFilterPanel>
+                    <ScopeFilterPanelTitle>
+                      소속·담당으로 좁히기
+                    </ScopeFilterPanelTitle>
+                    <FilterRow style={{ marginBottom: 0 }}>
+                      <FilterGroup>
+                        <ListSelectLabel>소속(회사)</ListSelectLabel>
+                        <FilterInput
+                          value={filterCompany}
+                          onChange={(e) => setFilterCompany(e.target.value)}
+                          placeholder="회사명 일부"
+                        />
+                      </FilterGroup>
+                      <FilterGroup>
+                        <ListSelectLabel>담당</ListSelectLabel>
+                        <FilterInput
+                          value={filterMaker}
+                          onChange={(e) => setFilterMaker(e.target.value)}
+                          placeholder="담당자"
+                        />
+                      </FilterGroup>
+                    </FilterRow>
+                  </ScopeFilterPanel>
+                </ScopeFilterPanels>
+                <ExportToolbar>
+                  <span
+                    style={{
+                      fontSize: "0.75rem",
+                      color: COLORS.gray[500],
+                      marginRight: "auto",
+                    }}>
+                    주주명부 보기와 동일한 엑셀 옵션(요약·변경이력·시트 분리
+                    등)을 선택할 수 있습니다.
+                  </span>
+                  <ExportButton
+                    type="button"
+                    onClick={() => setExportDialogOpen(true)}>
+                    엑셀보내기 ({shareholders.length}건)
+                  </ExportButton>
+                </ExportToolbar>
+              </ScopeFilterSection>
+              <ShareholderExportDialog
+                open={exportDialogOpen}
+                onClose={() => setExportDialogOpen(false)}
+                onConfirm={runDashboardExport}
+                filterDescriptionPreview={dashboardExportFilterPreview}
+                rowCount={shareholders.length}
+                scopeFootnote="(선택한 명부와 위 범위 조건이 적용된 주주입니다.)"
+              />
+            </ContentCard>
+            <ContentCard>
+              <CardHeader>
+                <CardTitle>현장요원·명부 요약</CardTitle>
+                <ViewAllLink href={`${workspaceAdminBase}/members`}>
+                  멤버 관리 →
+                </ViewAllLink>
+              </CardHeader>
+              <DetailBreakdownHint style={{ marginTop: "-0.25rem" }}>
+                주주의 &quot;담당(마커)&quot; 값이 현장요원 이름·이메일·사용자
+                ID와
+                <strong> 정확히 같을 때만</strong> 해당 명부에 배정된 것으로
+                집계합니다. 명부 배정은 멤버의 허용 명부와 같습니다.
               </DetailBreakdownHint>
-              {detailBreakdownRows.length === 0 ? (
+              {makerSummaryLoading ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    padding: "2rem 0",
+                  }}>
+                  <GlobalSpinner width={28} height={28} dotColor="#8536FF" />
+                </div>
+              ) : workspaceMembersWithUsers.filter(
+                  (m) => m.role === "field_agent",
+                ).length === 0 ? (
                 <DetailBreakdownHint style={{ marginBottom: 0 }}>
-                  표시할 주주가 없습니다.
+                  현장요원(용역) 역할 멤버가 없습니다. 멤버 관리에서 역할을
+                  부여하면 이 요약이 채워집니다.
+                </DetailBreakdownHint>
+              ) : fieldAgentProjectRows.length === 0 ? (
+                <DetailBreakdownHint style={{ marginBottom: 0 }}>
+                  집계된 담당 주주가 없습니다. 주주 편집에서 담당 필드를
+                  현장요원 표시 이름·이메일·ID와 맞춰 주세요.
                 </DetailBreakdownHint>
               ) : (
-                <DetailTableScroll>
+                <DetailTableScroll style={{ marginTop: "0.75rem" }}>
                   <DetailTable>
                     <thead>
                       <tr>
-                        <DetailTh scope="col">1차 상태</DetailTh>
-                        <DetailTh scope="col">세부 상태</DetailTh>
+                        <DetailTh scope="col">현장요원</DetailTh>
+                        <DetailTh scope="col">명부(프로젝트)</DetailTh>
                         <DetailTh scope="col" style={{ textAlign: "right" }}>
-                          인원
+                          담당 건수
                         </DetailTh>
                         <DetailTh scope="col" style={{ textAlign: "right" }}>
-                          주식수
+                          완료(1차)
+                        </DetailTh>
+                        <DetailTh scope="col" style={{ textAlign: "right" }}>
+                          주식수 합
                         </DetailTh>
                       </tr>
                     </thead>
                     <tbody>
-                      {detailBreakdownRows.map((row) => (
-                        <tr key={`${row.primary}\t${row.detail}`}>
-                          <DetailTd>{row.primary}</DetailTd>
-                          <DetailTd>{row.detail}</DetailTd>
+                      {fieldAgentProjectRows.map((row) => (
+                        <tr key={`${row.userId}\t${row.listId}`}>
+                          <DetailTd>{row.agentLabel}</DetailTd>
+                          <DetailTd>{row.listName}</DetailTd>
                           <DetailTdNum>
-                            {row.count.toLocaleString()}명
+                            {row.assignedCount.toLocaleString()}명
                           </DetailTdNum>
                           <DetailTdNum>
-                            {row.stocks.toLocaleString()}
+                            {row.completedCount.toLocaleString()}명
+                          </DetailTdNum>
+                          <DetailTdNum>
+                            {row.totalStocks.toLocaleString()}
                           </DetailTdNum>
                         </tr>
                       ))}
@@ -644,53 +1095,8 @@ export function WorkspaceDashboardBody() {
                   </DetailTable>
                 </DetailTableScroll>
               )}
-            </DetailBreakdownBlock>
-            <FilterRow>
-              <FilterGroup>
-                <ListSelectLabel>상태</ListSelectLabel>
-                <div
-                  style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {STATUS_OPTIONS.map((st) => (
-                    <label key={st}>
-                      <input
-                        type="checkbox"
-                        checked={filterStatus.includes(st)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFilterStatus((prev) => [...prev, st])
-                          } else {
-                            setFilterStatus((prev) =>
-                              prev.filter((x) => x !== st),
-                            )
-                          }
-                        }}
-                      />
-                      {st}
-                    </label>
-                  ))}
-                </div>
-              </FilterGroup>
-              <FilterGroup>
-                <ListSelectLabel>소속(회사)</ListSelectLabel>
-                <FilterInput
-                  value={filterCompany}
-                  onChange={(e) => setFilterCompany(e.target.value)}
-                  placeholder="회사명"
-                />
-              </FilterGroup>
-              <FilterGroup>
-                <ListSelectLabel>담당</ListSelectLabel>
-                <FilterInput
-                  value={filterMaker}
-                  onChange={(e) => setFilterMaker(e.target.value)}
-                  placeholder="담당자"
-                />
-              </FilterGroup>
-              <ExportButton onClick={handleExportExcel}>
-                엑셀 내보내기 ({shareholders.length}건)
-              </ExportButton>
-            </FilterRow>
-          </ContentCard>
+            </ContentCard>
+          </ListDashboardGrid>
         </ListDashboardSection>
       )}
 
