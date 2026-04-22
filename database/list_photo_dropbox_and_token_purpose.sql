@@ -1,5 +1,17 @@
 -- 명부별 공개 사진 접수함 + 업로드 토큰 용도 구분
 -- 적용 후: pnpm supabase:typegen (또는 typegen 스크립트)으로 클라이언트 타입 갱신 권장
+--
+-- list_upload_tokens 이 없는 프로젝트(초기 DB)용: 아래 CREATE 로 먼저 만든 뒤 purpose 만 보강합니다.
+
+CREATE TABLE IF NOT EXISTS list_upload_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  list_id uuid NOT NULL REFERENCES shareholder_lists (id) ON DELETE CASCADE,
+  token text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  created_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT list_upload_tokens_token_unique UNIQUE (token)
+);
 
 ALTER TABLE list_upload_tokens
   ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'member_session';
