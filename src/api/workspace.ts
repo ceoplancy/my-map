@@ -79,6 +79,81 @@ function viewportBBoxPostgrestFragment(
   return `lat.gte.${lat - latRange},lat.lte.${lat + latRange},lng.gte.${lng - lngRange},lng.lte.${lng + lngRange}`
 }
 
+/** PostgREST `.or()` 인자 내부: 이름·회사·주소·메모·휴대폰 등 OR로 묶은 ilike 조각(콤마 구분, 바깥 `or()` 없음) */
+function shareholderTextSearchOrInner(searchTrim: string): string {
+  const q = escapePostgrestLikePattern(searchTrim)
+
+  return [
+    `name.ilike.%${q}%`,
+    `company.ilike.%${q}%`,
+    `address.ilike.%${q}%`,
+    `address_original.ilike.%${q}%`,
+    `latlngaddress.ilike.%${q}%`,
+    `memo.ilike.%${q}%`,
+    `phone.ilike.%${q}%`,
+  ].join(",")
+}
+
+/**
+ * 주식 구간 OR + 뷰포트 bbox + 통합 검색을 PostgREST에 맞게 한 번의 `.or()`로만 적용한다.
+ * `or=(주식…)&or=(검색…)`처럼 `or` 키가 URL에 두 번 나오면 400이 나는 환경이 있어
+ * `or(and(구간,or(필드들)),…)` 형태로 합친다.
+ */
+function applyShareholderStockBboxSearchOr<Q extends { or: (_s: string) => Q }>(
+  query: Q,
+  args: {
+    searchTrim?: string
+    stocks?: { start: number; end: number }[]
+    bboxFragment: string | null
+  },
+): Q {
+  const stocks = args.stocks
+  const searchTrim = args.searchTrim?.trim()
+  const bboxFragment = args.bboxFragment
+  const searchInner = searchTrim ? shareholderTextSearchOrInner(searchTrim) : ""
+
+  if (stocks?.length) {
+    if (searchTrim) {
+      const disjuncts = stocks.map((r) => {
+        const bounds = `stocks.gte.${r.start},stocks.lte.${r.end}`
+
+        return bboxFragment
+          ? `and(${bounds},${bboxFragment},or(${searchInner}))`
+          : `and(${bounds},or(${searchInner}))`
+      })
+
+      return query.or(disjuncts.join(","))
+    }
+    if (bboxFragment) {
+      return query.or(
+        stocks
+          .map(
+            (r) =>
+              `and(stocks.gte.${r.start},stocks.lte.${r.end},${bboxFragment})`,
+          )
+          .join(","),
+      )
+    }
+
+    return query.or(
+      stocks
+        .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
+        .join(","),
+    )
+  }
+  if (bboxFragment && searchTrim) {
+    return query.or(`and(${bboxFragment},or(${searchInner}))`)
+  }
+  if (bboxFragment) {
+    return query.or(`and(${bboxFragment})`)
+  }
+  if (searchTrim) {
+    return query.or(searchInner)
+  }
+
+  return query
+}
+
 const getShareholderLists = async (workspaceId: string) => {
   const { data, error } = await supabase
     .from("shareholder_lists")
@@ -610,37 +685,17 @@ const getShareholders = async (params: ShareholdersParams) => {
       ? viewportBBoxPostgrestFragment(params.lat, params.lng, params.mapLevel)
       : null
 
-  if (params.stocks?.length) {
-    if (bboxFragment) {
-      const conditions = params.stocks
-        .map(
-          (r) =>
-            `and(stocks.gte.${r.start},stocks.lte.${r.end},${bboxFragment})`,
-        )
-        .join(",")
-      query = query.or(conditions)
-    } else {
-      const conditions = params.stocks
-        .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
-        .join(",")
-      query = query.or(conditions)
-    }
-  } else if (bboxFragment) {
-    query = query.or(`and(${bboxFragment})`)
-  }
+  query = applyShareholderStockBboxSearchOr(query, {
+    searchTrim,
+    stocks: params.stocks,
+    bboxFragment,
+  })
   if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
     const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
     if (bounds) {
       query = query.gte("stocks", bounds.min)
       query = query.lte("stocks", bounds.max)
     }
-  }
-
-  if (searchTrim) {
-    const q = escapePostgrestLikePattern(searchTrim)
-    query = query.or(
-      `name.ilike.%${q}%,company.ilike.%${q}%,address.ilike.%${q}%,address_original.ilike.%${q}%,latlngaddress.ilike.%${q}%`,
-    )
   }
 
   const { data, error } = await query
@@ -744,37 +799,17 @@ const getShareholderStats = async (
         ? viewportBBoxPostgrestFragment(params.lat, params.lng, params.mapLevel)
         : null
 
-    if (params.stocks?.length) {
-      if (statsBboxFragment) {
-        const conditions = params.stocks
-          .map(
-            (r) =>
-              `and(stocks.gte.${r.start},stocks.lte.${r.end},${statsBboxFragment})`,
-          )
-          .join(",")
-        q = q.or(conditions)
-      } else {
-        const conditions = params.stocks
-          .map((r) => `and(stocks.gte.${r.start},stocks.lte.${r.end})`)
-          .join(",")
-        q = q.or(conditions)
-      }
-    } else if (statsBboxFragment) {
-      q = q.or(`and(${statsBboxFragment})`)
-    }
+    q = applyShareholderStockBboxSearchOr(q, {
+      searchTrim: statsSearchTrim,
+      stocks: params.stocks,
+      bboxFragment: statsBboxFragment,
+    })
     if (hasCompanyStockFilterMap(params.companyStockFilterMap)) {
       const bounds = getCompanyStockGlobalBounds(params.companyStockFilterMap)
       if (bounds) {
         q = q.gte("stocks", bounds.min)
         q = q.lte("stocks", bounds.max)
       }
-    }
-
-    if (statsSearchTrim) {
-      const pat = escapePostgrestLikePattern(statsSearchTrim)
-      q = q.or(
-        `name.ilike.%${pat}%,company.ilike.%${pat}%,address.ilike.%${pat}%,address_original.ilike.%${pat}%,latlngaddress.ilike.%${pat}%`,
-      )
     }
 
     return q
