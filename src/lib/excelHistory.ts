@@ -16,6 +16,12 @@ export function normalizeMemoForHistory(
   return (raw ?? "").trim()
 }
 
+export function normalizePhoneForHistory(
+  raw: string | null | undefined,
+): string {
+  return (raw ?? "").trim()
+}
+
 /**
  * DB/레거시에서 온 history를 안전히 HistoryItem[]로 변환
  * (null, 잘못된 형식, 문자열 로그 항목은 제외)
@@ -48,17 +54,29 @@ export function normalizeExcelHistoryJson(raw: unknown): HistoryItem[] {
 }
 
 /**
- * 상태·메모 변경분을 UI(변경이력)에서 쓰는 HistoryChange 형태로 생성
+ * 상태·휴대폰·메모 변경분을 UI(변경이력)에서 쓰는 HistoryChange 형태로 생성
  */
 export function buildHistoryChanges(
-  row: { status: string | null | undefined; memo: string | null | undefined },
-  next: { status: string; memo: string },
+  row: {
+    status: string | null | undefined
+    memo: string | null | undefined
+    phone?: string | null | undefined
+  },
+  next: { status: string; memo: string; phone?: string },
 ): HistoryChange {
   const changes: HistoryChange = {}
   const oStatus = normalizeStatusForHistory(row.status)
   const nStatus = normalizeStatusForHistory(next.status)
   if (oStatus !== nStatus) {
     changes.status = { original: oStatus, modified: nStatus }
+  }
+  const oPhone = normalizePhoneForHistory(row.phone)
+  const nPhone = normalizePhoneForHistory(next.phone)
+  if (oPhone !== nPhone) {
+    changes.phone = {
+      original: oPhone.length > 0 ? oPhone : "(없음)",
+      modified: nPhone.length > 0 ? nPhone : "(없음)",
+    }
   }
   const oMemo = normalizeMemoForHistory(row.memo)
   const nMemo = normalizeMemoForHistory(next.memo)

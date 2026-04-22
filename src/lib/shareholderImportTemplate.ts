@@ -14,6 +14,7 @@ export const SHAREHOLDER_IMPORT_TEMPLATE_HEADERS = [
   "주소",
   "상태",
   "주식수",
+  "휴대폰",
   "메모",
   "담당",
 ] as const
@@ -52,6 +53,7 @@ function buildReadmeSheet(): XLSX.WorkSheet {
       `1차만 또는 "1차 - 세부" 형식. 1차 완료 세부는 앱에서 의결권 서류·신분증 사진 유무에 맞춰 자동 정리되며, 엑셀에는 정규 4종 조합(예: 완료 - 의결권 서류 완료 · 신분증 확보 완료)을 넣을 수 있습니다. (예시: ${uniqueExamples.join(", ")})`,
     ],
     ["주식수", "숫자. 쉼표 없이 입력 권장."],
+    ["휴대폰", "선택. 연락처(메모와 별도)."],
     ["메모", "선택."],
     ["담당", "선택. 마커(구분2)와 동일 용도."],
     [],
@@ -70,6 +72,7 @@ export function buildShareholderImportTemplateWorkbook(): XLSX.WorkBook {
     "서울특별시 중구 세종대로 110",
     "미방문",
     100,
+    "010-0000-0000",
     "비고 예시",
     "A팀",
   ]

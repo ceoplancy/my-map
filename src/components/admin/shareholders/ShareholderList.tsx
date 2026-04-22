@@ -850,6 +850,7 @@ export default function ShareholderList({ listId, listName }: Props) {
         searchTerm === "" ||
         item.company?.toLowerCase().includes(searchTerm) ||
         item.name?.toLowerCase().includes(searchTerm) ||
+        (item.phone ?? "").toLowerCase().includes(searchTerm) ||
         memoPlain.includes(searchTerm) ||
         item.address?.toLowerCase().includes(searchTerm) ||
         item.address_original?.toLowerCase().includes(searchTerm) ||

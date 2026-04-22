@@ -377,6 +377,9 @@ export type Database = {
           lng: number | null
           maker: string | null
           memo: string | null
+
+          /** 휴대폰·연락처 (메모와 별도) */
+          phone: string | null
           name: string | null
           status: string | null
           stocks: number
@@ -398,6 +401,7 @@ export type Database = {
           lng?: number | null
           maker?: string | null
           memo?: string | null
+          phone?: string | null
           name?: string | null
           status?: string | null
           stocks?: number
@@ -419,6 +423,7 @@ export type Database = {
           lng?: number | null
           maker?: string | null
           memo?: string | null
+          phone?: string | null
           name?: string | null
           status?: string | null
           stocks?: number

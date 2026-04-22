@@ -224,6 +224,7 @@ const CustomMapMarker = ({
         id: string
         status: string
         memo: string
+        phone: string | null
         image: string | null
         proxy_document_image: string | null
       }> & { id: string } = {
@@ -234,6 +235,9 @@ const CustomMapMarker = ({
         patch.status = rawStatus
       }
       patch.memo = patchData.memo ?? ""
+      patch.phone = (patchData.phone ?? "").trim()
+        ? String(patchData.phone).trim()
+        : null
       if ("image" in patchData) {
         const im = patchData.image
         patch.image = im === undefined ? null : im

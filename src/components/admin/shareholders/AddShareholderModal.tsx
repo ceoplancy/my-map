@@ -127,8 +127,9 @@ const defaultForm: Omit<CreateShareholderInput, "list_id"> = {
   address: null,
   status: "미방문",
   stocks: 0,
-  memo: null,
   maker: null,
+  phone: null,
+  memo: null,
 }
 
 export default function AddShareholderModal({
@@ -224,21 +225,32 @@ export default function AddShareholderModal({
             />
           </FormGroup>
           <FormGroup>
-            <Label>{FIELD_LABELS.memo}</Label>
-            <Input
-              type="text"
-              value={form.memo ?? ""}
-              onChange={(e) => update("memo", e.target.value || null)}
-              placeholder="메모"
-            />
-          </FormGroup>
-          <FormGroup>
             <Label>{FIELD_LABELS.maker}</Label>
             <Input
               type="text"
               value={form.maker ?? ""}
               onChange={(e) => update("maker", e.target.value || null)}
               placeholder="마커(구분2)"
+            />
+          </FormGroup>
+          <FormGroup>
+            <Label>{FIELD_LABELS.phone}</Label>
+            <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={form.phone ?? ""}
+              onChange={(e) => update("phone", e.target.value || null)}
+              placeholder="010-0000-0000"
+            />
+          </FormGroup>
+          <FormGroup>
+            <Label>{FIELD_LABELS.memo}</Label>
+            <Input
+              type="text"
+              value={form.memo ?? ""}
+              onChange={(e) => update("memo", e.target.value || null)}
+              placeholder="메모"
             />
           </FormGroup>
           <ButtonGroup>

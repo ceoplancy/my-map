@@ -167,6 +167,7 @@ function buildDetailRecord(params: {
 
   o["상태"] = item.status ?? ""
   o["주식수"] = item.stocks ?? 0
+  o["휴대폰"] = item.phone ?? ""
   o["메모"] = item.memo ?? ""
 
   if (options.includeMaker) {
@@ -192,7 +193,7 @@ function detailKeysOrdered(
   if (options.includeCoordinates) keys.push("위도", "경도")
   if (options.includeGeocodeStatus) keys.push("주소 변환")
   if (options.includeResolvedAddress) keys.push("주소 변환 기준")
-  keys.push("상태", "주식수", "메모")
+  keys.push("상태", "주식수", "휴대폰", "메모")
   if (options.includeMaker) keys.push("담당")
   keys.push("신분증 사진", "의결권 서류 사진", "최종수정자", "최종수정일")
   if (options.changeHistoryMode === "inline") keys.push("변경이력")
@@ -225,6 +226,7 @@ function buildColInfosForKeys(keys: string[]): XLSX.ColInfo[] {
     "주소 변환 기준": 40,
     상태: 12,
     주식수: 8,
+    휴대폰: 14,
     메모: 30,
     담당: 12,
     "신분증 사진": 8,

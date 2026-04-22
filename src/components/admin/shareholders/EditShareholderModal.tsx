@@ -288,6 +288,7 @@ export const FIELD_LABELS: Record<string, string> = {
   maker: "마커(구분2)",
   stocks: "주식수",
   memo: "메모",
+  phone: "휴대폰 번호",
   image: "신분증 사진 URL",
   proxy_document_image: "의결권 서류 사진 URL",
 }
@@ -351,6 +352,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
           stocks: formData.stocks,
           latlngaddress: formData.latlngaddress,
           memo: formData.memo,
+          phone: formData.phone,
           maker: formData.maker,
           image: formData.image,
           proxy_document_image: formData.proxy_document_image,
@@ -497,19 +499,24 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                 />
               </FormGroup>
               <FormGroup>
-                <Label>{FIELD_LABELS.memo}</Label>
-                <Input
-                  type="text"
-                  value={formData.memo || ""}
-                  onChange={(e) => handleChange("memo", e.target.value)}
-                />
-              </FormGroup>
-              <FormGroup>
                 <Label>{FIELD_LABELS.maker}</Label>
                 <Input
                   type="text"
                   value={formData.maker || ""}
                   onChange={(e) => handleChange("maker", e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.phone}</Label>
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="010-0000-0000"
+                  value={formData.phone ?? ""}
+                  onChange={(e) =>
+                    handleChange("phone", e.target.value || null)
+                  }
                 />
               </FormGroup>
               <FormGroup>
@@ -752,6 +759,14 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   </button>
                 ) : null}
               </FormGroup>
+              <FormGroup>
+                <Label>{FIELD_LABELS.memo}</Label>
+                <Input
+                  type="text"
+                  value={formData.memo || ""}
+                  onChange={(e) => handleChange("memo", e.target.value)}
+                />
+              </FormGroup>
             </FormSection>
           </FormGrid>
 
@@ -796,18 +811,6 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                           </ModifierInfo>
                         </HistoryHeader>
                         <HistoryDetails>
-                          {history.changes?.memo && (
-                            <ChangeItem>
-                              <FieldName>메모</FieldName>
-                              <ChangeContent>
-                                <span>
-                                  {history.changes.memo.original || "-"}
-                                </span>
-                                <span>→</span>
-                                <span>{history.changes.memo.modified}</span>
-                              </ChangeContent>
-                            </ChangeItem>
-                          )}
                           {history.changes?.status && (
                             <ChangeItem>
                               <FieldName>상태</FieldName>
@@ -821,6 +824,30 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                                   status={history.changes.status.modified}>
                                   {history.changes.status.modified}
                                 </StatusBadge>
+                              </ChangeContent>
+                            </ChangeItem>
+                          )}
+                          {history.changes?.phone && (
+                            <ChangeItem>
+                              <FieldName>{FIELD_LABELS.phone}</FieldName>
+                              <ChangeContent>
+                                <span>
+                                  {history.changes.phone.original || "-"}
+                                </span>
+                                <span>→</span>
+                                <span>{history.changes.phone.modified}</span>
+                              </ChangeContent>
+                            </ChangeItem>
+                          )}
+                          {history.changes?.memo && (
+                            <ChangeItem>
+                              <FieldName>메모</FieldName>
+                              <ChangeContent>
+                                <span>
+                                  {history.changes.memo.original || "-"}
+                                </span>
+                                <span>→</span>
+                                <span>{history.changes.memo.modified}</span>
                               </ChangeContent>
                             </ChangeItem>
                           )}

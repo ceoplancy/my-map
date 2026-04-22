@@ -14,6 +14,7 @@ import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
 
 export type HistoryChange = {
   memo?: { original: string; modified: string }
+  phone?: { original: string; modified: string }
   status?: { original: string; modified: string }
 }
 
@@ -116,6 +117,20 @@ const MarkerDetailTable = ({
     </TableRow>
   ) : null
 
+  const phoneVal =
+    "phone" in (data as MapMarkerData) ? (data as MapMarkerData).phone : null
+  const phoneRow =
+    phoneVal != null && String(phoneVal).trim() !== "" ? (
+      <TableRow key="phone" $hideLabels={hideRowLabels}>
+        {!hideRowLabels && <TableHeader>휴대폰</TableHeader>}
+        <TableCell
+          colSpan={hideRowLabels ? 2 : undefined}
+          $hideLabels={hideRowLabels}>
+          {String(phoneVal).trim()}
+        </TableCell>
+      </TableRow>
+    ) : null
+
   const memoRow = (
     <TableRow key="memo" $hideLabels={hideRowLabels}>
       {!hideRowLabels && <TableHeader>메모</TableHeader>}
@@ -202,8 +217,9 @@ const MarkerDetailTable = ({
               <TableCell>{data.company}</TableCell>
             </TableRow>
           )}
-          {memoRow}
+          {phoneRow}
           {historyRow}
+          {memoRow}
         </tbody>
       </Table>
     </TableContainer>
@@ -576,20 +592,6 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
         </ModifierInfo>
       </HistoryHeader>
       <HistoryDetails>
-        {history.changes?.memo && (
-          <ChangeItem>
-            <FieldName>메모</FieldName>
-            <ChangeContent>
-              <ChangeText>
-                {history.changes.memo.original || "(없음)"}
-              </ChangeText>
-              <ArrowIcon>→</ArrowIcon>
-              <ChangeText highlight>
-                {history.changes.memo.modified || "(없음)"}
-              </ChangeText>
-            </ChangeContent>
-          </ChangeItem>
-        )}
         {history.changes?.status && (
           <ChangeItem>
             <FieldName>상태</FieldName>
@@ -601,6 +603,34 @@ const HistoryCardItem = ({ history }: { history: HistoryItem }) => {
               <StatusBadge status={history.changes.status.modified}>
                 {history.changes.status.modified}
               </StatusBadge>
+            </ChangeContent>
+          </ChangeItem>
+        )}
+        {history.changes?.phone && (
+          <ChangeItem>
+            <FieldName>휴대폰</FieldName>
+            <ChangeContent>
+              <ChangeText>
+                {history.changes.phone.original || "(없음)"}
+              </ChangeText>
+              <ArrowIcon>→</ArrowIcon>
+              <ChangeText highlight>
+                {history.changes.phone.modified || "(없음)"}
+              </ChangeText>
+            </ChangeContent>
+          </ChangeItem>
+        )}
+        {history.changes?.memo && (
+          <ChangeItem>
+            <FieldName>메모</FieldName>
+            <ChangeContent>
+              <ChangeText>
+                {history.changes.memo.original || "(없음)"}
+              </ChangeText>
+              <ArrowIcon>→</ArrowIcon>
+              <ChangeText highlight>
+                {history.changes.memo.modified || "(없음)"}
+              </ChangeText>
             </ChangeContent>
           </ChangeItem>
         )}

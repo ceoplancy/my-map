@@ -1002,6 +1002,7 @@ export type CreateShareholderInput = {
   status?: string | null
   stocks?: number
   memo?: string | null
+  phone?: string | null
   maker?: string | null
   lat?: number | null
   lng?: number | null
@@ -1023,6 +1024,7 @@ export const useCreateShareholder = () => {
           status: input.status ?? "미방문",
           stocks: input.stocks ?? 0,
           memo: input.memo ?? null,
+          phone: input.phone ?? null,
           maker: input.maker ?? null,
           lat: input.lat ?? null,
           lng: input.lng ?? null,
@@ -1438,6 +1440,7 @@ export type ShareholderChangeHistoryForMapItem = {
   modifier: string
   changes: {
     memo?: { original: string; modified: string }
+    phone?: { original: string; modified: string }
     status?: { original: string; modified: string }
   }
 }
@@ -1473,6 +1476,12 @@ async function fetchShareholderChangeHistoryForMap(
     for (const r of group) {
       if (r.field === "memo") {
         changes.memo = {
+          original: r.old_value ?? "",
+          modified: r.new_value ?? "",
+        }
+      }
+      if (r.field === "phone") {
+        changes.phone = {
           original: r.old_value ?? "",
           modified: r.new_value ?? "",
         }

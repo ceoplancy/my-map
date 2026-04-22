@@ -111,6 +111,7 @@ const MakerPatchModalChildren = ({
       statusPrimary: splitShareholderStatus(makerData?.status).primary,
       statusDetail: splitShareholderStatus(makerData?.status).detail,
       memo: makerData?.memo ?? "",
+      phone: makerData?.phone ?? "",
       stocks: makerData?.stocks ?? 0,
       image: makerData?.image ?? "",
       proxy_document_image: makerData?.proxy_document_image ?? "",
@@ -142,6 +143,7 @@ const MakerPatchModalChildren = ({
         !hasPatchChanges(makerData, {
           status,
           memo: values.memo,
+          phone: values.phone || null,
           image: values.image || null,
           proxy_document_image: values.proxy_document_image?.trim()
             ? values.proxy_document_image
@@ -159,10 +161,12 @@ const MakerPatchModalChildren = ({
       const original = {
         status: makerData.status,
         memo: makerData.memo,
+        phone: makerData.phone,
       }
       const modified = {
         status,
         memo: values.memo,
+        phone: values.phone || null,
       }
       const name = user?.user?.user_metadata?.name
       const email = user?.user?.email ?? ""
@@ -200,6 +204,7 @@ const MakerPatchModalChildren = ({
         name: values.name,
         status,
         memo: values.memo,
+        phone: values.phone?.trim() ? values.phone.trim() : null,
         stocks: values.stocks,
         image: values.image,
         proxy_document_image: values.proxy_document_image?.trim()
@@ -245,6 +250,7 @@ const MakerPatchModalChildren = ({
         statusPrimary: parsed.primary,
         statusDetail: parsed.detail,
         memo: makerData.memo ?? "",
+        phone: makerData.phone ?? "",
         stocks: makerData.stocks ?? 0,
         image: makerData.image ?? "",
         proxy_document_image: makerData.proxy_document_image ?? "",
@@ -308,6 +314,8 @@ const MakerPatchModalChildren = ({
     const proxyChanged =
       (formik.values.proxy_document_image || "").trim() !==
       (makerData.proxy_document_image || "").trim()
+    const phoneChanged =
+      (formik.values.phone || "").trim() !== (makerData.phone || "").trim()
     if (pendingComposedStatus === null) {
       return false
     }
@@ -315,10 +323,17 @@ const MakerPatchModalChildren = ({
       normalizeStatusForPatch(pendingComposedStatus) !==
       normalizeStatusForPatch(makerData.status)
 
-    return statusChanged || memoChanged || imageChanged || proxyChanged
+    return (
+      statusChanged ||
+      memoChanged ||
+      phoneChanged ||
+      imageChanged ||
+      proxyChanged
+    )
   }, [
     makerData,
     formik.values.memo,
+    formik.values.phone,
     pendingComposedStatus,
     formik.values.image,
     formik.values.proxy_document_image,
@@ -496,18 +511,6 @@ const MakerPatchModalChildren = ({
                     세부 상태를 선택해야 저장할 수 있습니다.
                   </ValidationHint>
                 )}
-            </Section>
-
-            <Section>
-              <SectionTitle>메모</SectionTitle>
-              <StyledTextarea
-                name="memo"
-                value={removeTags(formik.values.memo)}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="메모를 입력하세요..."
-                disabled={isSaveBusy}
-              />
             </Section>
 
             {makerData && (
@@ -735,6 +738,31 @@ const MakerPatchModalChildren = ({
                       의결권 서류 사진 삭제
                     </PhotoRemoveBtn>
                   ) : null}
+                </Section>
+                <Section>
+                  <SectionTitle>휴대폰 번호</SectionTitle>
+                  <StyledSingleLineInput
+                    name="phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="010-0000-0000"
+                    value={formik.values.phone}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    disabled={isSaveBusy}
+                  />
+                </Section>
+                <Section>
+                  <SectionTitle>메모</SectionTitle>
+                  <StyledTextarea
+                    name="memo"
+                    value={removeTags(formik.values.memo)}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    placeholder="메모를 입력하세요..."
+                    disabled={isSaveBusy}
+                  />
                 </Section>
               </>
             )}
@@ -1029,6 +1057,35 @@ const PhotoRemoveBtn = styled.button`
   cursor: pointer;
   &:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
+  }
+`
+
+const StyledSingleLineInput = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: ${COLORS.gray[400]};
+  }
+
+  &:hover:not(:disabled) {
+    border-color: ${COLORS.blue[300]};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${COLORS.blue[500]};
+    box-shadow: 0 0 0 3px ${COLORS.blue[100]};
+  }
+
+  &:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
   }
 `

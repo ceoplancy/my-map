@@ -176,7 +176,9 @@ export const STATUS_DETAIL_OPTIONS: Record<PrimaryStatus, readonly string[]> = {
   완료: [...CANONICAL_COMPLETION_DETAILS, ...LEGACY_COMPLETE_DETAILS],
   보류: ["거부", "재방문 요청", "부재중"],
   실패: ["완강한 거부", "방문 실패", "주소 오류"],
-  전자투표: ["전자투표 완료", "전자투표 의사", "전자투표 의향"],
+
+  /** 「전자투표 의향」은 구 데이터 호환용으로만 인식·저장 시 「전자투표 의사」로 통일 */
+  전자투표: ["전자투표 완료", "전자투표 의사"],
 
   /**
    * 신규 선택은 두 가지만. 구 명부 값(참석 완료·불참 예정·구 참석 예정 문구)은 허용·필터용으로 유지.
@@ -198,6 +200,16 @@ export const AGMEETING_DETAIL_OPTIONS_FOR_UI = [
 
 const STATUS_DELIMITER = " - "
 
+const E_VOTE_DETAIL_LEGACY_UI = "전자투표 의향"
+const E_VOTE_DETAIL_CANONICAL_UI = "전자투표 의사"
+
+/** 구 명부·UI의 「전자투표 의향」→「전자투표 의사」와 동일 취급 */
+export function normalizeElectronicVoteDetail(detail: string): string {
+  const t = detail.trim()
+
+  return t === E_VOTE_DETAIL_LEGACY_UI ? E_VOTE_DETAIL_CANONICAL_UI : detail
+}
+
 function isPrimaryStatus(v: string): v is PrimaryStatus {
   return (PRIMARY_STATUS_OPTIONS as readonly string[]).includes(v)
 }
@@ -206,14 +218,26 @@ export function splitShareholderStatus(raw: string | null | undefined): {
   primary: PrimaryStatus
   detail: string
 } {
-  const status = (raw ?? "").trim()
+  let status = (raw ?? "").trim()
+  const evLegacyFull = `전자투표${STATUS_DELIMITER}${E_VOTE_DETAIL_LEGACY_UI}`
+  const evCanonFull = `전자투표${STATUS_DELIMITER}${E_VOTE_DETAIL_CANONICAL_UI}`
+  if (status === evLegacyFull) {
+    status = evCanonFull
+  }
+  if (status === E_VOTE_DETAIL_LEGACY_UI) {
+    status = E_VOTE_DETAIL_CANONICAL_UI
+  }
   if (status === "") {
     return { primary: "미방문", detail: STATUS_DETAIL_OPTIONS.미방문[0] }
   }
   if (status.includes(STATUS_DELIMITER)) {
     const [head, ...tail] = status.split(STATUS_DELIMITER)
     if (isPrimaryStatus(head)) {
-      const detail = tail.join(STATUS_DELIMITER).trim()
+      const detailRaw = tail.join(STATUS_DELIMITER).trim()
+      const detail =
+        head === "전자투표"
+          ? normalizeElectronicVoteDetail(detailRaw)
+          : detailRaw
       if (detail.length > 0) {
         return { primary: head, detail }
       }
@@ -229,7 +253,16 @@ export function splitShareholderStatus(raw: string | null | undefined): {
   for (const primary of PRIMARY_STATUS_OPTIONS) {
     const detailList = STATUS_DETAIL_OPTIONS[primary]
     if (detailList.includes(status)) {
-      return { primary, detail: status }
+      return {
+        primary,
+        detail:
+          primary === "전자투표"
+            ? normalizeElectronicVoteDetail(status)
+            : status,
+      }
+    }
+    if (primary === "전자투표" && status === E_VOTE_DETAIL_LEGACY_UI) {
+      return { primary: "전자투표", detail: E_VOTE_DETAIL_CANONICAL_UI }
     }
   }
 
@@ -263,7 +296,10 @@ export function composeShareholderStatus(
   primary: PrimaryStatus,
   detail: string,
 ): string {
-  const normalizedDetail = detail.trim()
+  let normalizedDetail = detail.trim()
+  if (primary === "전자투표") {
+    normalizedDetail = normalizeElectronicVoteDetail(normalizedDetail)
+  }
   if (primary === "미방문") return "미방문"
   if (normalizedDetail === "") return primary
 
@@ -277,8 +313,9 @@ export function isAllowedStatusDetail(
 ): boolean {
   const d = (detail ?? "").trim()
   if (!d) return false
+  const check = primary === "전자투표" ? normalizeElectronicVoteDetail(d) : d
 
-  return (STATUS_DETAIL_OPTIONS[primary] ?? []).includes(d)
+  return (STATUS_DETAIL_OPTIONS[primary] ?? []).includes(check)
 }
 
 export function getPrimaryStatusCategory(

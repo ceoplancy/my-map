@@ -18,6 +18,7 @@ export type ImportSpreadsheetRow = {
   latlngaddress: string | null
   lng: number | null
   maker: string | null
+  phone: string | null
   memo: string | null
   name: string | null
   status: string | null
