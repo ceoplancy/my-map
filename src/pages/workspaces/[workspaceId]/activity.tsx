@@ -13,6 +13,7 @@ import { formatDateTimeKo } from "@/lib/formatDateTimeKo"
 import supabase from "@/lib/supabase/supabaseClient"
 import { ROUTES } from "@/constants/routes"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
+import FieldAgentAgreementGate from "@/components/workspace/FieldAgentAgreementGate"
 
 const Page = styled.div`
   min-height: 100vh;
@@ -169,6 +170,9 @@ export default function WorkspaceActivityPage() {
 
   return (
     <Page>
+      <FieldAgentAgreementGate
+        workspaceId={typeof workspaceId === "string" ? workspaceId : null}
+      />
       <Title>활동 기록</Title>
       <p style={{ marginBottom: "1rem" }}>
         <Link href={ROUTES.workspaces} style={{ color: COLORS.blue[600] }}>
@@ -179,6 +183,12 @@ export default function WorkspaceActivityPage() {
           href={`/workspaces/${workspaceId}`}
           style={{ color: COLORS.blue[600] }}>
           지도로
+        </Link>{" "}
+        ·{" "}
+        <Link
+          href={`/workspaces/${workspaceId}/photo-drop-inbox`}
+          style={{ color: COLORS.blue[600] }}>
+          공개 접수함
         </Link>
       </p>
       <div>

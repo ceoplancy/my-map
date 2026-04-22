@@ -47,6 +47,7 @@ import { ROUTES } from "@/constants/routes"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
 import RulesAcceptanceGate from "@/components/workspace/RulesAcceptanceGate"
+import FieldAgentAgreementGate from "@/components/workspace/FieldAgentAgreementGate"
 
 const WorkspaceMapPage = () => {
   const isMobile = useMediaQuery("(max-width: 768px)")
@@ -479,6 +480,7 @@ const WorkspaceMapPage = () => {
 
   return (
     <>
+      <FieldAgentAgreementGate workspaceId={wsId} />
       {userId && visibleListIds.length > 0 && (
         <RulesAcceptanceGate listIds={visibleListIds} userId={userId} />
       )}
@@ -635,6 +637,19 @@ const WorkspaceMapPage = () => {
                 }>
                 <ListIcon />
                 활동 기록
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  if (wsId)
+                    void router.push(`/workspaces/${wsId}/photo-drop-inbox`)
+                }}
+                style={
+                  wsId
+                    ? undefined
+                    : { opacity: 0.45, pointerEvents: "none" as const }
+                }>
+                <ListIcon />
+                공개 접수함
               </MenuItem>
               {isWorkspaceAdmin && (
                 <MenuItem onClick={() => router.push(ROUTES.workspaces)}>

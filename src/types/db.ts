@@ -177,6 +177,7 @@ export type Database = {
           expires_at: string
           id: string
           list_id: string
+          purpose: string
           token: string
         }
         Insert: {
@@ -185,6 +186,7 @@ export type Database = {
           expires_at: string
           id?: string
           list_id: string
+          purpose?: string
           token: string
         }
         Update: {
@@ -193,11 +195,47 @@ export type Database = {
           expires_at?: string
           id?: string
           list_id?: string
+          purpose?: string
           token?: string
         }
         Relationships: [
           {
             foreignKeyName: "list_upload_tokens_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "shareholder_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_photo_dropbox: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          id: string
+          list_id: string
+          original_filename: string | null
+          storage_path: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          list_id: string
+          original_filename?: string | null
+          storage_path: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          list_id?: string
+          original_filename?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_photo_dropbox_list_id_fkey"
             columns: ["list_id"]
             isOneToOne: false
             referencedRelation: "shareholder_lists"
@@ -479,6 +517,7 @@ export type Database = {
         Row: {
           allowed_list_ids: string[] | null
           created_at: string
+          field_agent_agreement_accepted_at: string | null
           id: string
           is_team_leader: boolean | null
           role: Database["public"]["Enums"]["workspace_role"]
@@ -488,6 +527,7 @@ export type Database = {
         Insert: {
           allowed_list_ids?: string[] | null
           created_at?: string
+          field_agent_agreement_accepted_at?: string | null
           id?: string
           is_team_leader?: boolean | null
           role: Database["public"]["Enums"]["workspace_role"]
@@ -497,6 +537,7 @@ export type Database = {
         Update: {
           allowed_list_ids?: string[] | null
           created_at?: string
+          field_agent_agreement_accepted_at?: string | null
           id?: string
           is_team_leader?: boolean | null
           role?: Database["public"]["Enums"]["workspace_role"]
@@ -517,6 +558,8 @@ export type Database = {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"]
           created_at: string
+          field_agent_agreement_body: string | null
+          field_agent_agreement_updated_at: string
           id: string
           name: string
           updated_at: string
@@ -524,6 +567,8 @@ export type Database = {
         Insert: {
           account_type: Database["public"]["Enums"]["account_type"]
           created_at?: string
+          field_agent_agreement_body?: string | null
+          field_agent_agreement_updated_at?: string
           id?: string
           name: string
           updated_at?: string
@@ -531,6 +576,8 @@ export type Database = {
         Update: {
           account_type?: Database["public"]["Enums"]["account_type"]
           created_at?: string
+          field_agent_agreement_body?: string | null
+          field_agent_agreement_updated_at?: string
           id?: string
           name?: string
           updated_at?: string

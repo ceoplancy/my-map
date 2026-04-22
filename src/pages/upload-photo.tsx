@@ -157,9 +157,18 @@ export default function UploadPhotoPage() {
 
         return
       }
+      if (data.purpose === "public_drop") {
+        await router.replace(
+          `/photo-drop?t=${encodeURIComponent(tokenStr)}`,
+          undefined,
+          { shallow: false },
+        )
+
+        return
+      }
       setTokenRow(data)
     })()
-  }, [router.isReady, tokenStr])
+  }, [router, router.isReady, tokenStr])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -237,12 +246,12 @@ export default function UploadPhotoPage() {
     )
   }
 
-  if (!userId) {
+  if (!tokenStr) {
     return (
       <Page>
-        <Title>로그인 필요</Title>
+        <Title>링크 오류</Title>
         <p style={{ color: COLORS.gray[600] }}>
-          사진 등록을 위해 로그인해 주세요.
+          링크에 토큰 쿼리가 없습니다. 발급받은 주소를 그대로 사용해 주세요.
         </p>
       </Page>
     )
@@ -261,6 +270,17 @@ export default function UploadPhotoPage() {
     return (
       <Page>
         <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
+      </Page>
+    )
+  }
+
+  if (!userId) {
+    return (
+      <Page>
+        <Title>로그인 필요</Title>
+        <p style={{ color: COLORS.gray[600] }}>
+          사진 등록을 위해 로그인해 주세요.
+        </p>
       </Page>
     )
   }

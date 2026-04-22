@@ -33,6 +33,7 @@ export const WORKSPACE_ADMIN_SEGMENTS = [
   "users",
   "signup-requests",
   "change-history",
+  "field-agent-agreement",
 ] as const
 
 export type WorkspaceAdminSegment = (typeof WORKSPACE_ADMIN_SEGMENTS)[number]
@@ -49,6 +50,7 @@ export const WORKSPACE_ADMIN_SEGMENT_LABELS: Record<
   users: "사용자 관리",
   "signup-requests": "가입 승인",
   "change-history": "변경 이력",
+  "field-agent-agreement": "현장요원 동의문",
 }
 
 /** 워크스페이스 관리 베이스 경로 */

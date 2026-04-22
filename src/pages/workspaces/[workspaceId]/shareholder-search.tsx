@@ -16,6 +16,7 @@ import { ROUTES } from "@/constants/routes"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import { useFilterStore } from "@/store/filterState"
 import type { MapMarkerData } from "@/types/map"
+import FieldAgentAgreementGate from "@/components/workspace/FieldAgentAgreementGate"
 
 const Page = styled.div`
   min-height: 100vh;
@@ -274,6 +275,9 @@ export default function WorkspaceShareholderSearchPage() {
 
   return (
     <Page>
+      <FieldAgentAgreementGate
+        workspaceId={typeof workspaceId === "string" ? workspaceId : null}
+      />
       <Title>주주 검색</Title>
       <NavRow>
         <Link href={`/workspaces/${workspaceId}`}>지도로 돌아가기</Link>

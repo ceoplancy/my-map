@@ -7,6 +7,7 @@ import {
   List as ListIcon,
   Business,
   PersonAdd,
+  Description,
 } from "@mui/icons-material"
 import { usePathname } from "next/navigation"
 import { useAdminStatus } from "@/api/auth"
@@ -186,6 +187,12 @@ const WORKSPACE_USERS = {
   icon: <People />,
 }
 
+const WORKSPACE_FIELD_AGENT_AGREEMENT = {
+  title: "현장요원 동의문",
+  path: "/field-agent-agreement",
+  icon: <Description />,
+}
+
 type NavItem = { title: string; path: string; icon: React.ReactNode }
 
 function NavItems({
@@ -316,6 +323,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               {currentWorkspace && (
                 <SingleNavLink
                   item={WORKSPACE_USERS}
+                  pathname={pathname}
+                  pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                  onNavigate={onNavigate}
+                />
+              )}
+              {currentWorkspace && (
+                <SingleNavLink
+                  item={WORKSPACE_FIELD_AGENT_AGREEMENT}
                   pathname={pathname}
                   pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
                   onNavigate={onNavigate}

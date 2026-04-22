@@ -1,3 +1,4 @@
+import { getAccessToken } from "@/lib/auth/clientAuth"
 import supabase from "@/lib/supabase/supabaseClient"
 
 export const SHAREHOLDER_PHOTO_BUCKET = "shareholder-photos"
@@ -11,21 +12,50 @@ export async function uploadShareholderPhotoAndGetPublicUrl(
   shareholderId: string,
   variant: ShareholderPhotoVariant = "id",
 ): Promise<string> {
-  const ext = file.type.includes("png") ? "png" : "webp"
-  const suffix = variant === "proxy" ? "-proxy" : ""
-  const path = `${listId}/${shareholderId}${suffix}.${ext}`
+  const access = await getAccessToken()
+  if (!access) {
+    throw new Error("로그인이 필요합니다.")
+  }
+
+  const signRes = await fetch("/api/workspace/shareholder-photo/sign", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access}`,
+    },
+    body: JSON.stringify({
+      listId,
+      shareholderId,
+      variant,
+      contentType: file.type || undefined,
+    }),
+  })
+  if (!signRes.ok) {
+    let msg = signRes.statusText
+    try {
+      const j = (await signRes.json()) as { error?: string }
+      if (j.error) msg = j.error
+    } catch {
+      void 0
+    }
+    throw new Error(msg)
+  }
+  const signed = (await signRes.json()) as {
+    bucket: string
+    path: string
+    token: string
+  }
 
   const { error } = await supabase.storage
-    .from(SHAREHOLDER_PHOTO_BUCKET)
-    .upload(path, file, {
-      upsert: true,
+    .from(signed.bucket)
+    .uploadToSignedUrl(signed.path, signed.token, file, {
       contentType: file.type || undefined,
     })
   if (error) throw error
 
   const { data } = supabase.storage
     .from(SHAREHOLDER_PHOTO_BUCKET)
-    .getPublicUrl(path)
+    .getPublicUrl(signed.path)
 
   return data.publicUrl
 }
