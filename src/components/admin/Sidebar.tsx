@@ -8,6 +8,7 @@ import {
   Business,
   PersonAdd,
   Description,
+  QrCode2,
 } from "@mui/icons-material"
 import { usePathname } from "next/navigation"
 import { useAdminStatus } from "@/api/auth"
@@ -193,6 +194,12 @@ const WORKSPACE_FIELD_AGENT_AGREEMENT = {
   icon: <Description />,
 }
 
+const WORKSPACE_PUBLIC_PHOTO_QR = {
+  title: "공개 접수 QR",
+  path: "/public-photo-drop-qr",
+  icon: <QrCode2 />,
+}
+
 type NavItem = { title: string; path: string; icon: React.ReactNode }
 
 function NavItems({
@@ -331,6 +338,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               {currentWorkspace && (
                 <SingleNavLink
                   item={WORKSPACE_FIELD_AGENT_AGREEMENT}
+                  pathname={pathname}
+                  pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
+                  onNavigate={onNavigate}
+                />
+              )}
+              {currentWorkspace && (
+                <SingleNavLink
+                  item={WORKSPACE_PUBLIC_PHOTO_QR}
                   pathname={pathname}
                   pathPrefix={getWorkspaceAdminBase(currentWorkspace.id)}
                   onNavigate={onNavigate}

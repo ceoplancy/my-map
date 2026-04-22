@@ -31,6 +31,7 @@ import {
 import GlobalSpinner from "@/components/ui/global-spinner"
 import { WORKSPACE_ROLE_LABELS } from "@/constants/roles"
 import Select from "@/components/ui/select"
+import { QrCode2 } from "@mui/icons-material"
 
 const WelcomeSection = styled.div`
   background: linear-gradient(135deg, white, #f8fafc);
@@ -1209,6 +1210,13 @@ export function WorkspaceDashboardBody() {
                 <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
               </ActionIcon>
               <ActionText>파일 가져오기</ActionText>
+            </ActionButton>
+
+            <ActionButton href={`${workspaceAdminBase}/public-photo-drop-qr`}>
+              <QrCode2
+                sx={{ width: 32, height: 32, color: "#4b5563", mb: 0.5 }}
+              />
+              <ActionText>공개 접수 QR</ActionText>
             </ActionButton>
 
             <SettingsButton onClick={() => toast.info("준비 중인 기능입니다.")}>

@@ -34,6 +34,7 @@ export const WORKSPACE_ADMIN_SEGMENTS = [
   "signup-requests",
   "change-history",
   "field-agent-agreement",
+  "public-photo-drop-qr",
 ] as const
 
 export type WorkspaceAdminSegment = (typeof WORKSPACE_ADMIN_SEGMENTS)[number]
@@ -51,6 +52,7 @@ export const WORKSPACE_ADMIN_SEGMENT_LABELS: Record<
   "signup-requests": "가입 승인",
   "change-history": "변경 이력",
   "field-agent-agreement": "현장요원 동의문",
+  "public-photo-drop-qr": "공개 접수 QR",
 }
 
 /** 워크스페이스 관리 베이스 경로 */
