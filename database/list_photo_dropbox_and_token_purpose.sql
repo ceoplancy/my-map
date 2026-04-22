@@ -21,3 +21,6 @@ CREATE INDEX IF NOT EXISTS list_photo_dropbox_list_created_idx
 
 COMMENT ON TABLE list_photo_dropbox IS
   '공개 접수(/photo-drop)로 올라온 파일 메타 — 스토리지 경로는 inbox/{list_id}/...';
+
+-- RLS: 브라우저 anon/인증 JWT로는 직접 접근 불가. 읽기·쓰기는 Next API의 service role만 사용.
+ALTER TABLE list_photo_dropbox ENABLE ROW LEVEL SECURITY;
