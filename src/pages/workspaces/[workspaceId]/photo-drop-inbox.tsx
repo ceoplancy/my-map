@@ -30,7 +30,34 @@ const Title = styled.h1`
   font-size: 1.5rem;
   font-weight: 800;
   color: ${COLORS.gray[900]};
-  margin-bottom: 1rem;
+  margin: 0 0 0.5rem;
+`
+
+const NavRow = styled.p`
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+  a {
+    color: ${COLORS.blue[600]};
+    font-weight: 700;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+`
+
+const SubNav = styled.p`
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[600]};
+  a {
+    color: ${COLORS.blue[600]};
+    font-weight: 600;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
 `
 
 const Select = styled.select`
@@ -137,27 +164,18 @@ export default function PhotoDropInboxPage() {
         workspaceId={typeof workspaceId === "string" ? workspaceId : null}
       />
       <Title>공개 접수함</Title>
+      <NavRow>
+        <Link href={`/workspaces/${workspaceId}`}>지도로 돌아가기</Link>
+      </NavRow>
       <p style={{ marginBottom: "1rem", color: COLORS.gray[600] }}>
         누구나 접수 링크로 올라온 사진만 모아 둡니다. 로그인한 워크스페이스 멤버
         중 이 명부에 접근 권한이 있는 사람만 볼 수 있습니다.
       </p>
-      <p style={{ marginBottom: "1rem" }}>
-        <Link href={ROUTES.workspaces} style={{ color: COLORS.blue[600] }}>
-          워크스페이스 목록
-        </Link>{" "}
-        ·{" "}
-        <Link
-          href={`/workspaces/${workspaceId}`}
-          style={{ color: COLORS.blue[600] }}>
-          지도로
-        </Link>{" "}
-        ·{" "}
-        <Link
-          href={`/workspaces/${workspaceId}/activity`}
-          style={{ color: COLORS.blue[600] }}>
-          활동 기록
-        </Link>
-      </p>
+      <SubNav>
+        <Link href={ROUTES.workspaces}>워크스페이스 목록</Link>
+        {" · "}
+        <Link href={`/workspaces/${workspaceId}/activity`}>활동 기록</Link>
+      </SubNav>
       <div>
         <label htmlFor="inbox-list" style={{ marginRight: 8 }}>
           명부

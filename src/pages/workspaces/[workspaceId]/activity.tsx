@@ -75,7 +75,34 @@ const Title = styled.h1`
   font-size: 1.5rem;
   font-weight: 800;
   color: ${COLORS.gray[900]};
-  margin-bottom: 1rem;
+  margin: 0 0 0.5rem;
+`
+
+const NavRow = styled.p`
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+  a {
+    color: ${COLORS.blue[600]};
+    font-weight: 700;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+`
+
+const SubNav = styled.p`
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: ${COLORS.gray[600]};
+  a {
+    color: ${COLORS.blue[600]};
+    font-weight: 600;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
 `
 
 const Table = styled.table`
@@ -174,23 +201,16 @@ export default function WorkspaceActivityPage() {
         workspaceId={typeof workspaceId === "string" ? workspaceId : null}
       />
       <Title>활동 기록</Title>
-      <p style={{ marginBottom: "1rem" }}>
-        <Link href={ROUTES.workspaces} style={{ color: COLORS.blue[600] }}>
-          워크스페이스 목록
-        </Link>{" "}
-        ·{" "}
-        <Link
-          href={`/workspaces/${workspaceId}`}
-          style={{ color: COLORS.blue[600] }}>
-          지도로
-        </Link>{" "}
-        ·{" "}
-        <Link
-          href={`/workspaces/${workspaceId}/photo-drop-inbox`}
-          style={{ color: COLORS.blue[600] }}>
+      <NavRow>
+        <Link href={`/workspaces/${workspaceId}`}>지도로 돌아가기</Link>
+      </NavRow>
+      <SubNav>
+        <Link href={ROUTES.workspaces}>워크스페이스 목록</Link>
+        {" · "}
+        <Link href={`/workspaces/${workspaceId}/photo-drop-inbox`}>
           공개 접수함
         </Link>
-      </p>
+      </SubNav>
       <div>
         <label htmlFor="act-list" style={{ marginRight: 8 }}>
           명부
