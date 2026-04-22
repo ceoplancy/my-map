@@ -19,6 +19,27 @@ ALTER TABLE list_upload_tokens
 COMMENT ON COLUMN list_upload_tokens.purpose IS
   'member_session: 로그인 후 /upload-photo ; public_drop: 비로그인 /photo-drop';
 
+-- list_upload_tokens RLS: 직접 SELECT는 막고, 조회는 GET /api/lookup/list-upload-token (service role).
+-- INSERT 는 해당 명부 워크스페이스 멤버(로그인)만.
+ALTER TABLE list_upload_tokens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "workspace_member_insert_list_upload_tokens"
+  ON list_upload_tokens;
+CREATE POLICY "workspace_member_insert_list_upload_tokens"
+  ON list_upload_tokens
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM shareholder_lists sl
+      INNER JOIN workspace_members wm
+        ON wm.workspace_id = sl.workspace_id
+       AND wm.user_id = auth.uid()
+      WHERE sl.id = list_id
+    )
+  );
+
 CREATE TABLE IF NOT EXISTS list_photo_dropbox (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   list_id uuid NOT NULL REFERENCES shareholder_lists (id) ON DELETE CASCADE,

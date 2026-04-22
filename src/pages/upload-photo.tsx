@@ -137,36 +137,38 @@ export default function UploadPhotoPage() {
       return
     }
     void (async () => {
-      const { data, error } = await supabase
-        .from("list_upload_tokens")
-        .select("*")
-        .eq("token", tokenStr)
-        .maybeSingle()
-      if (error) {
-        setTokenError(error.message)
-
-        return
-      }
-      if (!data) {
-        setTokenError("유효하지 않은 링크입니다.")
-
-        return
-      }
-      if (new Date(data.expires_at) < new Date()) {
-        setTokenError("만료된 링크입니다.")
-
-        return
-      }
-      if (data.purpose === "public_drop") {
-        await router.replace(
-          `/photo-drop?t=${encodeURIComponent(tokenStr)}`,
-          undefined,
-          { shallow: false },
+      try {
+        const res = await fetch(
+          `/api/lookup/list-upload-token?token=${encodeURIComponent(tokenStr)}`,
         )
+        if (!res.ok) {
+          let msg = res.statusText
+          try {
+            const j = (await res.json()) as { error?: string }
+            if (j.error) msg = j.error
+          } catch {
+            void 0
+          }
+          setTokenError(msg)
 
-        return
+          return
+        }
+        const data = (await res.json()) as TokenRow
+        if (data.purpose === "public_drop") {
+          await router.replace(
+            `/photo-drop?t=${encodeURIComponent(tokenStr)}`,
+            undefined,
+            { shallow: false },
+          )
+
+          return
+        }
+        setTokenRow(data)
+      } catch (e) {
+        setTokenError(
+          e instanceof Error ? e.message : "토큰을 확인하지 못했습니다.",
+        )
       }
-      setTokenRow(data)
     })()
   }, [router, router.isReady, tokenStr])
 
