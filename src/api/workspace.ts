@@ -1299,7 +1299,22 @@ export const usePatchShareholder = () => {
         "저장에 실패했습니다. 로그인 상태와 권한을 확인해 주세요.",
       )
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      if (data) {
+        const id = String(variables.patch.id)
+        queryClient.setQueriesData({ queryKey: ["shareholders"] }, (old) => {
+          if (!Array.isArray(old)) return old
+          let hit = false
+          const next = (old as Shareholder[]).map((row) => {
+            if (String(row.id) !== id) return row
+            hit = true
+
+            return { ...row, ...data }
+          })
+
+          return hit ? next : old
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ["shareholders"] })
       queryClient.invalidateQueries({ queryKey: ["changesForList"] })
       queryClient.invalidateQueries({

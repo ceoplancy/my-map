@@ -133,7 +133,12 @@ const MakerPatchModalChildren = ({
               values.image,
             )
           : (values.statusDetail ?? "").trim()
+      const status = composeShareholderStatus(statusPrimary, statusDetail)
+      const statusUnchangedVsMaker =
+        normalizeStatusForPatch(status) ===
+        normalizeStatusForPatch(makerData.status)
       if (
+        !statusUnchangedVsMaker &&
         statusPrimary !== "완료" &&
         !isAllowedStatusDetail(statusPrimary, statusDetail)
       ) {
@@ -143,7 +148,6 @@ const MakerPatchModalChildren = ({
 
         return
       }
-      const status = composeShareholderStatus(statusPrimary, statusDetail)
       if (
         !hasPatchChanges(makerData, {
           status,
@@ -322,12 +326,11 @@ const MakerPatchModalChildren = ({
     const phoneChanged =
       phoneDigitsOnly(formik.values.phone) !==
       phoneDigitsOnly(makerData.phone ?? "")
-    if (pendingComposedStatus === null) {
-      return false
-    }
     const statusChanged =
-      normalizeStatusForPatch(pendingComposedStatus) !==
-      normalizeStatusForPatch(makerData.status)
+      pendingComposedStatus !== null
+        ? normalizeStatusForPatch(pendingComposedStatus) !==
+          normalizeStatusForPatch(makerData.status)
+        : false
 
     return (
       statusChanged ||
@@ -345,10 +348,32 @@ const MakerPatchModalChildren = ({
     formik.values.proxy_document_image,
   ])
 
+  const nonStatusDraftChanged = useMemo(() => {
+    if (!makerData) return false
+
+    return (
+      normalizeMemoForPatch(formik.values.memo) !==
+        normalizeMemoForPatch(makerData.memo) ||
+      (formik.values.image || "").trim() !== (makerData.image || "").trim() ||
+      (formik.values.proxy_document_image || "").trim() !==
+        (makerData.proxy_document_image || "").trim() ||
+      phoneDigitsOnly(formik.values.phone) !==
+        phoneDigitsOnly(makerData.phone ?? "")
+    )
+  }, [
+    makerData,
+    formik.values.memo,
+    formik.values.image,
+    formik.values.proxy_document_image,
+    formik.values.phone,
+  ])
+
   const canSubmit =
     hasEditableChanges &&
-    (formik.values.statusPrimary === "완료" || statusCompleteNonComplete) &&
-    !isSaveBusy
+    !isSaveBusy &&
+    (formik.values.statusPrimary === "완료" ||
+      statusCompleteNonComplete ||
+      nonStatusDraftChanged)
 
   const mapLink = makerData
     ? getKakaoMapLinkUrl({
@@ -359,12 +384,13 @@ const MakerPatchModalChildren = ({
       })
     : null
 
-  const submitBlockReason =
-    formik.values.statusPrimary !== "완료" && !statusCompleteNonComplete
+  const submitBlockReason = !hasEditableChanges
+    ? "상태·메모·사진 중 변경한 뒤 저장할 수 있습니다"
+    : formik.values.statusPrimary !== "완료" &&
+        !statusCompleteNonComplete &&
+        !nonStatusDraftChanged
       ? "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
-      : !hasEditableChanges
-        ? "상태·메모·사진 중 변경한 뒤 저장할 수 있습니다"
-        : undefined
+      : undefined
 
   return (
     <>
