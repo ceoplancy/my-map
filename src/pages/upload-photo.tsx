@@ -1,5 +1,5 @@
 import { useRouter } from "next/router"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import styled from "@emotion/styled"
 import { toast } from "react-toastify"
 
@@ -70,6 +70,50 @@ const Pick = styled.button`
   }
 `
 
+const FileRow = styled.div`
+  position: relative;
+  margin-top: 1rem;
+`
+
+const FilePickButton = styled.button`
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: ${COLORS.blue[700]};
+  background: ${COLORS.blue[50]};
+  border: 1px solid ${COLORS.blue[200]};
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`
+
+const HiddenFileInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+`
+
+const FilePickHint = styled.p`
+  margin: 0;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.45;
+`
+
 type TokenRow = Tables<"list_upload_tokens">
 
 export default function UploadPhotoPage() {
@@ -88,6 +132,7 @@ export default function UploadPhotoPage() {
     { name: string; publicUrl: string; updatedAt: string | null }[]
   >([])
   const [recentListError, setRecentListError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const listId = tokenRow?.list_id ?? null
 
@@ -385,23 +430,34 @@ export default function UploadPhotoPage() {
         ))
       )}
       {selected ? (
-        <div style={{ marginTop: "1rem" }}>
+        <FileRow>
           <p style={{ fontWeight: 600, marginBottom: 8 }}>
             선택:{" "}
             {[selected.company, selected.name].filter(Boolean).join(" · ")}
           </p>
-          <Input
+          <FilePickButton
+            type="button"
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => fileInputRef.current?.click()}>
+            {busy ? "업로드 중…" : "신분증 사진 올리기 (갤러리·카메라)"}
+          </FilePickButton>
+          <HiddenFileInput
+            ref={fileInputRef}
             disabled={busy}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={(e) => {
               const f = e.target.files?.[0]
               e.target.value = ""
               if (f) void onUpload(f)
             }}
           />
-        </div>
+          <FilePickHint>
+            휴대폰에서 사진 앱·파일 선택이 열립니다. (기본 파일 입력창은
+            숨겼습니다.)
+          </FilePickHint>
+        </FileRow>
       ) : null}
     </Page>
   )

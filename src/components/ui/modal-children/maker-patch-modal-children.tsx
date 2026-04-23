@@ -97,6 +97,8 @@ const MakerPatchModalChildren = ({
   const saveInFlightRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
   const [photoBusy, setPhotoBusy] = useState<"" | "id" | "proxy">("")
+  const idPhotoInputRef = useRef<HTMLInputElement>(null)
+  const proxyPhotoInputRef = useRef<HTMLInputElement>(null)
   const saveSucceededRef = useRef(false)
 
   const isSaveBusy = isSaving || mutateIsPending
@@ -563,54 +565,71 @@ const MakerPatchModalChildren = ({
                   ) : (
                     <PhotoHint>등록된 신분증 사진이 없습니다.</PhotoHint>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    disabled={photoUploadLocked}
-                    style={{ marginTop: 8 }}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ""
-                      if (!file || !makerData) return
-                      setPhotoBusy("id")
-                      try {
-                        const url = await uploadShareholderPhotoAndGetPublicUrl(
-                          file,
-                          makerData.list_id,
-                          String(makerData.id),
-                          "id",
-                        )
-                        formik.setFieldValue("image", url)
-                        if (formik.values.statusPrimary === "완료") {
-                          const d = completionDetailFromPhotos(
-                            formik.values.proxy_document_image,
-                            url,
+                  <PhotoActionRow>
+                    <PhotoPickButton
+                      type="button"
+                      disabled={photoUploadLocked}
+                      aria-busy={photoBusy === "id"}
+                      onClick={() => idPhotoInputRef.current?.click()}>
+                      {photoBusy === "id"
+                        ? "업로드 중…"
+                        : formik.values.image?.trim()
+                          ? "신분증 사진 바꾸기"
+                          : "신분증 사진 올리기"}
+                    </PhotoPickButton>
+                    <VisuallyHiddenFileInput
+                      ref={idPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      disabled={photoUploadLocked}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ""
+                        if (!file || !makerData) return
+                        setPhotoBusy("id")
+                        try {
+                          const url =
+                            await uploadShareholderPhotoAndGetPublicUrl(
+                              file,
+                              makerData.list_id,
+                              String(makerData.id),
+                              "id",
+                            )
+                          formik.setFieldValue("image", url)
+                          if (formik.values.statusPrimary === "완료") {
+                            const d = completionDetailFromPhotos(
+                              formik.values.proxy_document_image,
+                              url,
+                            )
+                            formik.setFieldValue("statusDetail", d)
+                            formik.setFieldValue(
+                              "status",
+                              normalizeStatusForPatch(
+                                composeShareholderStatus("완료", d),
+                              ),
+                            )
+                          }
+                          makerDataMutate(
+                            { ...makerData, image: url },
+                            {
+                              onSuccess: () =>
+                                toast.success("신분증 사진을 저장했습니다."),
+                              onError: () =>
+                                toast.error("신분증 사진 저장에 실패했습니다."),
+                            },
                           )
-                          formik.setFieldValue("statusDetail", d)
-                          formik.setFieldValue(
-                            "status",
-                            normalizeStatusForPatch(
-                              composeShareholderStatus("완료", d),
-                            ),
-                          )
+                        } catch {
+                          toast.error("신분증 사진을 올릴 수 없습니다.")
+                        } finally {
+                          setPhotoBusy("")
                         }
-                        makerDataMutate(
-                          { ...makerData, image: url },
-                          {
-                            onSuccess: () =>
-                              toast.success("신분증 사진을 저장했습니다."),
-                            onError: () =>
-                              toast.error("신분증 사진 저장에 실패했습니다."),
-                          },
-                        )
-                      } catch {
-                        toast.error("신분증 사진을 올릴 수 없습니다.")
-                      } finally {
-                        setPhotoBusy("")
-                      }
-                    }}
-                  />
+                      }}
+                    />
+                  </PhotoActionRow>
+                  <PhotoPickHelper>
+                    휴대폰에서는 갤러리·카메라 중 고를 수 있습니다. (브라우저
+                    기본 &quot;파일 없음&quot; 문구는 보이지 않습니다.)
+                  </PhotoPickHelper>
                   {formik.values.image ? (
                     <PhotoRemoveBtn
                       type="button"
@@ -673,56 +692,74 @@ const MakerPatchModalChildren = ({
                   ) : (
                     <PhotoHint>등록된 의결권 서류 사진이 없습니다.</PhotoHint>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    disabled={photoUploadLocked}
-                    style={{ marginTop: 8 }}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      e.target.value = ""
-                      if (!file || !makerData) return
-                      setPhotoBusy("proxy")
-                      try {
-                        const url = await uploadShareholderPhotoAndGetPublicUrl(
-                          file,
-                          makerData.list_id,
-                          String(makerData.id),
-                          "proxy",
-                        )
-                        formik.setFieldValue("proxy_document_image", url)
-                        if (formik.values.statusPrimary === "완료") {
-                          const d = completionDetailFromPhotos(
-                            url,
-                            formik.values.image,
-                          )
-                          formik.setFieldValue("statusDetail", d)
-                          formik.setFieldValue(
-                            "status",
-                            normalizeStatusForPatch(
-                              composeShareholderStatus("완료", d),
-                            ),
-                          )
-                        }
-                        makerDataMutate(
-                          { ...makerData, proxy_document_image: url },
-                          {
-                            onSuccess: () =>
-                              toast.success("의결권 서류 사진을 저장했습니다."),
-                            onError: () =>
-                              toast.error(
-                                "의결권 서류 사진 저장에 실패했습니다.",
+                  <PhotoActionRow>
+                    <PhotoPickButton
+                      type="button"
+                      disabled={photoUploadLocked}
+                      aria-busy={photoBusy === "proxy"}
+                      onClick={() => proxyPhotoInputRef.current?.click()}>
+                      {photoBusy === "proxy"
+                        ? "업로드 중…"
+                        : formik.values.proxy_document_image?.trim()
+                          ? "의결권 서류 바꾸기"
+                          : "의결권 서류 올리기"}
+                    </PhotoPickButton>
+                    <VisuallyHiddenFileInput
+                      ref={proxyPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      disabled={photoUploadLocked}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ""
+                        if (!file || !makerData) return
+                        setPhotoBusy("proxy")
+                        try {
+                          const url =
+                            await uploadShareholderPhotoAndGetPublicUrl(
+                              file,
+                              makerData.list_id,
+                              String(makerData.id),
+                              "proxy",
+                            )
+                          formik.setFieldValue("proxy_document_image", url)
+                          if (formik.values.statusPrimary === "완료") {
+                            const d = completionDetailFromPhotos(
+                              url,
+                              formik.values.image,
+                            )
+                            formik.setFieldValue("statusDetail", d)
+                            formik.setFieldValue(
+                              "status",
+                              normalizeStatusForPatch(
+                                composeShareholderStatus("완료", d),
                               ),
-                          },
-                        )
-                      } catch {
-                        toast.error("의결권 서류 사진을 올릴 수 없습니다.")
-                      } finally {
-                        setPhotoBusy("")
-                      }
-                    }}
-                  />
+                            )
+                          }
+                          makerDataMutate(
+                            { ...makerData, proxy_document_image: url },
+                            {
+                              onSuccess: () =>
+                                toast.success(
+                                  "의결권 서류 사진을 저장했습니다.",
+                                ),
+                              onError: () =>
+                                toast.error(
+                                  "의결권 서류 사진 저장에 실패했습니다.",
+                                ),
+                            },
+                          )
+                        } catch {
+                          toast.error("의결권 서류 사진을 올릴 수 없습니다.")
+                        } finally {
+                          setPhotoBusy("")
+                        }
+                      }}
+                    />
+                  </PhotoActionRow>
+                  <PhotoPickHelper>
+                    휴대폰에서는 갤러리·카메라 중 고를 수 있습니다.
+                  </PhotoPickHelper>
                   {formik.values.proxy_document_image ? (
                     <PhotoRemoveBtn
                       type="button"
@@ -1082,16 +1119,71 @@ const PhotoHint = styled.p`
   color: ${COLORS.gray[600]};
 `
 
+const PhotoActionRow = styled.div`
+  position: relative;
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+`
+
+const PhotoPickButton = styled.button`
+  flex: 1 1 auto;
+  min-height: 44px;
+  min-width: min(100%, 168px);
+  padding: 10px 16px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: ${COLORS.blue[700]};
+  background: ${COLORS.blue[50]};
+  border: 1px solid ${COLORS.blue[200]};
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  &:hover:not(:disabled) {
+    background: ${COLORS.blue[100]};
+  }
+`
+
+const VisuallyHiddenFileInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+`
+
+const PhotoPickHelper = styled.p`
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.45;
+`
+
 const PhotoRemoveBtn = styled.button`
   display: inline-block;
   margin-top: 8px;
-  padding: 6px 12px;
-  font-size: 0.8125rem;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: ${COLORS.red[700]};
   background: ${COLORS.red[50]};
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;

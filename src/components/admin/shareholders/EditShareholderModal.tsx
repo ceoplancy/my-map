@@ -1,6 +1,6 @@
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "react-toastify"
 import type { HistoryItem } from "@/components/ui/marker-detail-table"
 import { formatChangeHistoryTimestamp } from "@/lib/shareholderChangeHistoryValues"
@@ -256,6 +256,57 @@ const StatusBadge = styled.span<{ status: string }>`
           : COLORS.red[700]};
 `
 
+const PhotoPickRow = styled.div`
+  position: relative;
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+`
+
+const PhotoPickButton = styled.button`
+  flex: 1 1 auto;
+  min-height: 44px;
+  min-width: min(100%, 140px);
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: ${COLORS.blue[700]};
+  background: ${COLORS.blue[50]};
+  border: 1px solid ${COLORS.blue[200]};
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  &:hover:not(:disabled) {
+    background: ${COLORS.blue[100]};
+  }
+`
+
+const VisuallyHiddenFileInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+`
+
+const PhotoPickHelper = styled.p`
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+  line-height: 1.45;
+`
+
 type Shareholder = Tables<"shareholders">
 
 function completionStatusPatchIfPrimaryComplete(
@@ -303,6 +354,8 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
     phone: normalizePhoneForDb(data.phone),
   }))
   const [photoBusy, setPhotoBusy] = useState<"" | "id" | "proxy">("")
+  const idPhotoInputRef = useRef<HTMLInputElement>(null)
+  const proxyPhotoInputRef = useRef<HTMLInputElement>(null)
   const parsedStatus = splitShareholderStatus(data.status)
   const [statusPrimary, setStatusPrimary] = useState<PrimaryStatus>(
     parsedStatus.primary,
@@ -553,65 +606,86 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                     }}
                   />
                 ) : null}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={photoBusy !== "" || patchShareholder.isPending}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ""
-                    if (!file) return
-                    setPhotoBusy("id")
-                    try {
-                      const url = await uploadShareholderPhotoAndGetPublicUrl(
-                        file,
-                        data.list_id,
-                        data.id,
-                        "id",
-                      )
-                      setFormData((prev) => ({ ...prev, image: url }))
-                      const nextDetail = completionDetailFromPhotos(
-                        formData.proxy_document_image,
-                        url,
-                      )
-                      if (statusPrimary === "완료") {
-                        setStatusDetail(nextDetail)
+                <PhotoPickRow>
+                  <PhotoPickButton
+                    type="button"
+                    disabled={photoBusy !== "" || patchShareholder.isPending}
+                    aria-busy={photoBusy === "id"}
+                    onClick={() => idPhotoInputRef.current?.click()}>
+                    {photoBusy === "id"
+                      ? "업로드 중…"
+                      : formData.image
+                        ? "신분증 사진 바꾸기"
+                        : "신분증 사진 올리기"}
+                  </PhotoPickButton>
+                  <VisuallyHiddenFileInput
+                    ref={idPhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    disabled={photoBusy !== "" || patchShareholder.isPending}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (!file) return
+                      setPhotoBusy("id")
+                      try {
+                        const url = await uploadShareholderPhotoAndGetPublicUrl(
+                          file,
+                          data.list_id,
+                          data.id,
+                          "id",
+                        )
+                        setFormData((prev) => ({ ...prev, image: url }))
+                        const nextDetail = completionDetailFromPhotos(
+                          formData.proxy_document_image,
+                          url,
+                        )
+                        if (statusPrimary === "완료") {
+                          setStatusDetail(nextDetail)
+                        }
+                        await patchShareholder.mutateAsync({
+                          patch: {
+                            id: data.id,
+                            image: url,
+                            ...completionStatusPatchIfPrimaryComplete(
+                              statusPrimary,
+                              formData.proxy_document_image,
+                              url,
+                            ),
+                          },
+                          userId,
+                        })
+                        toast.success("신분증 사진을 반영했습니다.")
+                      } catch (err) {
+                        reportError(err, {
+                          toastMessage: "신분증 사진 업로드에 실패했습니다.",
+                        })
+                      } finally {
+                        setPhotoBusy("")
                       }
-                      await patchShareholder.mutateAsync({
-                        patch: {
-                          id: data.id,
-                          image: url,
-                          ...completionStatusPatchIfPrimaryComplete(
-                            statusPrimary,
-                            formData.proxy_document_image,
-                            url,
-                          ),
-                        },
-                        userId,
-                      })
-                      toast.success("신분증 사진을 반영했습니다.")
-                    } catch (err) {
-                      reportError(err, {
-                        toastMessage: "신분증 사진 업로드에 실패했습니다.",
-                      })
-                    } finally {
-                      setPhotoBusy("")
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </PhotoPickRow>
+                <PhotoPickHelper>
+                  모바일에서 갤러리·카메라를 고를 수 있으며, 네이티브
+                  &quot;선택된 파일 없음&quot; 줄은 표시하지 않습니다.
+                </PhotoPickHelper>
                 {formData.image ? (
                   <button
                     type="button"
                     disabled={photoBusy !== "" || patchShareholder.isPending}
                     style={{
                       marginTop: 8,
-                      padding: "6px 12px",
-                      fontSize: "0.8125rem",
+                      minHeight: 44,
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      fontWeight: 600,
                       color: COLORS.red[700],
                       background: COLORS.red[50],
                       border: "none",
-                      borderRadius: 6,
+                      borderRadius: 10,
                       cursor: "pointer",
+                      touchAction: "manipulation",
                     }}
                     onClick={async () => {
                       setPhotoBusy("id")
@@ -670,68 +744,89 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                     }}
                   />
                 ) : null}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={photoBusy !== "" || patchShareholder.isPending}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    e.target.value = ""
-                    if (!file) return
-                    setPhotoBusy("proxy")
-                    try {
-                      const url = await uploadShareholderPhotoAndGetPublicUrl(
-                        file,
-                        data.list_id,
-                        data.id,
-                        "proxy",
-                      )
-                      setFormData((prev) => ({
-                        ...prev,
-                        proxy_document_image: url,
-                      }))
-                      const nextDetail = completionDetailFromPhotos(
-                        url,
-                        formData.image,
-                      )
-                      if (statusPrimary === "완료") {
-                        setStatusDetail(nextDetail)
-                      }
-                      await patchShareholder.mutateAsync({
-                        patch: {
-                          id: data.id,
+                <PhotoPickRow>
+                  <PhotoPickButton
+                    type="button"
+                    disabled={photoBusy !== "" || patchShareholder.isPending}
+                    aria-busy={photoBusy === "proxy"}
+                    onClick={() => proxyPhotoInputRef.current?.click()}>
+                    {photoBusy === "proxy"
+                      ? "업로드 중…"
+                      : formData.proxy_document_image
+                        ? "의결권 서류 바꾸기"
+                        : "의결권 서류 올리기"}
+                  </PhotoPickButton>
+                  <VisuallyHiddenFileInput
+                    ref={proxyPhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    disabled={photoBusy !== "" || patchShareholder.isPending}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ""
+                      if (!file) return
+                      setPhotoBusy("proxy")
+                      try {
+                        const url = await uploadShareholderPhotoAndGetPublicUrl(
+                          file,
+                          data.list_id,
+                          data.id,
+                          "proxy",
+                        )
+                        setFormData((prev) => ({
+                          ...prev,
                           proxy_document_image: url,
-                          ...completionStatusPatchIfPrimaryComplete(
-                            statusPrimary,
-                            url,
-                            formData.image,
-                          ),
-                        },
-                        userId,
-                      })
-                      toast.success("의결권 서류 사진을 반영했습니다.")
-                    } catch (err) {
-                      reportError(err, {
-                        toastMessage: "의결권 서류 사진 업로드에 실패했습니다.",
-                      })
-                    } finally {
-                      setPhotoBusy("")
-                    }
-                  }}
-                />
+                        }))
+                        const nextDetail = completionDetailFromPhotos(
+                          url,
+                          formData.image,
+                        )
+                        if (statusPrimary === "완료") {
+                          setStatusDetail(nextDetail)
+                        }
+                        await patchShareholder.mutateAsync({
+                          patch: {
+                            id: data.id,
+                            proxy_document_image: url,
+                            ...completionStatusPatchIfPrimaryComplete(
+                              statusPrimary,
+                              url,
+                              formData.image,
+                            ),
+                          },
+                          userId,
+                        })
+                        toast.success("의결권 서류 사진을 반영했습니다.")
+                      } catch (err) {
+                        reportError(err, {
+                          toastMessage:
+                            "의결권 서류 사진 업로드에 실패했습니다.",
+                        })
+                      } finally {
+                        setPhotoBusy("")
+                      }
+                    }}
+                  />
+                </PhotoPickRow>
+                <PhotoPickHelper>
+                  모바일에서 갤러리·카메라를 고를 수 있습니다.
+                </PhotoPickHelper>
                 {formData.proxy_document_image ? (
                   <button
                     type="button"
                     disabled={photoBusy !== "" || patchShareholder.isPending}
                     style={{
                       marginTop: 8,
-                      padding: "6px 12px",
-                      fontSize: "0.8125rem",
+                      minHeight: 44,
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      fontWeight: 600,
                       color: COLORS.red[700],
                       background: COLORS.red[50],
                       border: "none",
-                      borderRadius: 6,
+                      borderRadius: 10,
                       cursor: "pointer",
+                      touchAction: "manipulation",
                     }}
                     onClick={async () => {
                       setPhotoBusy("proxy")
