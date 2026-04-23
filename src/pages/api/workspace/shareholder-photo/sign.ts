@@ -77,9 +77,15 @@ export default withApiHandler(
       .from(SHAREHOLDER_PHOTO_BUCKET)
       .createSignedUploadUrl(path, { upsert: true })
     if (error || !data) {
-      return res.status(502).json({
-        error: error?.message ?? "스토리지 서명 URL을 만들지 못했습니다.",
-      })
+      const raw = error?.message ?? ""
+      const base = raw || "스토리지 서명 URL을 만들지 못했습니다."
+      const hint = /related resource|not exist|not found|does not exist/i.test(
+        raw,
+      )
+        ? " Storage에 버킷「shareholder-photos」가 있고 이름이 정확한지 확인하세요. 이미지 URL로 쓰려면 버킷을 Public으로 두는 것이 좋습니다."
+        : ""
+
+      return res.status(502).json({ error: `${base}${hint}` })
     }
 
     return res.status(200).json({
