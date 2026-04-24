@@ -3,7 +3,7 @@ import { Map, ZoomControl } from "react-kakao-maps-sdk"
 import { useRouter } from "next/router"
 import { debounce } from "lodash"
 import {
-  Menu,
+  DashboardCustomize,
   Settings,
   FilterAlt,
   LogoutOutlined,
@@ -522,7 +522,7 @@ const WorkspaceMapPage = () => {
             aria-expanded={isVisibleMenu}
             aria-controls="workspace-map-side-menu"
             aria-label={isVisibleMenu ? "대시보드 닫기" : "대시보드 열기"}>
-            <Menu />
+            <DashboardCustomize />
           </MenuButton>
 
           <MenuOverlay
@@ -542,6 +542,18 @@ const WorkspaceMapPage = () => {
               </CloseButton>
             </MenuHeader>
             <SideMenuScroll>
+              <MenuHighlightItem
+                onClick={() => {
+                  if (wsId) leaveMapTo(`/workspaces/${wsId}/shareholder-search`)
+                }}
+                style={
+                  wsId
+                    ? undefined
+                    : { opacity: 0.45, pointerEvents: "none" as const }
+                }>
+                <SearchIcon />
+                주주 검색
+              </MenuHighlightItem>
               <MenuHighlightItem onClick={() => setIsFilterModalOpen(true)}>
                 <FilterAlt />
                 필터 설정
@@ -558,60 +570,43 @@ const WorkspaceMapPage = () => {
                     화면에서 명부를 추가해 주세요.
                   </EmptyWorkspaceHint>
                 )}
-              {hasWorkspace &&
-                !shareholderListsLoading &&
-                visibleListIds.length === 0 &&
-                dashboardListIds.length > 0 && (
-                  <EmptyWorkspaceHint>
-                    지도에는 &apos;노출&apos;된 명부만 표시됩니다. 의결권 현황은
-                    워크스페이스에 연결된 명부 전체를 집계합니다.
-                  </EmptyWorkspaceHint>
-                )}
-              <MenuHighlightItem
-                onClick={() => {
-                  if (wsId) leaveMapTo(`/workspaces/${wsId}/shareholder-search`)
-                }}
-                style={
-                  wsId
-                    ? undefined
-                    : { opacity: 0.45, pointerEvents: "none" as const }
-                }>
-                <SearchIcon />
-                주주 검색
-              </MenuHighlightItem>
               <MenuItem
                 onClick={handleReset}
                 style={{ color: COLORS.red[600] }}>
                 <RestartAlt />
                 초기화
               </MenuItem>
-              {hasWorkspace && (
+              <PublicDropRow>
                 <MenuItem
-                  onClick={async () => {
-                    const token = await getAccessToken()
-                    if (!token) {
-                      toast.error("로그인이 필요합니다.")
-
-                      return
-                    }
-                    try {
-                      const result = await postWorkspaceResourceRequest(
-                        token,
-                        resolvedWorkspace?.id ?? null,
-                      )
-                      if (!result.ok) {
-                        toast.error(result.message)
-
-                        return
-                      }
-                      toast.success("용역 충원 요청이 접수되었습니다.")
-                    } catch {
-                      toast.error("요청 중 오류가 발생했습니다.")
-                    }
-                  }}>
-                  용역 요청
+                  data-public-drop-item
+                  onClick={() => {
+                    if (wsId) leaveMapTo(`/workspaces/${wsId}/photo-drop-inbox`)
+                  }}
+                  style={
+                    wsId
+                      ? undefined
+                      : { opacity: 0.45, pointerEvents: "none" as const }
+                  }>
+                  <ListIcon />
+                  공개 접수함
                 </MenuItem>
-              )}
+                <MenuHighlightItem
+                  data-public-drop-item
+                  onClick={() => {
+                    if (wsId)
+                      leaveMapTo(
+                        `/workspaces/${wsId}/public-photo-drop-qr-full`,
+                      )
+                  }}
+                  style={
+                    wsId
+                      ? undefined
+                      : { opacity: 0.45, pointerEvents: "none" as const }
+                  }>
+                  <QrCode2 />
+                  공개 접수 QR
+                </MenuHighlightItem>
+              </PublicDropRow>
               <MenuItem
                 onClick={() => {
                   if (wsId) leaveMapTo(`/workspaces/${wsId}/activity`)
@@ -623,31 +618,6 @@ const WorkspaceMapPage = () => {
                 }>
                 <ListIcon />
                 활동 기록
-              </MenuItem>
-              <MenuHighlightItem
-                onClick={() => {
-                  if (wsId)
-                    leaveMapTo(`/workspaces/${wsId}/public-photo-drop-qr-full`)
-                }}
-                style={
-                  wsId
-                    ? undefined
-                    : { opacity: 0.45, pointerEvents: "none" as const }
-                }>
-                <QrCode2 />
-                공개 접수 QR
-              </MenuHighlightItem>
-              <MenuItem
-                onClick={() => {
-                  if (wsId) leaveMapTo(`/workspaces/${wsId}/photo-drop-inbox`)
-                }}
-                style={
-                  wsId
-                    ? undefined
-                    : { opacity: 0.45, pointerEvents: "none" as const }
-                }>
-                <ListIcon />
-                공개 접수함
               </MenuItem>
               {isWorkspaceAdmin && (
                 <MenuItem onClick={() => leaveMapTo(ROUTES.workspaces)}>
@@ -687,6 +657,33 @@ const WorkspaceMapPage = () => {
                   style={{ color: COLORS.purple[700] }}>
                   <Settings />
                   통합 관리
+                </MenuItem>
+              )}
+              {hasWorkspace && (
+                <MenuItem
+                  onClick={async () => {
+                    const token = await getAccessToken()
+                    if (!token) {
+                      toast.error("로그인이 필요합니다.")
+
+                      return
+                    }
+                    try {
+                      const result = await postWorkspaceResourceRequest(
+                        token,
+                        resolvedWorkspace?.id ?? null,
+                      )
+                      if (!result.ok) {
+                        toast.error(result.message)
+
+                        return
+                      }
+                      toast.success("용역 충원 요청이 접수되었습니다.")
+                    } catch {
+                      toast.error("요청 중 오류가 발생했습니다.")
+                    }
+                  }}>
+                  용역 요청
                 </MenuItem>
               )}
               <MenuItem
@@ -911,6 +908,24 @@ const MenuHighlightItem = styled(MenuItem)`
 
   svg {
     color: ${COLORS.blue[600]};
+  }
+`
+
+const PublicDropRow = styled.div`
+  display: block;
+
+  @media (max-width: 768px) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+
+    & > [data-public-drop-item] {
+      margin: 0;
+      min-height: 2.75rem;
+      justify-content: center;
+      padding: 0.625rem 0.5rem;
+    }
   }
 `
 

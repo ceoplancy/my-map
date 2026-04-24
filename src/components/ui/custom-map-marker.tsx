@@ -42,8 +42,8 @@ const STATUS_MARKER_COLORS = {
   보류: "#FFD939",
   완료: "#4DD664",
   실패: "#000000",
-  전자투표: "#7C3AED",
-  주주총회: "#0EA5E9",
+  전자투표: "#38BDF8",
+  주주총회: "#EF4444",
 } as const
 
 // 상태 마커도 정적 파일 대신 코드 기반 SVG(data URL)로 생성
@@ -52,6 +52,8 @@ export const STATUS_MARKERS = {
   보류: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.보류),
   완료: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.완료),
   실패: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.실패),
+  전자투표: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.전자투표),
+  주주총회: buildPinMarkerDataUrl(STATUS_MARKER_COLORS.주주총회),
 } as const
 
 // 회사 마커 색상 팔레트 (10가지) -> 동일한 핀 SVG에 fill만 적용
@@ -103,6 +105,8 @@ const GROUP_CLUSTER_FILL: Record<keyof typeof STATUS_MARKERS, string> = {
   보류: STATUS_MARKER_COLORS.보류,
   완료: STATUS_MARKER_COLORS.완료,
   실패: STATUS_MARKER_COLORS.실패,
+  전자투표: STATUS_MARKER_COLORS.전자투표,
+  주주총회: STATUS_MARKER_COLORS.주주총회,
 }
 
 /** 같은 좌표에 보류·실패·완료 등 상태가 섞인 경우 — 단일 상태 색과 구분 */
