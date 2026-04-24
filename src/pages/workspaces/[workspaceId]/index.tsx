@@ -12,6 +12,7 @@ import {
   Business as BusinessIcon,
   List as ListIcon,
   Search as SearchIcon,
+  QrCode2,
 } from "@mui/icons-material"
 
 import {
@@ -352,6 +353,28 @@ const WorkspaceMapPage = () => {
     [debouncedMapUpdate],
   )
 
+  /** 메뉴로 다른 화면으로 나가기 직전에 호출해 디바운스 지연으로 위치가 저장되지 않는 문제를 막음 */
+  const flushMapViewToStorage = useCallback(() => {
+    if (!wsId || !mapRef.current) return
+    const c = mapRef.current.getCenter()
+    const level = mapRef.current.getLevel()
+    const keys = getMapStorageKeys(wsId)
+    const pos = { lat: c.getLat(), lng: c.getLng() }
+    localStorage.setItem(keys.position, JSON.stringify(pos))
+    localStorage.setItem(keys.level, String(level))
+    setCurrCenter(pos)
+    setMapLevel(level)
+  }, [wsId])
+
+  const leaveMapTo = useCallback(
+    (path: string) => {
+      flushMapViewToStorage()
+      setIsVisibleMenu(false)
+      void router.push(path)
+    },
+    [flushMapViewToStorage, router],
+  )
+
   const handleMapClick = useCallback(() => {
     window.dispatchEvent(new CustomEvent("workspace-map-interact"))
   }, [])
@@ -554,6 +577,10 @@ const WorkspaceMapPage = () => {
                   )}
                 </FilterSummaryChipsWrap>
               </FilterDashboardSummary>
+              <MenuHighlightItem onClick={() => setIsFilterModalOpen(true)}>
+                <FilterAlt />
+                필터 설정
+              </MenuHighlightItem>
               <StatsCard
                 statsParams={mapStatsParams}
                 listsLoading={shareholderListsLoading}
@@ -575,15 +602,9 @@ const WorkspaceMapPage = () => {
                     워크스페이스에 연결된 명부 전체를 집계합니다.
                   </EmptyWorkspaceHint>
                 )}
-              <MenuHighlightItem onClick={() => setIsFilterModalOpen(true)}>
-                <FilterAlt />
-                필터 설정
-              </MenuHighlightItem>
               <MenuHighlightItem
                 onClick={() => {
-                  if (wsId)
-                    void router.push(`/workspaces/${wsId}/shareholder-search`)
-                  setIsVisibleMenu(false)
+                  if (wsId) leaveMapTo(`/workspaces/${wsId}/shareholder-search`)
                 }}
                 style={
                   wsId
@@ -628,7 +649,7 @@ const WorkspaceMapPage = () => {
               )}
               <MenuItem
                 onClick={() => {
-                  if (wsId) void router.push(`/workspaces/${wsId}/activity`)
+                  if (wsId) leaveMapTo(`/workspaces/${wsId}/activity`)
                 }}
                 style={
                   wsId
@@ -638,10 +659,22 @@ const WorkspaceMapPage = () => {
                 <ListIcon />
                 활동 기록
               </MenuItem>
-              <MenuItem
+              <MenuHighlightItem
                 onClick={() => {
                   if (wsId)
-                    void router.push(`/workspaces/${wsId}/photo-drop-inbox`)
+                    leaveMapTo(`/workspaces/${wsId}/public-photo-drop-qr-full`)
+                }}
+                style={
+                  wsId
+                    ? undefined
+                    : { opacity: 0.45, pointerEvents: "none" as const }
+                }>
+                <QrCode2 />
+                공개 접수 QR
+              </MenuHighlightItem>
+              <MenuItem
+                onClick={() => {
+                  if (wsId) leaveMapTo(`/workspaces/${wsId}/photo-drop-inbox`)
                 }}
                 style={
                   wsId
@@ -652,7 +685,7 @@ const WorkspaceMapPage = () => {
                 공개 접수함
               </MenuItem>
               {isWorkspaceAdmin && (
-                <MenuItem onClick={() => router.push(ROUTES.workspaces)}>
+                <MenuItem onClick={() => leaveMapTo(ROUTES.workspaces)}>
                   <ListIcon />
                   워크스페이스 목록
                 </MenuItem>
@@ -660,10 +693,10 @@ const WorkspaceMapPage = () => {
               {isWorkspaceAdmin && (
                 <MenuItem
                   onClick={() =>
-                    router.push(
+                    leaveMapTo(
                       resolvedWorkspace
                         ? `/workspaces/${resolvedWorkspace.id}/admin`
-                        : workspace
+                        : workspace?.id
                           ? `/workspaces/${workspace.id}/admin`
                           : "/admin",
                     )
@@ -676,12 +709,12 @@ const WorkspaceMapPage = () => {
               {isWorkspaceAdmin && (
                 <MenuItem
                   onClick={() =>
-                    router.push(
+                    leaveMapTo(
                       isServiceAdmin
                         ? "/admin/integrated"
                         : resolvedWorkspace
                           ? `/workspaces/${resolvedWorkspace.id}/admin`
-                          : workspace
+                          : workspace?.id
                             ? `/workspaces/${workspace.id}/admin`
                             : "/admin",
                     )

@@ -62,6 +62,9 @@ const NameInput = styled.input`
 
 const FileRow = styled.div`
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 `
 
 const FilePickButton = styled.button`
@@ -101,7 +104,8 @@ export default function PhotoDropPage() {
   const tokenStr = typeof t === "string" ? t : ""
   const [busy, setBusy] = useState(false)
   const [submitterName, setSubmitterName] = useState("")
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const onFile = async (file: File) => {
     if (!tokenStr) {
@@ -220,14 +224,33 @@ export default function PhotoDropPage() {
           type="button"
           disabled={busy}
           aria-busy={busy}
-          onClick={() => fileInputRef.current?.click()}>
-          {busy ? "업로드 중…" : "사진 올리기"}
+          onClick={() => galleryInputRef.current?.click()}>
+          {busy ? "업로드 중…" : "앨범·파일에서 선택"}
+        </FilePickButton>
+        <FilePickButton
+          type="button"
+          disabled={busy}
+          aria-busy={busy}
+          onClick={() => cameraInputRef.current?.click()}>
+          {busy ? "업로드 중…" : "카메라로 촬영"}
         </FilePickButton>
         <HiddenFileInput
-          ref={fileInputRef}
+          ref={galleryInputRef}
           disabled={busy}
           type="file"
           accept="image/*"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ""
+            if (f) void onFile(f)
+          }}
+        />
+        <HiddenFileInput
+          ref={cameraInputRef}
+          disabled={busy}
+          type="file"
+          accept="image/*"
+          capture="environment"
           onChange={(e) => {
             const f = e.target.files?.[0]
             e.target.value = ""

@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
 } from "react"
 import CircularProgress from "@mui/material/CircularProgress"
 import { useFormik } from "formik"
@@ -98,7 +99,9 @@ const MakerPatchModalChildren = ({
   const [isSaving, setIsSaving] = useState(false)
   const [photoBusy, setPhotoBusy] = useState<"" | "id" | "proxy">("")
   const idPhotoInputRef = useRef<HTMLInputElement>(null)
+  const idCameraInputRef = useRef<HTMLInputElement>(null)
   const proxyPhotoInputRef = useRef<HTMLInputElement>(null)
+  const proxyCameraInputRef = useRef<HTMLInputElement>(null)
   const saveSucceededRef = useRef(false)
 
   const isSaveBusy = isSaving || mutateIsPending
@@ -394,6 +397,89 @@ const MakerPatchModalChildren = ({
       ? "1차·세부 상태를 모두 선택한 뒤 저장할 수 있습니다"
       : undefined
 
+  const handleIdPhotoFile = async (file: File) => {
+    if (!makerData) return
+    setPhotoBusy("id")
+    try {
+      const url = await uploadShareholderPhotoAndGetPublicUrl(
+        file,
+        makerData.list_id,
+        String(makerData.id),
+        "id",
+      )
+      formik.setFieldValue("image", url)
+      if (formik.values.statusPrimary === "완료") {
+        const d = completionDetailFromPhotos(
+          formik.values.proxy_document_image,
+          url,
+        )
+        formik.setFieldValue("statusDetail", d)
+        formik.setFieldValue(
+          "status",
+          normalizeStatusForPatch(composeShareholderStatus("완료", d)),
+        )
+      }
+      makerDataMutate(
+        { ...makerData, image: url },
+        {
+          onSuccess: () => toast.success("신분증 사진을 저장했습니다."),
+          onError: () => toast.error("신분증 사진 저장에 실패했습니다."),
+        },
+      )
+    } catch {
+      toast.error("신분증 사진을 올릴 수 없습니다.")
+    } finally {
+      setPhotoBusy("")
+    }
+  }
+
+  const onIdPhotoPicked = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    await handleIdPhotoFile(file)
+  }
+
+  const handleProxyPhotoFile = async (file: File) => {
+    if (!makerData) return
+    setPhotoBusy("proxy")
+    try {
+      const url = await uploadShareholderPhotoAndGetPublicUrl(
+        file,
+        makerData.list_id,
+        String(makerData.id),
+        "proxy",
+      )
+      formik.setFieldValue("proxy_document_image", url)
+      if (formik.values.statusPrimary === "완료") {
+        const d = completionDetailFromPhotos(url, formik.values.image)
+        formik.setFieldValue("statusDetail", d)
+        formik.setFieldValue(
+          "status",
+          normalizeStatusForPatch(composeShareholderStatus("완료", d)),
+        )
+      }
+      makerDataMutate(
+        { ...makerData, proxy_document_image: url },
+        {
+          onSuccess: () => toast.success("의결권 서류 사진을 저장했습니다."),
+          onError: () => toast.error("의결권 서류 사진 저장에 실패했습니다."),
+        },
+      )
+    } catch {
+      toast.error("의결권 서류 사진을 올릴 수 없습니다.")
+    } finally {
+      setPhotoBusy("")
+    }
+  }
+
+  const onProxyPhotoPicked = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    await handleProxyPhotoFile(file)
+  }
+
   return (
     <>
       <ModalHeader>
@@ -565,6 +651,15 @@ const MakerPatchModalChildren = ({
                   ) : (
                     <PhotoHint>등록된 신분증 사진이 없습니다.</PhotoHint>
                   )}
+                  {formik.values.image ? (
+                    <PhotoDownloadLink
+                      href={formik.values.image}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      이미지 다운로드
+                    </PhotoDownloadLink>
+                  ) : null}
                   <PhotoActionRow>
                     <PhotoPickButton
                       type="button"
@@ -574,61 +669,34 @@ const MakerPatchModalChildren = ({
                       {photoBusy === "id"
                         ? "업로드 중…"
                         : formik.values.image?.trim()
-                          ? "신분증 사진 바꾸기"
-                          : "신분증 사진 올리기"}
+                          ? "앨범에서 바꾸기"
+                          : "앨범에서 올리기"}
+                    </PhotoPickButton>
+                    <PhotoPickButton
+                      type="button"
+                      disabled={photoUploadLocked}
+                      aria-busy={photoBusy === "id"}
+                      onClick={() => idCameraInputRef.current?.click()}>
+                      {photoBusy === "id" ? "업로드 중…" : "카메라로 촬영"}
                     </PhotoPickButton>
                     <VisuallyHiddenFileInput
                       ref={idPhotoInputRef}
                       type="file"
                       accept="image/*"
                       disabled={photoUploadLocked}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        e.target.value = ""
-                        if (!file || !makerData) return
-                        setPhotoBusy("id")
-                        try {
-                          const url =
-                            await uploadShareholderPhotoAndGetPublicUrl(
-                              file,
-                              makerData.list_id,
-                              String(makerData.id),
-                              "id",
-                            )
-                          formik.setFieldValue("image", url)
-                          if (formik.values.statusPrimary === "완료") {
-                            const d = completionDetailFromPhotos(
-                              formik.values.proxy_document_image,
-                              url,
-                            )
-                            formik.setFieldValue("statusDetail", d)
-                            formik.setFieldValue(
-                              "status",
-                              normalizeStatusForPatch(
-                                composeShareholderStatus("완료", d),
-                              ),
-                            )
-                          }
-                          makerDataMutate(
-                            { ...makerData, image: url },
-                            {
-                              onSuccess: () =>
-                                toast.success("신분증 사진을 저장했습니다."),
-                              onError: () =>
-                                toast.error("신분증 사진 저장에 실패했습니다."),
-                            },
-                          )
-                        } catch {
-                          toast.error("신분증 사진을 올릴 수 없습니다.")
-                        } finally {
-                          setPhotoBusy("")
-                        }
-                      }}
+                      onChange={onIdPhotoPicked}
+                    />
+                    <VisuallyHiddenFileInput
+                      ref={idCameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      disabled={photoUploadLocked}
+                      onChange={onIdPhotoPicked}
                     />
                   </PhotoActionRow>
                   <PhotoPickHelper>
-                    휴대폰에서는 갤러리·카메라 중 고를 수 있습니다. (브라우저
-                    기본 &quot;파일 없음&quot; 문구는 보이지 않습니다.)
+                    휴대폰에서는 갤러리·카메라 중 고를 수 있습니다.
                   </PhotoPickHelper>
                   {formik.values.image ? (
                     <PhotoRemoveBtn
@@ -692,6 +760,15 @@ const MakerPatchModalChildren = ({
                   ) : (
                     <PhotoHint>등록된 의결권 서류 사진이 없습니다.</PhotoHint>
                   )}
+                  {formik.values.proxy_document_image ? (
+                    <PhotoDownloadLink
+                      href={formik.values.proxy_document_image}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      이미지 다운로드
+                    </PhotoDownloadLink>
+                  ) : null}
                   <PhotoActionRow>
                     <PhotoPickButton
                       type="button"
@@ -701,60 +778,30 @@ const MakerPatchModalChildren = ({
                       {photoBusy === "proxy"
                         ? "업로드 중…"
                         : formik.values.proxy_document_image?.trim()
-                          ? "의결권 서류 바꾸기"
-                          : "의결권 서류 올리기"}
+                          ? "앨범에서 바꾸기"
+                          : "앨범에서 올리기"}
+                    </PhotoPickButton>
+                    <PhotoPickButton
+                      type="button"
+                      disabled={photoUploadLocked}
+                      aria-busy={photoBusy === "proxy"}
+                      onClick={() => proxyCameraInputRef.current?.click()}>
+                      {photoBusy === "proxy" ? "업로드 중…" : "카메라로 촬영"}
                     </PhotoPickButton>
                     <VisuallyHiddenFileInput
                       ref={proxyPhotoInputRef}
                       type="file"
                       accept="image/*"
                       disabled={photoUploadLocked}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        e.target.value = ""
-                        if (!file || !makerData) return
-                        setPhotoBusy("proxy")
-                        try {
-                          const url =
-                            await uploadShareholderPhotoAndGetPublicUrl(
-                              file,
-                              makerData.list_id,
-                              String(makerData.id),
-                              "proxy",
-                            )
-                          formik.setFieldValue("proxy_document_image", url)
-                          if (formik.values.statusPrimary === "완료") {
-                            const d = completionDetailFromPhotos(
-                              url,
-                              formik.values.image,
-                            )
-                            formik.setFieldValue("statusDetail", d)
-                            formik.setFieldValue(
-                              "status",
-                              normalizeStatusForPatch(
-                                composeShareholderStatus("완료", d),
-                              ),
-                            )
-                          }
-                          makerDataMutate(
-                            { ...makerData, proxy_document_image: url },
-                            {
-                              onSuccess: () =>
-                                toast.success(
-                                  "의결권 서류 사진을 저장했습니다.",
-                                ),
-                              onError: () =>
-                                toast.error(
-                                  "의결권 서류 사진 저장에 실패했습니다.",
-                                ),
-                            },
-                          )
-                        } catch {
-                          toast.error("의결권 서류 사진을 올릴 수 없습니다.")
-                        } finally {
-                          setPhotoBusy("")
-                        }
-                      }}
+                      onChange={onProxyPhotoPicked}
+                    />
+                    <VisuallyHiddenFileInput
+                      ref={proxyCameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      disabled={photoUploadLocked}
+                      onChange={onProxyPhotoPicked}
                     />
                   </PhotoActionRow>
                   <PhotoPickHelper>
@@ -1161,6 +1208,18 @@ const VisuallyHiddenFileInput = styled.input`
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+`
+
+const PhotoDownloadLink = styled.a`
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: ${COLORS.blue[600]};
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
 `
 
 const PhotoPickHelper = styled.p`

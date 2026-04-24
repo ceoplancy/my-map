@@ -216,7 +216,7 @@ const HeaderSection = styled.div`
 `
 
 const Title = styled.h3`
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   color: ${COLORS.gray[900]};
   font-weight: 700;
   margin: 0 0 6px;
@@ -224,7 +224,7 @@ const Title = styled.h3`
 
 const InfoText = styled.p`
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: ${COLORS.gray[600]};
   line-height: 1.45;
 `
@@ -257,7 +257,7 @@ const KpiCard = styled.div<{ $variant: "neutral" | "success" }>`
 `
 
 const KpiLabel = styled.div`
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: ${COLORS.gray[500]};
   text-transform: uppercase;
@@ -266,7 +266,7 @@ const KpiLabel = styled.div`
 `
 
 const KpiValue = styled.div`
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: ${COLORS.gray[900]};
   line-height: 1.2;
@@ -275,7 +275,7 @@ const KpiValue = styled.div`
 
 const KpiSub = styled.div`
   margin-top: 4px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: ${COLORS.gray[600]};
   font-variant-numeric: tabular-nums;
@@ -289,7 +289,7 @@ const ProgressTop = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: ${COLORS.gray[600]};
   margin-bottom: 6px;
 `
@@ -325,7 +325,7 @@ const PrimarySection = styled.div`
 `
 
 const PrimaryTitle = styled.div`
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: ${COLORS.gray[800]};
   margin-bottom: 8px;
@@ -362,14 +362,14 @@ const PrimaryCell = styled.div`
 `
 
 const PrimaryName = styled.div`
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: ${COLORS.gray[700]};
   margin-bottom: 4px;
 `
 
 const PrimaryCount = styled.div`
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
   color: ${COLORS.gray[900]};
   font-variant-numeric: tabular-nums;
@@ -377,7 +377,7 @@ const PrimaryCount = styled.div`
 
 const PrimaryStocks = styled.div`
   margin-top: 2px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: ${COLORS.gray[500]};
   font-variant-numeric: tabular-nums;
@@ -390,7 +390,7 @@ const CompanySection = styled.div`
 `
 
 const CompanyTitle = styled.div`
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: ${COLORS.gray[800]};
   margin-bottom: 8px;
@@ -414,7 +414,7 @@ const CompanyTableWrap = styled.div`
 const CompanyTable = styled.table`
   width: max(100%, 640px);
   border-collapse: collapse;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   background: ${COLORS.gray[50]};
   border: 1px solid ${COLORS.gray[200]};
   border-radius: 10px;
@@ -467,7 +467,7 @@ const Td = styled.td<{ $strong?: boolean }>`
 `
 
 const CellStocks = styled.div`
-  font-size: 0.6rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: ${COLORS.gray[500]};
   margin-top: 1px;

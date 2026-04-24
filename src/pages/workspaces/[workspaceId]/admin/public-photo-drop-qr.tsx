@@ -1,8 +1,8 @@
 import { useRouter } from "next/router"
-import { useEffect, useState } from "react"
+import { useRef, useState } from "react"
 import styled from "@emotion/styled"
 import { QrCode2 } from "@mui/icons-material"
-import { QRCodeSVG } from "qrcode.react"
+import { QRCodeCanvas } from "qrcode.react"
 import AdminLayout from "@/layouts/AdminLayout"
 import { useGetUserData } from "@/api/auth"
 import { useShareholderLists } from "@/api/workspace"
@@ -12,6 +12,7 @@ import { COLORS } from "@/styles/global-style"
 import { reportError } from "@/lib/reportError"
 import { toast } from "react-toastify"
 import supabase from "@/lib/supabase/supabaseClient"
+import { writePublicDropQrUrl } from "@/lib/publicDropQrStorage"
 
 const SpinnerFrame = styled.div`
   display: flex;
@@ -43,20 +44,6 @@ const Row = styled.div`
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
-`
-
-const Label = styled.label`
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: ${COLORS.gray[700]};
-`
-
-const Select = styled.select`
-  padding: 0.45rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid ${COLORS.gray[200]};
-  font-size: 0.875rem;
-  min-width: 12rem;
 `
 
 const Btn = styled.button`
@@ -118,19 +105,15 @@ export default function PublicPhotoDropQrPage() {
   const { data: lists = [], isPending: listsLoading } =
     useShareholderLists(wsId)
 
-  const [listId, setListId] = useState("")
   const [issuedUrl, setIssuedUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const qrWrapRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (lists.length > 0 && !listId) {
-      setListId(lists[0].id)
-    }
-  }, [lists, listId])
+  const primaryListId = lists[0]?.id ?? ""
 
   const issueQr = async () => {
-    if (!listId) {
-      toast.error("명부를 선택해 주세요.")
+    if (!primaryListId) {
+      toast.error("주주명부가 없어 링크를 만들 수 없습니다.")
 
       return
     }
@@ -140,7 +123,7 @@ export default function PublicPhotoDropQrPage() {
       const expires_at = new Date(Date.now() + 7 * 86400000).toISOString()
       const { data: auth } = await supabase.auth.getUser()
       const { error } = await supabase.from("list_upload_tokens").insert({
-        list_id: listId,
+        list_id: primaryListId,
         token,
         expires_at,
         created_by: auth.user?.id ?? null,
@@ -149,12 +132,31 @@ export default function PublicPhotoDropQrPage() {
       if (error) throw error
       const url = `${window.location.origin}/photo-drop?t=${token}`
       setIssuedUrl(url)
+      if (wsId) writePublicDropQrUrl(wsId, url)
       await navigator.clipboard.writeText(url)
       toast.success("접수 링크를 클립보드에 복사했습니다. (7일 유효)")
     } catch (err) {
       reportError(err, { toastMessage: "링크 발급에 실패했습니다." })
     } finally {
       setBusy(false)
+    }
+  }
+
+  const downloadQrPng = () => {
+    const canvas = qrWrapRef.current?.querySelector("canvas")
+    if (!canvas) {
+      toast.error("QR 이미지를 찾을 수 없습니다.")
+
+      return
+    }
+    try {
+      const a = document.createElement("a")
+      a.download = `public-photo-drop-qr-${wsId ?? "workspace"}.png`
+      a.href = canvas.toDataURL("image/png")
+      a.click()
+      toast.success("PNG 파일을 저장했습니다.")
+    } catch (e) {
+      reportError(e, { toastMessage: "이미지 저장에 실패했습니다." })
     }
   }
 
@@ -183,9 +185,10 @@ export default function PublicPhotoDropQrPage() {
         공개 사진 접수 QR
       </PageTitle>
       <Help>
-        선택한 주주명부용 <strong>로그인 없이</strong> 사진만 받는 링크를
-        만들고, 아래 QR을 인쇄·캡처해 현장에 붙여 쓸 수 있습니다. 접수 내역은
-        지도 메뉴의 &quot;공개 접수함&quot;에서 내려받을 수 있습니다.
+        이 워크스페이스당 <strong>로그인 없이</strong> 사진만 받는 링크 하나를
+        만듭니다(첫 번째 주주명부 기준). 아래 QR을 인쇄·저장해 현장에 붙여 쓸 수
+        있습니다. 접수 내역은 지도 대시보드의 &quot;공개 접수함&quot;에서
+        확인·다운로드할 수 있습니다.
       </Help>
       {listsLoading ? (
         <SpinnerFrame>
@@ -196,28 +199,14 @@ export default function PublicPhotoDropQrPage() {
       ) : (
         <>
           <Row>
-            <Label htmlFor="qr-list">명부</Label>
-            <Select
-              id="qr-list"
-              value={listId}
-              onChange={(e) => {
-                setListId(e.target.value)
-                setIssuedUrl(null)
-              }}>
-              {lists.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
             <Btn type="button" disabled={busy} onClick={() => void issueQr()}>
               링크 발급 · QR 표시
             </Btn>
           </Row>
           {issuedUrl ? (
             <QrPanel>
-              <div style={{ display: "inline-block" }}>
-                <QRCodeSVG value={issuedUrl} size={280} level="M" />
+              <div ref={qrWrapRef} style={{ display: "inline-block" }}>
+                <QRCodeCanvas value={issuedUrl} size={280} level="M" />
               </div>
               <UrlText>{issuedUrl}</UrlText>
               <Row style={{ marginTop: "1rem", marginBottom: 0 }}>
@@ -225,6 +214,9 @@ export default function PublicPhotoDropQrPage() {
                   type="button"
                   onClick={() => void navigator.clipboard.writeText(issuedUrl)}>
                   링크만 다시 복사
+                </BtnGhost>
+                <BtnGhost type="button" onClick={() => downloadQrPng()}>
+                  QR PNG 저장
                 </BtnGhost>
               </Row>
             </QrPanel>

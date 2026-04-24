@@ -139,9 +139,6 @@ export default function EditListModal({ list, onClose }: Props) {
   const [contactNote, setContactNote] = useState(list.contact_note ?? "")
   const [qrBusy, setQrBusy] = useState(false)
   const [issuedMemberUrl, setIssuedMemberUrl] = useState<string | null>(null)
-  const [issuedPublicDropUrl, setIssuedPublicDropUrl] = useState<string | null>(
-    null,
-  )
   const updateList = useUpdateShareholderList()
 
   useEffect(() => {
@@ -154,7 +151,6 @@ export default function EditListModal({ list, onClose }: Props) {
     )
     setContactNote(list.contact_note ?? "")
     setIssuedMemberUrl(null)
-    setIssuedPublicDropUrl(null)
   }, [list])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -197,33 +193,6 @@ export default function EditListModal({ list, onClose }: Props) {
       )
     } catch (err) {
       reportError(err, { toastMessage: "링크 발급에 실패했습니다." })
-    } finally {
-      setQrBusy(false)
-    }
-  }
-
-  const issuePublicDropLink = async () => {
-    setQrBusy(true)
-    try {
-      const token = crypto.randomUUID().replace(/-/g, "")
-      const expires_at = new Date(Date.now() + 7 * 86400000).toISOString()
-      const { data: auth } = await supabase.auth.getUser()
-      const { error } = await supabase.from("list_upload_tokens").insert({
-        list_id: list.id,
-        token,
-        expires_at,
-        created_by: auth.user?.id ?? null,
-        purpose: "public_drop",
-      })
-      if (error) throw error
-      const url = `${window.location.origin}/photo-drop?t=${token}`
-      setIssuedPublicDropUrl(url)
-      await navigator.clipboard.writeText(url)
-      toast.success(
-        "누구나 접수용 링크를 클립보드에 복사했습니다. (로그인 불필요 · 7일)",
-      )
-    } catch (err) {
-      reportError(err, { toastMessage: "공개 접수 링크 발급에 실패했습니다." })
     } finally {
       setQrBusy(false)
     }
@@ -301,54 +270,21 @@ export default function EditListModal({ list, onClose }: Props) {
             }}>
             규율 버전: {list.rules_version ?? 1} (운영에서 갱신)
           </p>
-          <Button
-            type="button"
+          <p
             style={{
-              width: "100%",
-              padding: "0.5rem",
-              marginBottom: "0.5rem",
-              borderRadius: "0.5rem",
-              border: `1px solid ${COLORS.gray[200]}`,
-              background: COLORS.gray[50],
-              cursor: qrBusy ? "not-allowed" : "pointer",
-            }}
-            disabled={qrBusy}
-            onClick={() => void issuePublicDropLink()}>
-            누구나 사진 접수 링크 발급 (클립보드 복사 · QR)
-          </Button>
-          {issuedPublicDropUrl ? (
-            <div
-              style={{
-                marginBottom: "0.75rem",
-                padding: "0.75rem",
-                borderRadius: "0.5rem",
-                border: `1px solid ${COLORS.purple[200]}`,
-                background: COLORS.purple[50],
-                textAlign: "center",
-              }}>
-              <div style={{ display: "inline-block", marginBottom: "0.5rem" }}>
-                <QRCodeSVG value={issuedPublicDropUrl} size={192} level="M" />
-              </div>
-              <p
-                style={{
-                  fontSize: "0.75rem",
-                  color: COLORS.gray[700],
-                  wordBreak: "break-all",
-                  margin: 0,
-                }}>
-                {issuedPublicDropUrl}
-              </p>
-              <p
-                style={{
-                  fontSize: "0.7rem",
-                  color: COLORS.gray[600],
-                  margin: "0.35rem 0 0",
-                }}>
-                로그인 없이 사진만 올립니다. 현장요원은 워크스페이스의
-                &quot;공개 접수함&quot;에서 내려받을 수 있습니다.
-              </p>
-            </div>
-          ) : null}
+              fontSize: "0.8rem",
+              color: COLORS.gray[600],
+              margin: "0 0 0.75rem",
+              lineHeight: 1.5,
+            }}>
+            로그인 없이 받는 공개 사진 접수 QR은 워크스페이스당 하나입니다.{" "}
+            <a
+              href={`/workspaces/${list.workspace_id}/admin/public-photo-drop-qr`}
+              style={{ fontWeight: 600, color: COLORS.blue[600] }}>
+              공개 사진 접수 QR 발급 화면
+            </a>
+            에서 만들 수 있습니다.
+          </p>
           <Button
             type="button"
             style={{

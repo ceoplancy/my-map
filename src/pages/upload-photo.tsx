@@ -454,8 +454,7 @@ export default function UploadPhotoPage() {
             }}
           />
           <FilePickHint>
-            휴대폰에서 사진 앱·파일 선택이 열립니다. (기본 파일 입력창은
-            숨겼습니다.)
+            휴대폰에서 사진 앱 또는 카메라를 사용할 수 있습니다.
           </FilePickHint>
         </FileRow>
       ) : null}

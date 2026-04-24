@@ -667,8 +667,7 @@ export default function EditShareholderModal({ data, userId, onClose }: Props) {
                   />
                 </PhotoPickRow>
                 <PhotoPickHelper>
-                  모바일에서 갤러리·카메라를 고를 수 있으며, 네이티브
-                  &quot;선택된 파일 없음&quot; 줄은 표시하지 않습니다.
+                  모바일에서 갤러리·카메라를 고를 수 있습니다.
                 </PhotoPickHelper>
                 {formData.image ? (
                   <button

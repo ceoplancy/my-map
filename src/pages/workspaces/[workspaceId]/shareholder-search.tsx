@@ -14,7 +14,6 @@ import {
 import { COLORS } from "@/styles/global-style"
 import { ROUTES } from "@/constants/routes"
 import GlobalSpinner from "@/components/ui/global-spinner"
-import { useFilterStore } from "@/store/filterState"
 import type { MapMarkerData } from "@/types/map"
 import FieldAgentAgreementGate from "@/components/workspace/FieldAgentAgreementGate"
 
@@ -52,16 +51,46 @@ const NavRow = styled.p`
   }
 `
 
+const SearchRow = styled.div`
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`
+
 const SearchField = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
   padding: 0.55rem 0.85rem;
   border: 1px solid ${COLORS.gray[200]};
   border-radius: 0.75rem;
   background: white;
-  margin-bottom: 1rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+`
+
+const SearchSubmit = styled.button`
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: ${COLORS.purple[600]};
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  &:hover:not(:disabled) {
+    background: ${COLORS.purple[700]};
+  }
 `
 
 const SearchInput = styled.input`
@@ -184,68 +213,29 @@ export default function WorkspaceShareholderSearchPage() {
   const userId = user?.id
   const mapWorkspaceId = resolvedWorkspace?.id ?? null
   const visibleListIds = useVisibleListIds(mapWorkspaceId, userId)
-  const {
-    statusFilter,
-    statusPrimaryFilter,
-    companyFilter,
-    cityFilter,
-    stocks,
-    companyStockFilterMap,
-    companyFilterProfiles,
-  } = useFilterStore()
-
   const [searchInput, setSearchInput] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
-
-  useEffect(() => {
-    const t = window.setTimeout(
-      () => setDebouncedSearch(searchInput.trim()),
-      400,
-    )
-
-    return () => window.clearTimeout(t)
-  }, [searchInput])
+  const [committedSearch, setCommittedSearch] = useState("")
 
   const shareholderParams = useMemo((): ShareholdersParams => {
     return {
       listIds: visibleListIds.length > 0 ? visibleListIds : null,
-      status:
-        statusFilter?.length && !statusPrimaryFilter?.length
-          ? statusFilter
-          : undefined,
-      statusPrimaryFilter:
-        statusPrimaryFilter?.length > 0 ? statusPrimaryFilter : undefined,
-      company: companyFilter?.length ? companyFilter : undefined,
-      stocks: stocks?.length ? stocks : undefined,
-      companyStockFilterMap,
-      companyFilterProfiles:
-        companyFilterProfiles && Object.keys(companyFilterProfiles).length > 0
-          ? companyFilterProfiles
-          : undefined,
-      city: cityFilter || undefined,
-      search: debouncedSearch || undefined,
+      search: committedSearch || undefined,
       requireSearchToFetch: true,
     }
-  }, [
-    visibleListIds,
-    statusFilter,
-    statusPrimaryFilter,
-    companyFilter,
-    stocks,
-    companyStockFilterMap,
-    companyFilterProfiles,
-    cityFilter,
-    debouncedSearch,
-  ])
+  }, [visibleListIds, committedSearch])
 
   const { data: shareholderRows, isPending: shareholdersPending } =
     useShareholders(shareholderParams)
 
   const hits = useMemo((): MapMarkerData[] => {
-    if (!debouncedSearch) return []
+    if (!committedSearch) return []
 
     return (shareholderRows ?? []).slice(0, 200)
-  }, [shareholderRows, debouncedSearch])
+  }, [shareholderRows, committedSearch])
+
+  const runSearch = () => {
+    setCommittedSearch(searchInput.trim())
+  }
 
   const goToMap = (m: MapMarkerData) => {
     if (!workspaceId || typeof workspaceId !== "string") return
@@ -282,23 +272,37 @@ export default function WorkspaceShareholderSearchPage() {
       <NavRow>
         <Link href={`/workspaces/${workspaceId}`}>지도로 돌아가기</Link>
       </NavRow>
-      <SearchField>
-        <SearchIcon
-          sx={{ color: COLORS.gray[500], fontSize: 22 }}
-          aria-hidden
-        />
-        <SearchInput
-          type="search"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="이름·회사·주소 검색…"
-          aria-label="검색어"
-          autoComplete="off"
-          autoFocus
-        />
-      </SearchField>
+      <SearchRow>
+        <SearchField>
+          <SearchIcon
+            sx={{ color: COLORS.gray[500], fontSize: 22 }}
+            aria-hidden
+          />
+          <SearchInput
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                runSearch()
+              }
+            }}
+            placeholder="이름 또는 주소"
+            aria-label="검색어"
+            autoComplete="off"
+            autoFocus
+          />
+        </SearchField>
+        <SearchSubmit
+          type="button"
+          disabled={visibleListIds.length === 0}
+          onClick={() => runSearch()}>
+          검색
+        </SearchSubmit>
+      </SearchRow>
       <Hint>
-        지도에 적용된 필터와 동일한 범위에서 검색합니다. 항목을 누르면 지도로
+        노출된 주주명부 안에서 이름·주소 등으로 찾습니다. 항목을 누르면 지도로
         이동하며 해당 주주 위치로 맞춥니다. (최대 200건까지 표시)
       </Hint>
       {visibleListIds.length === 0 ? (
@@ -306,9 +310,11 @@ export default function WorkspaceShareholderSearchPage() {
           지도에 노출된 주주명부가 없어 검색할 수 없습니다. 관리자에게 명부
           노출을 요청하거나 지도 화면에서 워크스페이스를 확인해 주세요.
         </Empty>
-      ) : !debouncedSearch ? (
-        <Empty>검색어를 입력하면 결과가 여기에 표시됩니다.</Empty>
-      ) : debouncedSearch && shareholdersPending ? (
+      ) : !committedSearch ? (
+        <Empty>
+          검색어를 입력한 뒤 검색을 누르면 결과가 여기에 표시됩니다.
+        </Empty>
+      ) : committedSearch && shareholdersPending ? (
         <SpinnerWrap>
           <GlobalSpinner width={22} height={22} dotColor="#8536FF" />
         </SpinnerWrap>
