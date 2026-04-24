@@ -477,7 +477,7 @@ const WORKLOAD_PRIMARY_STATUS_ORDER: PrimaryStatus[] = [
   "주주총회",
 ]
 
-const WORKLOAD_RECENT_DAY_OPTIONS = [1, 2, 3, 5, 7, 14, 30] as const
+const WORKLOAD_RECENT_DAY_OPTIONS = [0, 1, 2, 3, 5, 7, 14, 30] as const
 
 const WorkloadHeader = styled.div`
   display: flex;
@@ -656,7 +656,7 @@ export function WorkspaceDashboardBody() {
   const [filterPrimary, setFilterPrimary] = useState<PrimaryStatus[]>([])
   const [filterCompany, setFilterCompany] = useState("")
   const [filterMaker, setFilterMaker] = useState("")
-  const [workloadRecentDays, setWorkloadRecentDays] = useState<number>(7)
+  const [workloadRecentDays, setWorkloadRecentDays] = useState<number>(0)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
   const effectiveListId = (selectedListId || lists[0]?.id) ?? null
@@ -1154,20 +1154,20 @@ export function WorkspaceDashboardBody() {
                   멤버 관리 →
                 </ViewAllLink>
               </CardHeader>
-              <DetailBreakdownHint style={{ marginTop: "-0.25rem" }}>
-                주주의 &quot;담당(마커)&quot; 값이 현장요원 이름·이메일·사용자
-                ID와
-                <strong> 정확히 같을 때만</strong> 해당 명부에 배정된 것으로
-                집계합니다. 명부 배정은 멤버의 허용 명부와 같습니다.
-              </DetailBreakdownHint>
               {makerSummaryLoading || changeHistorySummaryLoading ? (
                 <div
                   style={{
                     display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
                     justifyContent: "center",
+                    gap: "0.5rem",
                     padding: "2rem 0",
                   }}>
                   <GlobalSpinner width={28} height={28} dotColor="#8536FF" />
+                  <DetailBreakdownHint style={{ margin: 0 }}>
+                    로딩 중...
+                  </DetailBreakdownHint>
                 </div>
               ) : workspaceMembersWithUsers.filter(
                   (m) => m.role === "field_agent",
@@ -1178,12 +1178,7 @@ export function WorkspaceDashboardBody() {
                 </DetailBreakdownHint>
               ) : (
                 <>
-                  {fieldAgentProjectRows.length === 0 ? (
-                    <DetailBreakdownHint style={{ marginBottom: 0 }}>
-                      집계된 담당 주주가 없습니다. 주주 편집에서 담당 필드를
-                      현장요원 표시 이름·이메일·ID와 맞춰 주세요.
-                    </DetailBreakdownHint>
-                  ) : (
+                  {fieldAgentProjectRows.length > 0 && (
                     <DetailTableScroll style={{ marginTop: "0.75rem" }}>
                       <DetailTable>
                         <thead>
@@ -1249,18 +1244,12 @@ export function WorkspaceDashboardBody() {
                           style={{ minWidth: "6.5rem" }}>
                           {WORKLOAD_RECENT_DAY_OPTIONS.map((d) => (
                             <option key={d} value={String(d)}>
-                              최근 {d}일
+                              {d === 0 ? "전체 기간" : `최근 ${d}일`}
                             </option>
                           ))}
                         </ListSelect>
                       </div>
                     </WorkloadHeader>
-                    <DetailBreakdownHint>
-                      사용자 관리에 등록된 현장요원 기준으로, 서로 다른 주주를
-                      완료·보류로 변경한 건수(중복 제외)와 담당 주주의 회사별
-                      1차 상태 건수를 집계합니다. (최근 {workloadRecentDays}일
-                      기준)
-                    </DetailBreakdownHint>
                     <DetailTableScroll style={{ marginTop: "0.5rem" }}>
                       <DetailTable>
                         <thead>

@@ -32,9 +32,6 @@ export function getFilterSummaryChips(input: FilterSummaryInput): string[] {
   if (profileKeys.length) {
     chips.push(`회사별 설정 ${profileKeys.length}`)
   }
-  if (input.stocks?.length) {
-    chips.push(`주식 구간 ${input.stocks.length}`)
-  }
   if (
     Object.keys(input.companyStockFilterMap ?? {}).length > 0 &&
     profileKeys.length === 0

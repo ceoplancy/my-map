@@ -46,7 +46,6 @@ import { toast } from "react-toastify"
 import { getMapStorageKeys } from "@/constants/map-storage"
 import { ROUTES } from "@/constants/routes"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
-import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
 import RulesAcceptanceGate from "@/components/workspace/RulesAcceptanceGate"
 import FieldAgentAgreementGate from "@/components/workspace/FieldAgentAgreementGate"
 
@@ -232,26 +231,6 @@ const WorkspaceMapPage = () => {
 
   const mapMarkersRefetch = shareholderRefetch
   const appliedHighlightRef = useRef<string | null>(null)
-
-  const filterSummaryChips = useMemo(
-    () =>
-      getFilterSummaryChips({
-        cityFilter: cityFilter ?? "",
-        statusPrimaryFilter: statusPrimaryFilter ?? [],
-        companyFilter: companyFilter ?? [],
-        companyFilterProfiles: companyFilterProfiles ?? {},
-        stocks: stocks ?? [],
-        companyStockFilterMap: companyStockFilterMap ?? {},
-      }),
-    [
-      cityFilter,
-      statusPrimaryFilter,
-      companyFilter,
-      companyFilterProfiles,
-      stocks,
-      companyStockFilterMap,
-    ],
-  )
 
   useEffect(() => {
     if (!highlightIdFromQuery) {
@@ -563,20 +542,6 @@ const WorkspaceMapPage = () => {
               </CloseButton>
             </MenuHeader>
             <SideMenuScroll>
-              <FilterDashboardSummary aria-label="적용 중인 필터 요약">
-                <FilterSummaryLabel>필터</FilterSummaryLabel>
-                <FilterSummaryChipsWrap>
-                  {filterSummaryChips.length === 0 ? (
-                    <FilterSummaryEmpty>전체 (조건 없음)</FilterSummaryEmpty>
-                  ) : (
-                    filterSummaryChips.map((text, i) => (
-                      <FilterSummaryChip key={`${text}-${i}`}>
-                        {text}
-                      </FilterSummaryChip>
-                    ))
-                  )}
-                </FilterSummaryChipsWrap>
-              </FilterDashboardSummary>
               <MenuHighlightItem onClick={() => setIsFilterModalOpen(true)}>
                 <FilterAlt />
                 필터 설정
@@ -853,53 +818,6 @@ const SideMenuScroll = styled.div`
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding-top: 0.35rem;
-`
-
-const FilterDashboardSummary = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: ${COLORS.gray[50]};
-  border: 1px solid ${COLORS.gray[100]};
-`
-
-const FilterSummaryLabel = styled.span`
-  flex-shrink: 0;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: ${COLORS.gray[500]};
-  padding-top: 3px;
-`
-
-const FilterSummaryChipsWrap = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-`
-
-const FilterSummaryEmpty = styled.span`
-  font-size: 0.75rem;
-  color: ${COLORS.gray[500]};
-  line-height: 1.4;
-`
-
-const FilterSummaryChip = styled.span`
-  display: inline-block;
-  max-width: 100%;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 999px;
-  color: ${COLORS.gray[700]};
-  background: white;
-  border: 1px solid ${COLORS.gray[200]};
-  line-height: 1.3;
-  word-break: break-all;
 `
 
 const MenuHeader = styled.div`
