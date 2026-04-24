@@ -171,7 +171,7 @@ const INTEGRATED_MENU_ITEMS = [
   { title: "대시보드", path: ADMIN.INTEGRATED, icon: <Dashboard /> },
   { title: "가입 승인", path: ADMIN.SIGNUP_REQUESTS, icon: <PersonAdd /> },
   { title: "사용자 관리", path: ADMIN.USERS, icon: <People /> },
-  { title: "워크스페이스 관리", path: ADMIN.WORKSPACES, icon: <Business /> },
+  { title: "관리자 패널 이동", path: ADMIN.WORKSPACES, icon: <Business /> },
 ]
 
 /** 워크스페이스: 주주명부 (목록·관리·파일 가져오기 통합) */

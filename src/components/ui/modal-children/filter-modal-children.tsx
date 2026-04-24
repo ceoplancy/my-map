@@ -817,7 +817,7 @@ const FilterModalChildren = ({
                       onClick={() =>
                         clearProfileField(activeCompany, "statusPrimary")
                       }>
-                      전체 탭과 동일하게 (이 회사만 초기화)
+                      전 지역 (이 회사만 초기화)
                     </GhostButton>
                   )}
               </FilterSection>
@@ -825,14 +825,14 @@ const FilterModalChildren = ({
               <FilterSection>
                 <SectionTitle>{activeCompany} · 지역</SectionTitle>
                 <HintText>
-                  비우면 전체 탭의 지역 설정을 따릅니다. 이 회사만 다른 지역을
-                  보려면 선택하세요.
+                  비우면 전 지역으로 봅니다. 이 회사만 다른 지역을 보려면
+                  선택하세요.
                 </HintText>
                 <ChipsWrapper>
                   <FilterChip
                     isSelected={profileCity === undefined}
                     onClick={() => clearProfileField(activeCompany, "city")}>
-                    전체 탭과 동일
+                    전 지역
                   </FilterChip>
                   {MAJOR_CITIES.map((city) => (
                     <FilterChip

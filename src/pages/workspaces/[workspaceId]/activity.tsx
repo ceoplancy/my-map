@@ -205,7 +205,7 @@ export default function WorkspaceActivityPage() {
         <Link href={`/workspaces/${workspaceId}`}>지도로 돌아가기</Link>
       </NavRow>
       <SubNav>
-        <Link href={ROUTES.workspaces}>워크스페이스 목록</Link>
+        <Link href={ROUTES.workspaces}>상장사 목록</Link>
         {" · "}
         <Link href={`/workspaces/${workspaceId}/photo-drop-inbox`}>
           공개 접수함

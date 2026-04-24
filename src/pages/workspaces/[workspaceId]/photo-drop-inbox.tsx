@@ -172,7 +172,7 @@ export default function PhotoDropInboxPage() {
         중 이 명부에 접근 권한이 있는 사람만 볼 수 있습니다.
       </p>
       <SubNav>
-        <Link href={ROUTES.workspaces}>워크스페이스 목록</Link>
+        <Link href={ROUTES.workspaces}>상장사 목록</Link>
         {" · "}
         <Link href={`/workspaces/${workspaceId}/activity`}>활동 기록</Link>
       </SubNav>

@@ -436,7 +436,7 @@ export default function Header({
             {router.pathname === ADMIN.SIGNUP_REQUESTS && "가입 승인"}
             {router.pathname === ADMIN.USERS && "사용자 관리"}
             {router.pathname.startsWith(`${ADMIN.USERS}/`) && "사용자 상세"}
-            {router.pathname === ADMIN.WORKSPACES && "워크스페이스 관리"}
+            {router.pathname === ADMIN.WORKSPACES && "관리자 패널 이동"}
             {(router.pathname === ADMIN.ROOT ||
               isWorkspaceAdminDashboardRoute(router.pathname)) &&
               "대시보드"}

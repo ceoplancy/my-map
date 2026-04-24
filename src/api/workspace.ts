@@ -397,7 +397,13 @@ export const useShareholdersMakerSummaryRows = (listIds: string[]) => {
 }
 
 export type WorkspaceChangeHistorySummary = {
-  byUserId: Record<string, { changeCount: number; memoCount: number }>
+  byUserId: Record<
+    string,
+    {
+      completedDistinctCount: number
+      onHoldDistinctCount: number
+    }
+  >
 }
 
 async function getWorkspaceChangeHistorySummary(
@@ -406,26 +412,52 @@ async function getWorkspaceChangeHistorySummary(
   if (listIds.length === 0) return { byUserId: {} }
   const { data, error } = await supabase
     .from("shareholder_change_history")
-    .select("changed_by, field, shareholders!inner(list_id)")
+    .select(
+      "changed_by, shareholder_id, field, new_value, shareholders!inner(list_id)",
+    )
     .in("shareholders.list_id", listIds)
   if (error) {
     reportError(error)
     throw new Error(error.message)
   }
 
-  const byUserId: WorkspaceChangeHistorySummary["byUserId"] = {}
+  const completedSets = new Map<string, Set<string>>()
+  const onHoldSets = new Map<string, Set<string>>()
   for (const row of data ?? []) {
     const userId = String(
       (row as { changed_by?: string | null }).changed_by ?? "",
     ).trim()
     if (!userId) continue
-    const field = String((row as { field?: string | null }).field ?? "")
-    const prev = byUserId[userId] ?? { changeCount: 0, memoCount: 0 }
-    prev.changeCount += 1
-    if (field === "memo") {
-      prev.memoCount += 1
+    const shareholderId = String(
+      (row as { shareholder_id?: string | null }).shareholder_id ?? "",
+    ).trim()
+    if (!shareholderId) continue
+    const field = String((row as { field?: string | null }).field ?? "").trim()
+    if (field !== "status") continue
+    const newValue = (row as { new_value?: string | null }).new_value
+    const primary = getPrimaryStatusCategory(newValue)
+    if (primary === "완료") {
+      const set = completedSets.get(userId) ?? new Set<string>()
+      set.add(shareholderId)
+      completedSets.set(userId, set)
     }
-    byUserId[userId] = prev
+    if (primary === "보류") {
+      const set = onHoldSets.get(userId) ?? new Set<string>()
+      set.add(shareholderId)
+      onHoldSets.set(userId, set)
+    }
+  }
+
+  const userIds = new Set<string>([
+    ...completedSets.keys(),
+    ...onHoldSets.keys(),
+  ])
+  const byUserId: WorkspaceChangeHistorySummary["byUserId"] = {}
+  for (const userId of userIds) {
+    byUserId[userId] = {
+      completedDistinctCount: completedSets.get(userId)?.size ?? 0,
+      onHoldDistinctCount: onHoldSets.get(userId)?.size ?? 0,
+    }
   }
 
   return { byUserId }

@@ -687,7 +687,7 @@ const WorkspaceMapPage = () => {
               {isWorkspaceAdmin && (
                 <MenuItem onClick={() => leaveMapTo(ROUTES.workspaces)}>
                   <ListIcon />
-                  워크스페이스 목록
+                  상장사 목록
                 </MenuItem>
               )}
               {isWorkspaceAdmin && (
@@ -703,7 +703,7 @@ const WorkspaceMapPage = () => {
                   }
                   style={{ color: COLORS.purple[700] }}>
                   <BusinessIcon />
-                  워크스페이스 관리
+                  관리자 패널 이동
                 </MenuItem>
               )}
               {isWorkspaceAdmin && (

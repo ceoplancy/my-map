@@ -469,6 +469,14 @@ const CompanyStatusEmpty = styled.span`
   color: ${COLORS.gray[500]};
 `
 
+const WORKLOAD_PRIMARY_STATUS_ORDER: PrimaryStatus[] = [
+  "완료",
+  "보류",
+  "실패",
+  "전자투표",
+  "주주총회",
+]
+
 const ScopeFilterSection = styled.div`
   margin-top: 1.5rem;
   padding: 1rem 1rem 1.125rem;
@@ -797,8 +805,8 @@ export function WorkspaceDashboardBody() {
       userId: string
       agentLabel: string
       assignedCount: number
-      changeCount: number
-      memoCount: number
+      completedDistinctCount: number
+      onHoldDistinctCount: number
       companyPrimary: CompanyPrimaryCount[]
     }
     const agents = workspaceMembersWithUsers.filter(
@@ -830,15 +838,15 @@ export function WorkspaceDashboardBody() {
       const agentLabel =
         agent.name?.trim() || agent.email?.trim() || agent.user_id
       const changeBy = changeHistorySummary.byUserId[agent.user_id] ?? {
-        changeCount: 0,
-        memoCount: 0,
+        completedDistinctCount: 0,
+        onHoldDistinctCount: 0,
       }
       rows.push({
         userId: agent.user_id,
         agentLabel,
         assignedCount,
-        changeCount: changeBy.changeCount,
-        memoCount: changeBy.memoCount,
+        completedDistinctCount: changeBy.completedDistinctCount,
+        onHoldDistinctCount: changeBy.onHoldDistinctCount,
         companyPrimary: [...companyMap.entries()]
           .sort((a, b) => a[0].localeCompare(b[0], "ko"))
           .map(([company, counts]) => ({ company, counts })),
@@ -1213,9 +1221,9 @@ export function WorkspaceDashboardBody() {
                       현장요원별 작업량
                     </DetailBreakdownTitle>
                     <DetailBreakdownHint>
-                      사용자 관리에 등록된 현장요원 기준으로, 변경 이력 횟수,
-                      메모 변경 횟수, 담당 주주의 회사별 1차 상태 건수를
-                      집계합니다.
+                      사용자 관리에 등록된 현장요원 기준으로, 서로 다른 주주를
+                      완료·보류로 변경한 건수(중복 제외)와 담당 주주의 회사별
+                      1차 상태 건수를 집계합니다.
                     </DetailBreakdownHint>
                     <DetailTableScroll style={{ marginTop: "0.5rem" }}>
                       <DetailTable>
@@ -1225,12 +1233,12 @@ export function WorkspaceDashboardBody() {
                             <DetailTh
                               scope="col"
                               style={{ textAlign: "right" }}>
-                              변경이력
+                              완료 변경
                             </DetailTh>
                             <DetailTh
                               scope="col"
                               style={{ textAlign: "right" }}>
-                              메모 변경
+                              보류 변경
                             </DetailTh>
                             <DetailTh
                               scope="col"
@@ -1245,10 +1253,10 @@ export function WorkspaceDashboardBody() {
                             <tr key={row.userId}>
                               <DetailTd>{row.agentLabel}</DetailTd>
                               <DetailTdNum>
-                                {row.changeCount.toLocaleString()}회
+                                {row.completedDistinctCount.toLocaleString()}건
                               </DetailTdNum>
                               <DetailTdNum>
-                                {row.memoCount.toLocaleString()}회
+                                {row.onHoldDistinctCount.toLocaleString()}건
                               </DetailTdNum>
                               <DetailTdNum>
                                 {row.assignedCount.toLocaleString()}명
@@ -1266,14 +1274,15 @@ export function WorkspaceDashboardBody() {
                                         <CompanyStatusName>
                                           {c.company}
                                         </CompanyStatusName>
-                                        {PRIMARY_STATUS_OPTIONS.map((p) =>
-                                          c.counts[p] > 0 ? (
-                                            <CompanyStatusChip
-                                              key={`${row.userId}\t${c.company}\t${p}`}
-                                              $color={statusCardColor(p)}>
-                                              {p} {c.counts[p]}건
-                                            </CompanyStatusChip>
-                                          ) : null,
+                                        {WORKLOAD_PRIMARY_STATUS_ORDER.map(
+                                          (p) =>
+                                            c.counts[p] > 0 ? (
+                                              <CompanyStatusChip
+                                                key={`${row.userId}\t${c.company}\t${p}`}
+                                                $color={statusCardColor(p)}>
+                                                {p} {c.counts[p]}건
+                                              </CompanyStatusChip>
+                                            ) : null,
                                         )}
                                       </CompanyStatusRow>
                                     ))
