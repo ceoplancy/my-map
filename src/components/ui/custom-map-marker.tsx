@@ -26,6 +26,7 @@ import {
   nextShareholderStatusAfterPhotoFieldsChange,
 } from "@/lib/shareholderStatus"
 import { normalizePhoneForDb } from "@/lib/formatKoreanPhone"
+import { getKakaoMapLinkUrl } from "@/lib/kakaoMapLinks"
 
 export type { MapMarkerData } from "@/types/map"
 const isShareholder = isShareholderMarker
@@ -294,35 +295,25 @@ const CustomMapMarker = ({
 
   const handleOpenDirections = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
-    const lat = Number(markerForDetail.lat)
-    const lng = Number(markerForDetail.lng)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    const address =
+      markerForDetail.address?.trim() || markerForDetail.latlngaddress?.trim()
+    const kakaoWebUrl = getKakaoMapLinkUrl({
+      name: markerForDetail.name ?? markerForDetail.company ?? null,
+      address: address || null,
+      lat: Number(markerForDetail.lat),
+      lng: Number(markerForDetail.lng),
+    })
+
+    if (!kakaoWebUrl) {
       toast.error("유효한 위치 정보가 없어 길찾기를 열 수 없습니다.")
 
       return
     }
 
-    const destinationName = encodeURIComponent(
-      markerForDetail.name ?? markerForDetail.company ?? "목적지",
-    )
-    const kakaoAppUrl = `kakaomap://route?ep=${lat},${lng}&by=CAR`
-    const kakaoWebUrl = `https://map.kakao.com/link/to/${destinationName},${lat},${lng}`
-    const isMobileClient = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-
-    if (!isMobileClient) {
-      window.open(kakaoWebUrl, "_blank", "noopener,noreferrer")
-
-      return
+    const opened = window.open(kakaoWebUrl, "_blank", "noopener,noreferrer")
+    if (!opened) {
+      window.location.href = kakaoWebUrl
     }
-
-    const startedAt = Date.now()
-    window.location.href = kakaoAppUrl
-    window.setTimeout(() => {
-      // 앱 전환이 되지 않으면 웹 지도로 폴백
-      if (Date.now() - startedAt < 1700) {
-        window.open(kakaoWebUrl, "_blank", "noopener,noreferrer")
-      }
-    }, 900)
   }
 
   const handleMarkerClick = () => {

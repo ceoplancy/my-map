@@ -10,7 +10,13 @@ export type KakaoMapLinkInput = {
   lng?: number | null
 }
 
-function safePlaceLabel(name: string | null | undefined): string {
+function safePlaceLabel(
+  name: string | null | undefined,
+  address?: string | null,
+): string {
+  const addressFirst = (address ?? "").replace(/,/g, " ").trim()
+  if (addressFirst) return addressFirst
+
   const t = (name ?? "목적지").replace(/,/g, " ").trim()
 
   return t || "목적지"
@@ -31,7 +37,7 @@ export function getKakaoMapLinkUrl(input: KakaoMapLinkInput): string | null {
     Number.isFinite(lat) &&
     Number.isFinite(lng)
   ) {
-    const label = safePlaceLabel(input.name)
+    const label = safePlaceLabel(input.name, input.address)
 
     return `https://map.kakao.com/link/to/${encodeURIComponent(label)},${lat},${lng}`
   }
