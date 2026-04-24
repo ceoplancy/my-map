@@ -153,6 +153,13 @@ const TableWrap = styled.div`
   margin-bottom: 0.5rem;
 `
 
+const SectionTitle = styled.h2`
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: ${COLORS.gray[800]};
+`
+
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -404,8 +411,25 @@ export function ListsPageContent() {
     deleteList.mutate({ id: list.id, workspace_id: currentWorkspace.id })
   }
 
+  const handleRestoreList = (list: ShareholderListRow) => {
+    if (!confirm(`"${list.name}" 명부를 복원할까요?`)) return
+    updateList.mutate({
+      id: list.id,
+      archived_at: null,
+    })
+  }
+
+  const activeLists = useMemo(
+    () => lists.filter((list) => !list.archived_at),
+    [lists],
+  )
+  const archivedLists = useMemo(
+    () => lists.filter((list) => !!list.archived_at),
+    [lists],
+  )
+
   const filteredAndSortedLists = useMemo(() => {
-    let result = lists.filter((list) => {
+    let result = activeLists.filter((list) => {
       const matchesSearch =
         !searchQuery.trim() ||
         (list.name ?? "")
@@ -439,7 +463,7 @@ export function ListsPageContent() {
     })
 
     return result
-  }, [lists, searchQuery, visibilityFilter, sortBy, sortOrder])
+  }, [activeLists, searchQuery, visibilityFilter, sortBy, sortOrder])
 
   const totalCount = filteredAndSortedLists.length
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -670,7 +694,12 @@ export function ListsPageContent() {
             ) : filteredAndSortedLists.length === 0 ? (
               <tr>
                 <td colSpan={4}>
-                  <EmptyState>검색·필터 결과가 없습니다.</EmptyState>
+                  <EmptyState>
+                    검색·필터 결과가 없습니다.
+                    {archivedLists.length > 0
+                      ? " 하단의 아카이브 명부도 확인해 보세요."
+                      : ""}
+                  </EmptyState>
                 </td>
               </tr>
             ) : (
@@ -724,7 +753,7 @@ export function ListsPageContent() {
         </Table>
       </TableWrap>
 
-      {!isLoading && lists.length > 0 && (
+      {!isLoading && activeLists.length > 0 && (
         <PaginationWrap>
           <span>
             총 {totalCount}건{totalCount > 0 && ` (${from}–${to} 표시)`}
@@ -760,6 +789,49 @@ export function ListsPageContent() {
             다음
           </PageBtn>
         </PaginationWrap>
+      )}
+
+      {!isLoading && archivedLists.length > 0 && (
+        <>
+          <SectionTitle>아카이브된 주주명부</SectionTitle>
+          <TableWrap>
+            <Table>
+              <thead>
+                <Tr>
+                  <Th>명부명</Th>
+                  <Th>아카이브일</Th>
+                  <Th>관리</Th>
+                </Tr>
+              </thead>
+              <tbody>
+                {archivedLists
+                  .slice()
+                  .sort((a, b) =>
+                    String(b.archived_at ?? "").localeCompare(
+                      String(a.archived_at ?? ""),
+                    ),
+                  )
+                  .map((list) => (
+                    <Tr key={`archived-${list.id}`}>
+                      <Td>{list.name}</Td>
+                      <Td>{list.archived_at?.slice(0, 10) ?? "-"}</Td>
+                      <Td>
+                        <LinkButton href={`${base}/lists/${list.id}`}>
+                          주주 보기
+                        </LinkButton>
+                        {" · "}
+                        <EditListButton
+                          type="button"
+                          onClick={() => handleRestoreList(list)}>
+                          복원
+                        </EditListButton>
+                      </Td>
+                    </Tr>
+                  ))}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </>
       )}
 
       {editingList && (

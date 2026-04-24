@@ -580,9 +580,22 @@ type Filters = {
 
   /**
    * 주소→좌표 변환 성공·대기·실패. 빈 문자열이면 전체.
-   * 기본 ok: 성공만 (DB null·빈 값은 성공으로 간주).
+   * ok는 성공만 (DB null·빈 값은 성공으로 간주).
    */
   geocode: "" | "ok" | "pending" | "failed"
+}
+
+const DEFAULT_LIST_FILTERS: Filters = {
+  search: "",
+  statusPrimary: "",
+  statusDetail: "",
+  stocksMin: "",
+  stocksMax: "",
+  modifier: "",
+  modifiedFrom: "",
+  modifiedTo: "",
+  photo: "",
+  geocode: "",
 }
 
 function describeShareholderListFilters(filters: Filters): string {
@@ -621,7 +634,10 @@ function describeShareholderListFilters(filters: Filters): string {
   } else if (filters.geocode === "failed") {
     parts.push("주소 변환 실패만")
   }
-  // ok(성공만)은 목록 기본값이라 요약 문구에서 생략
+  // ok(성공만)은 사용자가 명시적으로 선택했을 때만 문구 추가
+  if (filters.geocode === "ok") {
+    parts.push("주소 변환 성공만")
+  }
 
   return parts.length > 0 ? parts.join(" · ") : "없음 (전체)"
 }
@@ -660,18 +676,7 @@ export default function ShareholderList({ listId, listName }: Props) {
     field: null,
     direction: "asc",
   })
-  const [filters, setFilters] = useState<Filters>({
-    search: "",
-    statusPrimary: "",
-    statusDetail: "",
-    stocksMin: "",
-    stocksMax: "",
-    modifier: "",
-    modifiedFrom: "",
-    modifiedTo: "",
-    photo: "",
-    geocode: "ok",
-  })
+  const [filters, setFilters] = useState<Filters>({ ...DEFAULT_LIST_FILTERS })
 
   const { data: session } = useSession()
   const userId = session?.user?.id ?? ""
@@ -1033,12 +1038,33 @@ export default function ShareholderList({ listId, listName }: Props) {
       const filterDescription = describeShareholderListFilters(filters)
       const displayName = listMeta?.name ?? listName ?? null
       const fileBase = displayName ? `주주명부_${displayName}` : "주주명부"
+      const noFilterApplied =
+        filters.search.trim() === "" &&
+        !filters.statusPrimary &&
+        filters.statusDetail.trim() === "" &&
+        filters.stocksMin.trim() === "" &&
+        filters.stocksMax.trim() === "" &&
+        filters.modifier === "" &&
+        filters.modifiedFrom.trim() === "" &&
+        filters.modifiedTo.trim() === "" &&
+        filters.photo === "" &&
+        filters.geocode === ""
+      const rowsForExport = noFilterApplied
+        ? (shareholdersData ?? [])
+        : sortedData
+      const exportOptions: ShareholderRegistryExportOptions = noFilterApplied
+        ? {
+            ...opts,
+            includeSummarySheet: false,
+            splitSheetsByPrimaryStatus: true,
+          }
+        : opts
 
       downloadShareholderRegistryWorkbook({
         listName: displayName,
         filterDescription,
-        rows: sortedData,
-        options: opts,
+        rows: rowsForExport,
+        options: exportOptions,
         fileBaseName: fileBase,
         ctx: {
           formatHistoryInline: formatHistoryForExport,
@@ -1059,6 +1085,7 @@ export default function ShareholderList({ listId, listName }: Props) {
       filters,
       listMeta?.name,
       listName,
+      shareholdersData,
       sortedData,
       formatHistoryForExport,
       getLatestModifier,
@@ -1180,7 +1207,7 @@ export default function ShareholderList({ listId, listName }: Props) {
                 주소 변환
                 <FieldHint>
                   성공·대기·실패 기준 · 저장값 없음·null은 성공으로 봄 · 기본
-                  성공만
+                  전체
                 </FieldHint>
               </Label>
               <FilterSelect
@@ -1192,10 +1219,10 @@ export default function ShareholderList({ listId, listName }: Props) {
                   )
                 }
                 title="지오코딩: 주소 변환의 성공·대기·실패. 비어 있거나 null은 성공(ok)으로 간주합니다.">
-                <option value="ok">성공 (기본)</option>
+                <option value="">전체</option>
+                <option value="ok">성공</option>
                 <option value="pending">대기</option>
                 <option value="failed">실패</option>
-                <option value="">전체</option>
               </FilterSelect>
             </FormGroup>
 
@@ -1308,18 +1335,7 @@ export default function ShareholderList({ listId, listName }: Props) {
             <ClearFiltersButton
               type="button"
               onClick={() => {
-                setFilters({
-                  search: "",
-                  statusPrimary: "",
-                  statusDetail: "",
-                  stocksMin: "",
-                  stocksMax: "",
-                  modifier: "",
-                  modifiedFrom: "",
-                  modifiedTo: "",
-                  photo: "",
-                  geocode: "ok",
-                })
+                setFilters({ ...DEFAULT_LIST_FILTERS })
                 setCurrentPage(1)
               }}>
               <ClearIcon />
