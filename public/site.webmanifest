@@ -1,14 +1,22 @@
-{
-  "name": "ANTRE",
-  "short_name": "ANTRE",
+﻿{
+  "name": "ANT:RE",
+  "short_name": "ANT:RE",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
+    {
+      "src": "/antre-logo-square.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/favicon.ico",
       "sizes": "48x48",
       "type": "image/x-icon"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#8536FF",
+  "background_color": "#F8FAFC",
   "display": "standalone"
 }

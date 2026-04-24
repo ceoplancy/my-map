@@ -96,19 +96,23 @@ const App = ({ Component, pageProps }: AppProps) => {
         {/* <meta property="og:url" content="https://antre.co.kr" /> */}
         <meta property="og:image" content="/antre-logo-square.png" />
 
-        {/* Viewport */}
+        {/* Viewport: zoom 허용(접근성), 노치 대응(viewport-fit) */}
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
         {/* Favicon - only link assets that exist in public/ */}
         <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/site.webmanifest" />
+        <link rel="apple-touch-icon" href="/antre-logo-square.png" />
 
         {/* 추가 메타 태그 */}
         <meta name="theme-color" content="#8536FF" />
         <meta name="application-name" content="ANT:RE" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </Head>
 
       <GlobalStyle />
@@ -118,7 +122,14 @@ const App = ({ Component, pageProps }: AppProps) => {
           <AuthStateSync />
           <HydrationBoundary state={dehydratedState}>
             <Component {...restPageProps} />
-            <ToastContainer position="top-center" limit={3} autoClose={3000} />
+            <ToastContainer
+              position="top-center"
+              limit={3}
+              autoClose={3000}
+              style={{
+                top: "max(0.75rem, env(safe-area-inset-top, 0px))",
+              }}
+            />
             <div id="portal" />
           </HydrationBoundary>
           {process.env.NODE_ENV === "development" && (

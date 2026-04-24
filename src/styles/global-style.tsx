@@ -234,6 +234,7 @@ const globalStyle = css`
   html {
     font-size: 16px;
     scroll-behavior: smooth;
+    color-scheme: light;
   }
 
   @media (max-width: 450px) {
@@ -322,6 +323,15 @@ const globalStyle = css`
 
     &::placeholder {
       color: ${COLORS.gray[400]};
+    }
+  }
+
+  /* 터치 기기에서 입력 글자가 16px 미만이면 iOS가 포커스 시 자동 확대함 */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select {
+      font-size: 16px;
     }
   }
 

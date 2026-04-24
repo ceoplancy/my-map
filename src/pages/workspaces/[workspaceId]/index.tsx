@@ -813,7 +813,8 @@ const SideMenu = styled.div<{ isVisible: boolean }>`
   z-index: 150;
   width: 100%;
   max-width: 100%;
-  max-height: min(92vh, calc(100dvh - env(safe-area-inset-bottom) - 0.5rem));
+  max-height: min(92vh, calc(100vh - env(safe-area-inset-bottom) - 0.5rem));
+  max-height: min(92dvh, calc(100dvh - env(safe-area-inset-bottom) - 0.5rem));
   height: auto;
   background: white;
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
@@ -1006,6 +1007,7 @@ const EmptyWorkspaceHint = styled.p`
 const MapContainer = styled.div`
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   position: relative;
 
   @media screen and (max-width: 768px) {
@@ -1016,6 +1018,7 @@ const MapContainer = styled.div`
 const PendingContainer = styled.div`
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;

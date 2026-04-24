@@ -512,6 +512,7 @@ const HistoryModalContent = styled.div`
     width: 100%;
     height: 100%;
     max-height: 100vh;
+    max-height: 100dvh;
     border-radius: 16px 16px 0 0;
     margin-top: auto;
   }

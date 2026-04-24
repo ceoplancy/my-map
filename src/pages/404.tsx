@@ -13,9 +13,11 @@ export default function NotFound() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          minHeight: "100vh",
-          padding: "2rem",
+          minHeight: "100dvh",
+          padding:
+            "max(2rem, env(safe-area-inset-top)) max(2rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(2rem, env(safe-area-inset-left))",
           textAlign: "center",
+          boxSizing: "border-box",
         }}>
         <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
           페이지를 찾을 수 없습니다
