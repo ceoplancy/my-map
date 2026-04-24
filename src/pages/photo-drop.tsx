@@ -1,5 +1,5 @@
 import { useRouter } from "next/router"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import styled from "@emotion/styled"
 import { toast } from "react-toastify"
 
@@ -28,10 +28,71 @@ const Title = styled.h1`
   margin-bottom: 0.75rem;
 `
 
-const FileInput = styled.input`
+const NameLabel = styled.label`
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: ${COLORS.gray[800]};
+  margin-bottom: 0.35rem;
+`
+
+const NameInput = styled.input`
   width: 100%;
-  padding: 0.5rem 0;
-  margin-top: 0.5rem;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  border: 1px solid ${COLORS.gray[200]};
+  border-radius: 10px;
+  background: white;
+  &::placeholder {
+    color: ${COLORS.gray[400]};
+  }
+  &:focus {
+    outline: none;
+    border-color: ${COLORS.blue[500]};
+    box-shadow: 0 0 0 3px ${COLORS.blue[100]};
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`
+
+const FileRow = styled.div`
+  position: relative;
+`
+
+const FilePickButton = styled.button`
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: ${COLORS.blue[700]};
+  background: ${COLORS.blue[50]};
+  border: 1px solid ${COLORS.blue[200]};
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`
+
+const HiddenFileInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 `
 
 export default function PhotoDropPage() {
@@ -39,10 +100,18 @@ export default function PhotoDropPage() {
   const t = router.query.t
   const tokenStr = typeof t === "string" ? t : ""
   const [busy, setBusy] = useState(false)
+  const [submitterName, setSubmitterName] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const onFile = async (file: File) => {
     if (!tokenStr) {
       toast.error("링크에 토큰이 없습니다.")
+
+      return
+    }
+    const nameTrim = submitterName.trim()
+    if (!nameTrim) {
+      toast.error("이름을 입력해 주세요.")
 
       return
     }
@@ -79,6 +148,10 @@ export default function PhotoDropPage() {
         })
       if (upErr) throw upErr
 
+      const displayName = file.name?.trim()
+        ? `${nameTrim} · ${file.name.trim()}`
+        : nameTrim
+
       const regRes = await fetch("/api/public/photo-drop/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -86,7 +159,7 @@ export default function PhotoDropPage() {
           token: tokenStr,
           path: signed.path,
           contentType: file.type || null,
-          originalFilename: file.name || null,
+          originalFilename: displayName,
         }),
       })
       if (!regRes.ok) {
@@ -130,21 +203,38 @@ export default function PhotoDropPage() {
   return (
     <Page>
       <Title>사진 접수</Title>
-      <p style={{ color: COLORS.gray[600], fontSize: "0.875rem" }}>
-        로그인 없이 사진 한 장을 올릴 수 있습니다. 촬영 또는 앨범에서 선택해
-        주세요.
-      </p>
-      <FileInput
+      <NameLabel htmlFor="photo-drop-name">이름</NameLabel>
+      <NameInput
+        id="photo-drop-name"
+        name="submitterName"
+        type="text"
+        autoComplete="name"
+        enterKeyHint="done"
+        placeholder="이름을 입력해 주세요"
+        value={submitterName}
         disabled={busy}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          e.target.value = ""
-          if (f) void onFile(f)
-        }}
+        onChange={(e) => setSubmitterName(e.target.value)}
       />
+      <FileRow>
+        <FilePickButton
+          type="button"
+          disabled={busy}
+          aria-busy={busy}
+          onClick={() => fileInputRef.current?.click()}>
+          {busy ? "업로드 중…" : "사진 올리기"}
+        </FilePickButton>
+        <HiddenFileInput
+          ref={fileInputRef}
+          disabled={busy}
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ""
+            if (f) void onFile(f)
+          }}
+        />
+      </FileRow>
       {busy ? (
         <div style={{ marginTop: "1rem" }}>
           <GlobalSpinner width={22} height={22} dotColor="#8536FF" />
