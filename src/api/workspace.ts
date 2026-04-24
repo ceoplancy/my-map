@@ -408,14 +408,20 @@ export type WorkspaceChangeHistorySummary = {
 
 async function getWorkspaceChangeHistorySummary(
   listIds: string[],
+  recentDays?: number,
 ): Promise<WorkspaceChangeHistorySummary> {
   if (listIds.length === 0) return { byUserId: {} }
-  const { data, error } = await supabase
+  let query = supabase
     .from("shareholder_change_history")
     .select(
       "changed_by, shareholder_id, field, new_value, shareholders!inner(list_id)",
     )
     .in("shareholders.list_id", listIds)
+  if (recentDays && recentDays > 0) {
+    const since = new Date(Date.now() - recentDays * 24 * 60 * 60 * 1000)
+    query = query.gte("changed_at", since.toISOString())
+  }
+  const { data, error } = await query
   if (error) {
     reportError(error)
     throw new Error(error.message)
@@ -463,12 +469,15 @@ async function getWorkspaceChangeHistorySummary(
   return { byUserId }
 }
 
-export const useWorkspaceChangeHistorySummary = (listIds: string[]) => {
+export const useWorkspaceChangeHistorySummary = (
+  listIds: string[],
+  recentDays?: number,
+) => {
   const key = [...listIds].sort().join(",")
 
   return useQuery({
-    queryKey: ["workspaceChangeHistorySummary", key],
-    queryFn: () => getWorkspaceChangeHistorySummary(listIds),
+    queryKey: ["workspaceChangeHistorySummary", key, recentDays ?? 0],
+    queryFn: () => getWorkspaceChangeHistorySummary(listIds, recentDays),
     enabled: listIds.length > 0,
     staleTime: 60_000,
   })

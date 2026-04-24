@@ -477,6 +477,16 @@ const WORKLOAD_PRIMARY_STATUS_ORDER: PrimaryStatus[] = [
   "주주총회",
 ]
 
+const WORKLOAD_RECENT_DAY_OPTIONS = [1, 2, 3, 5, 7, 14, 30] as const
+
+const WorkloadHeader = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+`
+
 const ScopeFilterSection = styled.div`
   margin-top: 1.5rem;
   padding: 1rem 1rem 1.125rem;
@@ -646,6 +656,7 @@ export function WorkspaceDashboardBody() {
   const [filterPrimary, setFilterPrimary] = useState<PrimaryStatus[]>([])
   const [filterCompany, setFilterCompany] = useState("")
   const [filterMaker, setFilterMaker] = useState("")
+  const [workloadRecentDays, setWorkloadRecentDays] = useState<number>(7)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
   const effectiveListId = (selectedListId || lists[0]?.id) ?? null
@@ -737,7 +748,7 @@ export function WorkspaceDashboardBody() {
   const {
     data: changeHistorySummary = { byUserId: {} },
     isLoading: changeHistorySummaryLoading,
-  } = useWorkspaceChangeHistorySummary(workspaceListIds)
+  } = useWorkspaceChangeHistorySummary(workspaceListIds, workloadRecentDays)
 
   const fieldAgentProjectRows = useMemo(() => {
     type Row = {
@@ -1217,13 +1228,38 @@ export function WorkspaceDashboardBody() {
                     </DetailTableScroll>
                   )}
                   <DetailBreakdownBlock style={{ marginTop: "1rem" }}>
-                    <DetailBreakdownTitle>
-                      현장요원별 작업량
-                    </DetailBreakdownTitle>
+                    <WorkloadHeader>
+                      <DetailBreakdownTitle style={{ margin: 0 }}>
+                        현장요원별 작업량
+                      </DetailBreakdownTitle>
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                        }}>
+                        <ListSelectLabel style={{ margin: 0 }}>
+                          최근 기간
+                        </ListSelectLabel>
+                        <ListSelect
+                          value={String(workloadRecentDays)}
+                          onChange={(e) =>
+                            setWorkloadRecentDays(Number(e.target.value))
+                          }
+                          style={{ minWidth: "6.5rem" }}>
+                          {WORKLOAD_RECENT_DAY_OPTIONS.map((d) => (
+                            <option key={d} value={String(d)}>
+                              최근 {d}일
+                            </option>
+                          ))}
+                        </ListSelect>
+                      </div>
+                    </WorkloadHeader>
                     <DetailBreakdownHint>
                       사용자 관리에 등록된 현장요원 기준으로, 서로 다른 주주를
                       완료·보류로 변경한 건수(중복 제외)와 담당 주주의 회사별
-                      1차 상태 건수를 집계합니다.
+                      1차 상태 건수를 집계합니다. (최근 {workloadRecentDays}일
+                      기준)
                     </DetailBreakdownHint>
                     <DetailTableScroll style={{ marginTop: "0.5rem" }}>
                       <DetailTable>
