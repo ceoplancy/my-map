@@ -369,7 +369,7 @@ export const useShareholderLists = (workspaceId: string | null) => {
 /** 대시보드 등: 명부별 담당(maker)·상태 집계용 경량 행 */
 export type ShareholderMakerSummaryRow = Pick<
   Tables<"shareholders">,
-  "list_id" | "maker" | "status" | "stocks"
+  "list_id" | "maker" | "status" | "stocks" | "company"
 >
 
 /** 워크스페이스 소속 명부 전체에 대한 담당·상태 요약 행 (한 번 조회) */
@@ -382,7 +382,7 @@ export const useShareholdersMakerSummaryRows = (listIds: string[]) => {
       if (listIds.length === 0) return []
       const { data, error } = await supabase
         .from("shareholders")
-        .select("list_id, maker, status, stocks")
+        .select("list_id, maker, status, stocks, company")
         .in("list_id", listIds)
       if (error) {
         reportError(error)
@@ -391,6 +391,52 @@ export const useShareholdersMakerSummaryRows = (listIds: string[]) => {
 
       return (data ?? []) as ShareholderMakerSummaryRow[]
     },
+    enabled: listIds.length > 0,
+    staleTime: 60_000,
+  })
+}
+
+export type WorkspaceChangeHistorySummary = {
+  byUserId: Record<string, { changeCount: number; memoCount: number }>
+}
+
+async function getWorkspaceChangeHistorySummary(
+  listIds: string[],
+): Promise<WorkspaceChangeHistorySummary> {
+  if (listIds.length === 0) return { byUserId: {} }
+  const { data, error } = await supabase
+    .from("shareholder_change_history")
+    .select("changed_by, field, shareholders!inner(list_id)")
+    .in("shareholders.list_id", listIds)
+  if (error) {
+    reportError(error)
+    throw new Error(error.message)
+  }
+
+  const byUserId: WorkspaceChangeHistorySummary["byUserId"] = {}
+  for (const row of data ?? []) {
+    const userId = String(
+      (row as { changed_by?: string | null }).changed_by ?? "",
+    ).trim()
+    if (!userId) continue
+    const field = String((row as { field?: string | null }).field ?? "")
+    const prev = byUserId[userId] ?? { changeCount: 0, memoCount: 0 }
+    prev.changeCount += 1
+    if (field === "memo") {
+      prev.memoCount += 1
+    }
+    byUserId[userId] = prev
+  }
+
+  return { byUserId }
+}
+
+export const useWorkspaceChangeHistorySummary = (listIds: string[]) => {
+  const key = [...listIds].sort().join(",")
+
+  return useQuery({
+    queryKey: ["workspaceChangeHistorySummary", key],
+    queryFn: () => getWorkspaceChangeHistorySummary(listIds),
     enabled: listIds.length > 0,
     staleTime: 60_000,
   })

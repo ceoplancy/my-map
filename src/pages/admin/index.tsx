@@ -18,6 +18,7 @@ import {
   useShareholderLists,
   useShareholders,
   useShareholdersMakerSummaryRows,
+  useWorkspaceChangeHistorySummary,
   useWorkspaceMembersWithUsers,
   type WorkspaceMemberWithUser,
 } from "@/api/workspace"
@@ -431,6 +432,43 @@ const DetailTdFoot = styled.td`
   font-variant-numeric: tabular-nums;
 `
 
+const CompanyStatusCell = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 15rem;
+`
+
+const CompanyStatusRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+`
+
+const CompanyStatusName = styled.span`
+  font-weight: 700;
+  color: ${COLORS.gray[800]};
+`
+
+const CompanyStatusChip = styled.span<{ $color: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: ${(p) => p.$color};
+  background: color-mix(in srgb, ${(p) => p.$color} 14%, white);
+  border: 1px solid color-mix(in srgb, ${(p) => p.$color} 28%, white);
+`
+
+const CompanyStatusEmpty = styled.span`
+  font-size: 0.75rem;
+  color: ${COLORS.gray[500]};
+`
+
 const ScopeFilterSection = styled.div`
   margin-top: 1.5rem;
   padding: 1rem 1rem 1.125rem;
@@ -688,6 +726,10 @@ export function WorkspaceDashboardBody() {
   const workspaceListIds = useMemo(() => lists.map((l) => l.id), [lists])
   const { data: makerSummaryRows = [], isLoading: makerSummaryLoading } =
     useShareholdersMakerSummaryRows(workspaceListIds)
+  const {
+    data: changeHistorySummary = { byUserId: {} },
+    isLoading: changeHistorySummaryLoading,
+  } = useWorkspaceChangeHistorySummary(workspaceListIds)
 
   const fieldAgentProjectRows = useMemo(() => {
     type Row = {
@@ -745,6 +787,68 @@ export function WorkspaceDashboardBody() {
 
     return out
   }, [workspaceMembersWithUsers, lists, makerSummaryRows])
+
+  const fieldAgentWorkRows = useMemo(() => {
+    type CompanyPrimaryCount = {
+      company: string
+      counts: Record<PrimaryStatus, number>
+    }
+    type AgentWorkRow = {
+      userId: string
+      agentLabel: string
+      assignedCount: number
+      changeCount: number
+      memoCount: number
+      companyPrimary: CompanyPrimaryCount[]
+    }
+    const agents = workspaceMembersWithUsers.filter(
+      (m) => m.role === "field_agent",
+    )
+    const rows: AgentWorkRow[] = []
+
+    for (const agent of agents) {
+      const scope = new Set(listIdsInScopeForFieldAgent(agent, lists))
+      const companyMap = new Map<string, Record<PrimaryStatus, number>>()
+      let assignedCount = 0
+      for (const r of makerSummaryRows) {
+        if (!scope.has(r.list_id)) continue
+        if (!makerMatchesFieldAgent(r.maker, agent)) continue
+        assignedCount += 1
+        const company = r.company?.trim() || "회사 미지정"
+        const p = getPrimaryStatusCategory(r.status)
+        const prev = companyMap.get(company) ?? {
+          미방문: 0,
+          완료: 0,
+          보류: 0,
+          실패: 0,
+          전자투표: 0,
+          주주총회: 0,
+        }
+        prev[p] += 1
+        companyMap.set(company, prev)
+      }
+      const agentLabel =
+        agent.name?.trim() || agent.email?.trim() || agent.user_id
+      const changeBy = changeHistorySummary.byUserId[agent.user_id] ?? {
+        changeCount: 0,
+        memoCount: 0,
+      }
+      rows.push({
+        userId: agent.user_id,
+        agentLabel,
+        assignedCount,
+        changeCount: changeBy.changeCount,
+        memoCount: changeBy.memoCount,
+        companyPrimary: [...companyMap.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0], "ko"))
+          .map(([company, counts]) => ({ company, counts })),
+      })
+    }
+
+    rows.sort((a, b) => a.agentLabel.localeCompare(b.agentLabel, "ko"))
+
+    return rows
+  }, [workspaceMembersWithUsers, lists, makerSummaryRows, changeHistorySummary])
 
   const statusCardColor = (p: PrimaryStatus): string => {
     switch (p) {
@@ -1037,7 +1141,7 @@ export function WorkspaceDashboardBody() {
                 <strong> 정확히 같을 때만</strong> 해당 명부에 배정된 것으로
                 집계합니다. 명부 배정은 멤버의 허용 명부와 같습니다.
               </DetailBreakdownHint>
-              {makerSummaryLoading ? (
+              {makerSummaryLoading || changeHistorySummaryLoading ? (
                 <div
                   style={{
                     display: "flex",
@@ -1053,48 +1157,136 @@ export function WorkspaceDashboardBody() {
                   현장요원(용역) 역할 멤버가 없습니다. 멤버 관리에서 역할을
                   부여하면 이 요약이 채워집니다.
                 </DetailBreakdownHint>
-              ) : fieldAgentProjectRows.length === 0 ? (
-                <DetailBreakdownHint style={{ marginBottom: 0 }}>
-                  집계된 담당 주주가 없습니다. 주주 편집에서 담당 필드를
-                  현장요원 표시 이름·이메일·ID와 맞춰 주세요.
-                </DetailBreakdownHint>
               ) : (
-                <DetailTableScroll style={{ marginTop: "0.75rem" }}>
-                  <DetailTable>
-                    <thead>
-                      <tr>
-                        <DetailTh scope="col">현장요원</DetailTh>
-                        <DetailTh scope="col">명부(프로젝트)</DetailTh>
-                        <DetailTh scope="col" style={{ textAlign: "right" }}>
-                          담당 건수
-                        </DetailTh>
-                        <DetailTh scope="col" style={{ textAlign: "right" }}>
-                          완료(1차)
-                        </DetailTh>
-                        <DetailTh scope="col" style={{ textAlign: "right" }}>
-                          주식수 합
-                        </DetailTh>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fieldAgentProjectRows.map((row) => (
-                        <tr key={`${row.userId}\t${row.listId}`}>
-                          <DetailTd>{row.agentLabel}</DetailTd>
-                          <DetailTd>{row.listName}</DetailTd>
-                          <DetailTdNum>
-                            {row.assignedCount.toLocaleString()}명
-                          </DetailTdNum>
-                          <DetailTdNum>
-                            {row.completedCount.toLocaleString()}명
-                          </DetailTdNum>
-                          <DetailTdNum>
-                            {row.totalStocks.toLocaleString()}
-                          </DetailTdNum>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </DetailTable>
-                </DetailTableScroll>
+                <>
+                  {fieldAgentProjectRows.length === 0 ? (
+                    <DetailBreakdownHint style={{ marginBottom: 0 }}>
+                      집계된 담당 주주가 없습니다. 주주 편집에서 담당 필드를
+                      현장요원 표시 이름·이메일·ID와 맞춰 주세요.
+                    </DetailBreakdownHint>
+                  ) : (
+                    <DetailTableScroll style={{ marginTop: "0.75rem" }}>
+                      <DetailTable>
+                        <thead>
+                          <tr>
+                            <DetailTh scope="col">현장요원</DetailTh>
+                            <DetailTh scope="col">명부(프로젝트)</DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              담당 건수
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              완료(1차)
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              주식수 합
+                            </DetailTh>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fieldAgentProjectRows.map((row) => (
+                            <tr key={`${row.userId}\t${row.listId}`}>
+                              <DetailTd>{row.agentLabel}</DetailTd>
+                              <DetailTd>{row.listName}</DetailTd>
+                              <DetailTdNum>
+                                {row.assignedCount.toLocaleString()}명
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.completedCount.toLocaleString()}명
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.totalStocks.toLocaleString()}
+                              </DetailTdNum>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </DetailTable>
+                    </DetailTableScroll>
+                  )}
+                  <DetailBreakdownBlock style={{ marginTop: "1rem" }}>
+                    <DetailBreakdownTitle>
+                      현장요원별 작업량
+                    </DetailBreakdownTitle>
+                    <DetailBreakdownHint>
+                      사용자 관리에 등록된 현장요원 기준으로, 변경 이력 횟수,
+                      메모 변경 횟수, 담당 주주의 회사별 1차 상태 건수를
+                      집계합니다.
+                    </DetailBreakdownHint>
+                    <DetailTableScroll style={{ marginTop: "0.5rem" }}>
+                      <DetailTable>
+                        <thead>
+                          <tr>
+                            <DetailTh scope="col">현장요원</DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              변경이력
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              메모 변경
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              담당 주주
+                            </DetailTh>
+                            <DetailTh scope="col">회사별 1차 상태</DetailTh>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fieldAgentWorkRows.map((row) => (
+                            <tr key={row.userId}>
+                              <DetailTd>{row.agentLabel}</DetailTd>
+                              <DetailTdNum>
+                                {row.changeCount.toLocaleString()}회
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.memoCount.toLocaleString()}회
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.assignedCount.toLocaleString()}명
+                              </DetailTdNum>
+                              <DetailTd>
+                                <CompanyStatusCell>
+                                  {row.companyPrimary.length === 0 ? (
+                                    <CompanyStatusEmpty>
+                                      담당 주주 없음
+                                    </CompanyStatusEmpty>
+                                  ) : (
+                                    row.companyPrimary.map((c) => (
+                                      <CompanyStatusRow
+                                        key={`${row.userId}\t${c.company}`}>
+                                        <CompanyStatusName>
+                                          {c.company}
+                                        </CompanyStatusName>
+                                        {PRIMARY_STATUS_OPTIONS.map((p) =>
+                                          c.counts[p] > 0 ? (
+                                            <CompanyStatusChip
+                                              key={`${row.userId}\t${c.company}\t${p}`}
+                                              $color={statusCardColor(p)}>
+                                              {p} {c.counts[p]}건
+                                            </CompanyStatusChip>
+                                          ) : null,
+                                        )}
+                                      </CompanyStatusRow>
+                                    ))
+                                  )}
+                                </CompanyStatusCell>
+                              </DetailTd>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </DetailTable>
+                    </DetailTableScroll>
+                  </DetailBreakdownBlock>
+                </>
               )}
             </ContentCard>
           </ListDashboardGrid>
