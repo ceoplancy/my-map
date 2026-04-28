@@ -21,6 +21,16 @@ import { shouldReportSentryForHttpStatus } from "@/lib/httpReporting"
 import { reportError, reportMessage } from "@/lib/reportError"
 
 export type { AdminWorkspaceItem }
+export type AdminSignupRequestItem = {
+  id: string
+  email: string
+  account_type: AccountType
+  workspace_name: string
+  user_name?: string | null
+  status: "pending" | "approved" | "rejected" | "revoked" | string
+  created_at: string
+  user_id?: string | null
+}
 
 // =======================================
 // ============== get 필터 메뉴 ================
@@ -384,6 +394,23 @@ export const useAdminWorkspaces = () => {
     queryKey: ["adminWorkspaces"],
     queryFn: getAdminWorkspaces,
     staleTime: 1000 * 60 * 2,
+  })
+}
+
+const getAdminSignupRequests = async (): Promise<AdminSignupRequestItem[]> => {
+  const data = await adminJsonOrThrow(
+    (headers) => apiClient.get("/api/admin/signup-requests", { headers }),
+    "가입 신청 목록 조회에 실패했습니다.",
+  )
+
+  return Array.isArray(data) ? (data as AdminSignupRequestItem[]) : []
+}
+
+export const useAdminSignupRequests = () => {
+  return useQuery({
+    queryKey: ["adminSignupRequests"],
+    queryFn: getAdminSignupRequests,
+    staleTime: 1000 * 30,
   })
 }
 

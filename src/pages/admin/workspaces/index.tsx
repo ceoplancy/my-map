@@ -1,6 +1,7 @@
 import AdminLayout from "@/layouts/AdminLayout"
 import {
   useAdminWorkspaces,
+  useAdminSignupRequests,
   useCreateAdminWorkspace,
   useDeleteAdminWorkspace,
   useUpdateAdminWorkspace,
@@ -15,7 +16,7 @@ import Link from "next/link"
 import { useRouter } from "next/router"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "react-toastify"
 
 const Container = styled.div`
@@ -101,6 +102,37 @@ const Td = styled.td`
   border-bottom: 1px solid ${COLORS.gray[100]};
   font-size: 0.875rem;
   color: ${COLORS.gray[700]};
+`
+
+const StatusBadge = styled.span<{
+  $tone: "approved" | "pending" | "rejected" | "revoked" | "manual"
+}>`
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: ${({ $tone }) =>
+    $tone === "approved"
+      ? COLORS.green[100]
+      : $tone === "pending"
+        ? COLORS.yellow[100]
+        : $tone === "rejected"
+          ? COLORS.red[100]
+          : $tone === "revoked"
+            ? COLORS.purple[100]
+            : COLORS.gray[100]};
+  color: ${({ $tone }) =>
+    $tone === "approved"
+      ? COLORS.green[700]
+      : $tone === "pending"
+        ? COLORS.yellow[700]
+        : $tone === "rejected"
+          ? COLORS.red[700]
+          : $tone === "revoked"
+            ? COLORS.purple[700]
+            : COLORS.gray[700]};
 `
 
 const EmptyMessage = styled.div`
@@ -204,6 +236,8 @@ export default function AdminWorkspacesPage() {
   const router = useRouter()
   const { data: adminStatus, isLoading: adminStatusLoading } = useAdminStatus()
   const { data: workspaces = [], isLoading } = useAdminWorkspaces()
+  const { data: signupRequests = [], isLoading: signupRequestsLoading } =
+    useAdminSignupRequests()
   const createWorkspace = useCreateAdminWorkspace()
   const deleteWorkspace = useDeleteAdminWorkspace()
   const updateWorkspace = useUpdateAdminWorkspace()
@@ -219,6 +253,128 @@ export default function AdminWorkspacesPage() {
   const [editCompanyName, setEditCompanyName] = useState("")
   const [editAccountType, setEditAccountType] =
     useState<AccountType>("listed_company")
+
+  type UnifiedCompanyRow =
+    | {
+        kind: "workspace"
+        workspace: AdminWorkspaceItem
+        requestId: string | null
+        companyName: string
+        accountType: AccountType
+        adminEmail: string
+        userName: string
+        createdAt: string | null
+        statusLabel: string
+        statusTone: "approved" | "manual"
+      }
+    | {
+        kind: "request_only"
+        requestId: string
+        companyName: string
+        accountType: AccountType
+        adminEmail: string
+        userName: string
+        createdAt: string | null
+        statusLabel: string
+        statusTone: "pending" | "rejected" | "revoked"
+      }
+
+  const unifiedRows = useMemo((): UnifiedCompanyRow[] => {
+    const requestsByUserId = new Map<
+      string,
+      (typeof signupRequests)[number][]
+    >()
+    const requestsByCompanyEmail = new Map<
+      string,
+      (typeof signupRequests)[number][]
+    >()
+    for (const req of signupRequests) {
+      const userId = String(req.user_id ?? "").trim()
+      if (userId) {
+        const prev = requestsByUserId.get(userId) ?? []
+        prev.push(req)
+        requestsByUserId.set(userId, prev)
+      }
+      const key = `${String(req.workspace_name ?? "")
+        .trim()
+        .toLowerCase()}::${String(req.email ?? "")
+        .trim()
+        .toLowerCase()}`
+      const prev2 = requestsByCompanyEmail.get(key) ?? []
+      prev2.push(req)
+      requestsByCompanyEmail.set(key, prev2)
+    }
+    const matchedRequestIds = new Set<string>()
+    const rows: UnifiedCompanyRow[] = workspaces.map((ws) => {
+      let matchedReq =
+        (ws.created_by_user_id
+          ? requestsByUserId
+              .get(ws.created_by_user_id)
+              ?.find((r) => r.status === "approved")
+          : null) ?? null
+      if (!matchedReq) {
+        const key = `${String(ws.name ?? "")
+          .trim()
+          .toLowerCase()}::${String(ws.created_by_email ?? "")
+          .trim()
+          .toLowerCase()}`
+        matchedReq =
+          requestsByCompanyEmail
+            .get(key)
+            ?.find((r) => r.status === "approved") ?? null
+      }
+      if (matchedReq?.id) matchedRequestIds.add(matchedReq.id)
+
+      return {
+        kind: "workspace",
+        workspace: ws,
+        requestId: matchedReq?.id ?? null,
+        companyName: ws.name,
+        accountType: ws.account_type,
+        adminEmail: ws.created_by_email ?? matchedReq?.email ?? "-",
+        userName:
+          ws.created_by_name ??
+          matchedReq?.user_name ??
+          ws.created_by_user_id ??
+          "-",
+        createdAt: ws.created_at ?? matchedReq?.created_at ?? null,
+        statusLabel: matchedReq ? "승인(운영중)" : "직접 생성(운영중)",
+        statusTone: matchedReq ? "approved" : "manual",
+      }
+    })
+
+    for (const req of signupRequests) {
+      if (matchedRequestIds.has(req.id)) continue
+      if (req.status === "approved") continue
+      rows.push({
+        kind: "request_only",
+        requestId: req.id,
+        companyName: req.workspace_name || "-",
+        accountType: req.account_type,
+        adminEmail: req.email || "-",
+        userName: req.user_name || "-",
+        createdAt: req.created_at ?? null,
+        statusLabel:
+          req.status === "pending"
+            ? "승인 대기"
+            : req.status === "rejected"
+              ? "반려"
+              : "승인 철회",
+        statusTone:
+          req.status === "pending"
+            ? "pending"
+            : req.status === "rejected"
+              ? "rejected"
+              : "revoked",
+      })
+    }
+
+    rows.sort((a, b) =>
+      String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")),
+    )
+
+    return rows
+  }, [workspaces, signupRequests])
 
   const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
   if (!adminStatusLoading && !isServiceAdmin) {
@@ -333,7 +489,7 @@ export default function AdminWorkspacesPage() {
         </Header>
 
         <TableWrapper>
-          {isLoading ? (
+          {isLoading || signupRequestsLoading ? (
             <div
               style={{
                 display: "flex",
@@ -342,7 +498,7 @@ export default function AdminWorkspacesPage() {
               }}>
               <GlobalSpinner width={24} height={24} dotColor="#8536FF" />
             </div>
-          ) : workspaces.length === 0 ? (
+          ) : unifiedRows.length === 0 ? (
             <EmptyMessage>
               아직 생성된 상장사/의결권 대행사 워크스페이스가 없습니다. 가입
               승인 후 자동 생성되거나 직접 생성할 수 있습니다.
@@ -355,69 +511,117 @@ export default function AdminWorkspacesPage() {
                   <Th>계정 유형</Th>
                   <Th>관리자 이메일</Th>
                   <Th>사용자명</Th>
+                  <Th>상태</Th>
                   <Th>생성일</Th>
                   <Th style={{ minWidth: "11rem" }}>작업</Th>
                 </tr>
               </thead>
               <tbody>
-                {workspaces.map((ws) => (
-                  <tr key={ws.id}>
-                    <Td>{ws.name}</Td>
+                {unifiedRows.map((row) => (
+                  <tr
+                    key={
+                      row.kind === "workspace"
+                        ? `ws-${row.workspace.id}`
+                        : `req-${row.requestId}`
+                    }>
+                    <Td>{row.companyName}</Td>
                     <Td>
-                      {ACCOUNT_TYPE_LABELS[ws.account_type] ?? ws.account_type}
+                      {ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType}
                     </Td>
-                    <Td>{ws.created_by_email || "-"}</Td>
+                    <Td>{row.adminEmail}</Td>
+                    <Td>{row.userName}</Td>
                     <Td>
-                      {ws.created_by_name || ws.created_by_user_id || "-"}
+                      <StatusBadge $tone={row.statusTone}>
+                        {row.statusLabel}
+                      </StatusBadge>
                     </Td>
                     <Td>
-                      {ws.created_at
-                        ? new Date(ws.created_at).toLocaleDateString("ko-KR")
+                      {row.createdAt
+                        ? new Date(row.createdAt).toLocaleDateString("ko-KR")
                         : "-"}
                     </Td>
                     <Td>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "0.5rem",
-                          alignItems: "center",
-                        }}>
+                      {row.kind === "workspace" ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "0.5rem",
+                            alignItems: "center",
+                          }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void router.push(
+                                `/workspaces/${row.workspace.id}/admin/users`,
+                              )
+                            }
+                            style={{
+                              padding: "0.35rem 0.65rem",
+                              borderRadius: "0.5rem",
+                              border: `1px solid ${COLORS.purple[300]}`,
+                              background: COLORS.purple[50],
+                              cursor: "pointer",
+                              fontSize: "0.8125rem",
+                              fontWeight: 600,
+                              color: COLORS.purple[700],
+                            }}>
+                            사용자/비밀번호
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(row.workspace)}
+                            style={{
+                              padding: "0.35rem 0.65rem",
+                              borderRadius: "0.5rem",
+                              border: `1px solid ${COLORS.blue[300]}`,
+                              background: COLORS.blue[50],
+                              cursor: "pointer",
+                              fontSize: "0.8125rem",
+                              fontWeight: 600,
+                              color: COLORS.blue[700],
+                            }}>
+                            정보 수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenMap(row.workspace)}
+                            style={{
+                              padding: "0.35rem 0.65rem",
+                              borderRadius: "0.5rem",
+                              border: `1px solid ${COLORS.gray[300]}`,
+                              background: "white",
+                              cursor: "pointer",
+                              fontSize: "0.8125rem",
+                              fontWeight: 600,
+                              color: COLORS.blue[600],
+                            }}>
+                            지도로 열기
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deleteWorkspace.isPending}
+                            onClick={() => handleDelete(row.workspace)}
+                            style={{
+                              padding: "0.35rem 0.65rem",
+                              borderRadius: "0.5rem",
+                              border: "none",
+                              background: COLORS.red[600],
+                              cursor: "pointer",
+                              fontSize: "0.8125rem",
+                              fontWeight: 600,
+                              color: "white",
+                              opacity: deleteWorkspace.isPending ? 0.6 : 1,
+                            }}>
+                            삭제
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           type="button"
                           onClick={() =>
-                            void router.push(`/workspaces/${ws.id}/admin/users`)
+                            void router.push("/admin/signup-requests")
                           }
-                          style={{
-                            padding: "0.35rem 0.65rem",
-                            borderRadius: "0.5rem",
-                            border: `1px solid ${COLORS.purple[300]}`,
-                            background: COLORS.purple[50],
-                            cursor: "pointer",
-                            fontSize: "0.8125rem",
-                            fontWeight: 600,
-                            color: COLORS.purple[700],
-                          }}>
-                          사용자/비밀번호
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(ws)}
-                          style={{
-                            padding: "0.35rem 0.65rem",
-                            borderRadius: "0.5rem",
-                            border: `1px solid ${COLORS.blue[300]}`,
-                            background: COLORS.blue[50],
-                            cursor: "pointer",
-                            fontSize: "0.8125rem",
-                            fontWeight: 600,
-                            color: COLORS.blue[700],
-                          }}>
-                          정보 수정
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenMap(ws)}
                           style={{
                             padding: "0.35rem 0.65rem",
                             borderRadius: "0.5rem",
@@ -426,28 +630,11 @@ export default function AdminWorkspacesPage() {
                             cursor: "pointer",
                             fontSize: "0.8125rem",
                             fontWeight: 600,
-                            color: COLORS.blue[600],
+                            color: COLORS.gray[700],
                           }}>
-                          지도로 열기
+                          가입 승인에서 처리
                         </button>
-                        <button
-                          type="button"
-                          disabled={deleteWorkspace.isPending}
-                          onClick={() => handleDelete(ws)}
-                          style={{
-                            padding: "0.35rem 0.65rem",
-                            borderRadius: "0.5rem",
-                            border: "none",
-                            background: COLORS.red[600],
-                            cursor: "pointer",
-                            fontSize: "0.8125rem",
-                            fontWeight: 600,
-                            color: "white",
-                            opacity: deleteWorkspace.isPending ? 0.6 : 1,
-                          }}>
-                          삭제
-                        </button>
-                      </div>
+                      )}
                     </Td>
                   </tr>
                 ))}
