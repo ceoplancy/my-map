@@ -24,8 +24,67 @@ export default withApiHandler(async (req, res) => {
       .from("workspaces")
       .select("id, name, account_type, created_at")
       .order("created_at", { ascending: false })
+    const workspaceRows = workspaces ?? []
+    if (workspaceRows.length === 0) {
+      return res.status(200).json([])
+    }
 
-    return res.status(200).json(workspaces ?? [])
+    const workspaceIds = workspaceRows.map((w) => w.id)
+    const { data: members } = await admin
+      .from("workspace_members")
+      .select("workspace_id, user_id, role, created_at")
+      .in("workspace_id", workspaceIds)
+      .in("role", ["top_admin", "admin"])
+      .order("created_at", { ascending: true })
+
+    const creatorByWorkspace = new Map<string, string>()
+    for (const m of members ?? []) {
+      const wid = String(m.workspace_id ?? "")
+      const uid = String(m.user_id ?? "")
+      if (!wid || !uid) continue
+      if (!creatorByWorkspace.has(wid)) {
+        creatorByWorkspace.set(wid, uid)
+      }
+    }
+
+    const creatorIds = [...new Set([...creatorByWorkspace.values()])]
+    const usersById = new Map<
+      string,
+      {
+        email: string | null
+        name: string | null
+      }
+    >()
+    if (creatorIds.length > 0) {
+      const { data: listedUsers } = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      })
+      for (const u of listedUsers?.users ?? []) {
+        if (!creatorIds.includes(u.id)) continue
+        usersById.set(u.id, {
+          email: u.email ?? null,
+          name:
+            typeof u.user_metadata?.name === "string"
+              ? u.user_metadata.name
+              : null,
+        })
+      }
+    }
+
+    const rows = workspaceRows.map((w) => {
+      const creatorUserId = creatorByWorkspace.get(w.id) ?? null
+      const creator = creatorUserId ? usersById.get(creatorUserId) : undefined
+
+      return {
+        ...w,
+        created_by_user_id: creatorUserId,
+        created_by_email: creator?.email ?? null,
+        created_by_name: creator?.name ?? null,
+      }
+    })
+
+    return res.status(200).json(rows)
   }
 
   if (req.method === "POST") {
@@ -70,7 +129,15 @@ export default withApiHandler(async (req, res) => {
       })
     }
 
-    return res.status(201).json(workspace)
+    return res.status(201).json({
+      ...workspace,
+      created_by_user_id: user.id,
+      created_by_email: user.email ?? null,
+      created_by_name:
+        typeof user.user_metadata?.name === "string"
+          ? user.user_metadata.name
+          : null,
+    })
   }
 
   return res.status(405).json({ error: "Method not allowed" })

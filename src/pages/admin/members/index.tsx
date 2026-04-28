@@ -8,6 +8,8 @@ import {
   useUpdateWorkspaceMember,
   type WorkspaceMemberWithUser,
 } from "@/api/workspace"
+import { useUpdateUser } from "@/api/supabase"
+import { useAdminStatus } from "@/api/auth"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
 import type { WorkspaceRole, MyWorkspaceItem } from "@/types/db"
@@ -313,6 +315,9 @@ export function MembersPageContent({
   const addMember = useAddWorkspaceMember()
   const removeMember = useRemoveWorkspaceMember()
   const updateMember = useUpdateWorkspaceMember()
+  const updateUser = useUpdateUser()
+  const { data: adminStatus } = useAdminStatus()
+  const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addEmail, setAddEmail] = useState("")
   const [addName, setAddName] = useState("")
@@ -325,6 +330,7 @@ export function MembersPageContent({
   const [editRole, setEditRole] = useState<WorkspaceRole>("field_agent")
   const [editAllowedListIds, setEditAllowedListIds] = useState<string[]>([])
   const [editIsTeamLeader, setEditIsTeamLeader] = useState(false)
+  const [resetPassword, setResetPassword] = useState("")
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<MemberSortKey>("name")
@@ -445,6 +451,7 @@ export function MembersPageContent({
       Array.isArray(m.allowed_list_ids) ? [...m.allowed_list_ids] : [],
     )
     setEditIsTeamLeader(Boolean(m.is_team_leader))
+    setResetPassword("")
   }
 
   const toggleEditAllowedList = (listId: string) => {
@@ -687,6 +694,18 @@ export function MembersPageContent({
                   </div>
                 </>
               )}
+              {isServiceAdmin && (
+                <>
+                  <FieldLabel>새 비밀번호 (통합관리자 전용)</FieldLabel>
+                  <FieldInput
+                    type="password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    placeholder="6자 이상 입력 시 비밀번호 재설정"
+                    autoComplete="new-password"
+                  />
+                </>
+              )}
               <label
                 style={{
                   display: "flex",
@@ -716,6 +735,32 @@ export function MembersPageContent({
                   disabled={updateMember.isPending}>
                   {updateMember.isPending ? "저장 중…" : "저장"}
                 </ModalButton>
+                {isServiceAdmin && (
+                  <ModalButton
+                    primary
+                    type="button"
+                    onClick={() => {
+                      const password = resetPassword.trim()
+                      if (!editMember?.user_id) return
+                      if (password.length < 6) {
+                        window.alert("비밀번호는 6자 이상이어야 합니다.")
+
+                        return
+                      }
+                      updateUser.mutate(
+                        {
+                          userId: editMember.user_id,
+                          updates: { password },
+                        },
+                        {
+                          onSuccess: () => setResetPassword(""),
+                        },
+                      )
+                    }}
+                    disabled={updateUser.isPending || !editMember}>
+                    {updateUser.isPending ? "재설정 중…" : "비밀번호 재설정"}
+                  </ModalButton>
+                )}
               </ModalActions>
             </>
           ) : null}

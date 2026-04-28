@@ -757,4 +757,8 @@ export type MyWorkspaceItem = Pick<WorkspaceRow, "id" | "name" | "account_type">
 export type AdminWorkspaceItem = Pick<
   WorkspaceRow,
   "id" | "name" | "account_type" | "created_at"
->
+> & {
+  created_by_user_id?: string | null
+  created_by_email?: string | null
+  created_by_name?: string | null
+}

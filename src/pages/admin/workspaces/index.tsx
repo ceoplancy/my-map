@@ -261,7 +261,7 @@ export default function AdminWorkspacesPage() {
     <AdminLayout>
       <Container>
         <Header>
-          <Title>워크스페이스 관리</Title>
+          <Title>상장사 목록</Title>
           <AddButton onClick={() => setIsModalOpen(true)}>
             워크스페이스 만들기
           </AddButton>
@@ -288,6 +288,7 @@ export default function AdminWorkspacesPage() {
                 <tr>
                   <Th>이름</Th>
                   <Th>계정 유형</Th>
+                  <Th>생성 주체</Th>
                   <Th>생성일</Th>
                   <Th style={{ minWidth: "11rem" }}>작업</Th>
                 </tr>
@@ -298,6 +299,12 @@ export default function AdminWorkspacesPage() {
                     <Td>{ws.name}</Td>
                     <Td>
                       {ACCOUNT_TYPE_LABELS[ws.account_type] ?? ws.account_type}
+                    </Td>
+                    <Td>
+                      {ws.created_by_name ||
+                        ws.created_by_email ||
+                        ws.created_by_user_id ||
+                        "-"}
                     </Td>
                     <Td>
                       {ws.created_at
@@ -312,6 +319,23 @@ export default function AdminWorkspacesPage() {
                           gap: "0.5rem",
                           alignItems: "center",
                         }}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void router.push(`/workspaces/${ws.id}/admin/users`)
+                          }
+                          style={{
+                            padding: "0.35rem 0.65rem",
+                            borderRadius: "0.5rem",
+                            border: `1px solid ${COLORS.purple[300]}`,
+                            background: COLORS.purple[50],
+                            cursor: "pointer",
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color: COLORS.purple[700],
+                          }}>
+                          사용자/비밀번호
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleOpenMap(ws)}

@@ -251,10 +251,9 @@ export default function IntegratedDashboardPage() {
   const adminCount = userList.filter((u) =>
     String(u.user_metadata?.role).includes("admin"),
   ).length
-  const recentUsers = [...userList]
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  const recentWorkspaces = [...workspaces]
+    .sort((a, b) =>
+      String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")),
     )
     .slice(0, 5)
 
@@ -293,35 +292,37 @@ export default function IntegratedDashboardPage() {
       <ContentGrid>
         <ContentCard>
           <CardHeader>
-            <CardTitle>최근 가입한 사용자</CardTitle>
-            <ViewAllLink href="/admin/users">전체 보기 →</ViewAllLink>
+            <CardTitle>최근 생성된 상장사(워크스페이스)</CardTitle>
+            <ViewAllLink href="/admin/workspaces">전체 보기 →</ViewAllLink>
           </CardHeader>
           <UserList>
-            {recentUsers.length === 0 ? (
+            {recentWorkspaces.length === 0 ? (
               <UserItem>
                 <UserEmail style={{ color: COLORS.gray[500] }}>
-                  사용자가 없습니다.
+                  상장사가 없습니다.
                 </UserEmail>
               </UserItem>
             ) : (
-              recentUsers.map((u) => (
-                <UserItem key={u.id}>
+              recentWorkspaces.map((ws) => (
+                <UserItem key={ws.id}>
                   <UserInfo>
                     <UserAvatar>
-                      {u.email?.[0]?.toUpperCase() ?? "?"}
+                      {ws.name?.[0]?.toUpperCase() ?? "?"}
                     </UserAvatar>
                     <UserDetails>
-                      <UserEmail>{u.email ?? u.id}</UserEmail>
+                      <UserEmail>{ws.name}</UserEmail>
                       <UserDate>
-                        가입일: {new Date(u.created_at).toLocaleDateString()}
+                        생성일:{" "}
+                        {ws.created_at
+                          ? new Date(ws.created_at).toLocaleDateString()
+                          : "-"}
                       </UserDate>
                     </UserDetails>
                   </UserInfo>
-                  <UserRole
-                    isAdmin={String(u.user_metadata?.role).includes("admin")}>
-                    {String(u.user_metadata?.role).includes("admin")
-                      ? "관리자"
-                      : "사용자"}
+                  <UserRole isAdmin={ws.account_type === "listed_company"}>
+                    {ws.account_type === "listed_company"
+                      ? "상장사"
+                      : "의결권 대행사"}
                   </UserRole>
                 </UserItem>
               ))
@@ -346,18 +347,6 @@ export default function IntegratedDashboardPage() {
               </ActionIcon>
               <ActionText>가입 승인</ActionText>
             </ActionButton>
-            <ActionButton href="/admin/users">
-              <ActionIcon
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </ActionIcon>
-              <ActionText>사용자 관리</ActionText>
-            </ActionButton>
             <ActionButton href="/admin/workspaces">
               <ActionIcon
                 fill="none"
@@ -368,7 +357,7 @@ export default function IntegratedDashboardPage() {
                 stroke="currentColor">
                 <path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </ActionIcon>
-              <ActionText>워크스페이스 관리</ActionText>
+              <ActionText>상장사 목록</ActionText>
             </ActionButton>
             <ActionButton href={ADMIN.AUDIT_LOG}>
               <ActionIcon

@@ -36,13 +36,10 @@ import Modal, { ModalChrome } from "@/components/ui/modal"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import styled from "@emotion/styled"
 import FilterModalChildren from "@/components/ui/modal-children/filter-modal-children"
-import { postWorkspaceResourceRequest } from "@/api/nextApi"
-import { getAccessToken } from "@/lib/auth/clientAuth"
 import MultipleMapMarker from "@/components/ui/multiple-map-marker"
 import { COLORS } from "@/styles/global-style"
 import { useFilterStore } from "@/store/filterState"
 import StatsCard from "@/components/StatsCard"
-import { toast } from "react-toastify"
 import { getMapStorageKeys } from "@/constants/map-storage"
 import { ROUTES } from "@/constants/routes"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
@@ -641,49 +638,12 @@ const WorkspaceMapPage = () => {
                   관리자 패널 이동
                 </MenuItem>
               )}
-              {isWorkspaceAdmin && (
+              {isServiceAdmin && (
                 <MenuItem
-                  onClick={() =>
-                    leaveMapTo(
-                      isServiceAdmin
-                        ? "/admin/integrated"
-                        : resolvedWorkspace
-                          ? `/workspaces/${resolvedWorkspace.id}/admin`
-                          : workspace?.id
-                            ? `/workspaces/${workspace.id}/admin`
-                            : "/admin",
-                    )
-                  }
+                  onClick={() => leaveMapTo("/admin/integrated")}
                   style={{ color: COLORS.purple[700] }}>
                   <Settings />
                   통합 관리
-                </MenuItem>
-              )}
-              {hasWorkspace && (
-                <MenuItem
-                  onClick={async () => {
-                    const token = await getAccessToken()
-                    if (!token) {
-                      toast.error("로그인이 필요합니다.")
-
-                      return
-                    }
-                    try {
-                      const result = await postWorkspaceResourceRequest(
-                        token,
-                        resolvedWorkspace?.id ?? null,
-                      )
-                      if (!result.ok) {
-                        toast.error(result.message)
-
-                        return
-                      }
-                      toast.success("용역 충원 요청이 접수되었습니다.")
-                    } catch {
-                      toast.error("요청 중 오류가 발생했습니다.")
-                    }
-                  }}>
-                  용역 요청
                 </MenuItem>
               )}
               <MenuItem
