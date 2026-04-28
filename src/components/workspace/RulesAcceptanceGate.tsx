@@ -99,20 +99,26 @@ export default function RulesAcceptanceGate({ listIds, userId }: Props) {
       }
       const listsFull = await supabase
         .from("shareholder_lists")
-        .select("id, name, rules_version")
+        .select("id, name, rules_version, workspace_id")
         .in("id", ids)
 
-      let lists: { id: string; name: string | null; rules_version: number }[]
+      let lists: {
+        id: string
+        name: string | null
+        rules_version: number
+        workspace_id: string | null
+      }[]
       if (!listsFull.error) {
         lists = (listsFull.data ?? []).map((r) => ({
           id: r.id,
           name: r.name,
           rules_version: r.rules_version ?? 1,
+          workspace_id: r.workspace_id ?? null,
         }))
       } else {
         const listsMin = await supabase
           .from("shareholder_lists")
-          .select("id, name")
+          .select("id, name, workspace_id")
           .in("id", ids)
         if (listsMin.error) {
           throw listsMin.error
@@ -121,6 +127,7 @@ export default function RulesAcceptanceGate({ listIds, userId }: Props) {
           id: r.id,
           name: r.name,
           rules_version: 1,
+          workspace_id: r.workspace_id ?? null,
         }))
       }
 
@@ -146,8 +153,33 @@ export default function RulesAcceptanceGate({ listIds, userId }: Props) {
       const pending = (lists ?? []).find(
         (l) => accepted.get(l.id) !== l.rules_version,
       )
+      if (!pending) {
+        return null
+      }
 
-      return pending ?? null
+      let rulesBody = LIST_RULES_BODY_MARKDOWN
+      if (pending.workspace_id) {
+        const wsAgreement = await supabase
+          .from("workspaces")
+          .select("field_agent_agreement_body")
+          .eq("id", pending.workspace_id)
+          .maybeSingle()
+        if (wsAgreement.error) {
+          if (!isPostgrestUndefinedColumnError(wsAgreement.error)) {
+            throw wsAgreement.error
+          }
+        } else {
+          const body = wsAgreement.data?.field_agent_agreement_body
+          if (typeof body === "string" && body.trim()) {
+            rulesBody = body
+          }
+        }
+      }
+
+      return {
+        ...pending,
+        rules_body: rulesBody,
+      }
     },
   })
 
@@ -204,7 +236,7 @@ export default function RulesAcceptanceGate({ listIds, userId }: Props) {
     <Backdrop role="presentation">
       <Panel role="dialog" aria-modal="true" aria-labelledby="rules-gate-title">
         <Title id="rules-gate-title">{label} — 이용 규율 동의</Title>
-        <Body>{LIST_RULES_BODY_MARKDOWN}</Body>
+        <Body>{pendingList.rules_body || LIST_RULES_BODY_MARKDOWN}</Body>
         <Footer>
           <Btn
             type="button"
