@@ -76,19 +76,12 @@ export const COMPANY_MARKERS = COMPANY_MARKER_COLORS.map((color) =>
 
 export const getMarkerImage = (
   status: string | null,
-  company: string | null,
-  companyList: string[],
+  _company: string | null,
+  _companyList: string[],
 ) => {
   const primaryStatus = getPrimaryStatusCategory(status)
-  if (primaryStatus in STATUS_MARKERS && primaryStatus !== "미방문") {
-    return STATUS_MARKERS[primaryStatus as keyof typeof STATUS_MARKERS]
-  }
-
-  if (company && companyList.length > 0) {
-    const companyIndex = companyList.indexOf(company)
-    if (companyIndex !== -1) {
-      return COMPANY_MARKERS[companyIndex % COMPANY_MARKERS.length]
-    }
+  if (primaryStatus in STATUS_MARKERS) {
+    return STATUS_MARKERS[primaryStatus]
   }
 
   return STATUS_MARKERS["미방문"]
@@ -114,36 +107,57 @@ const GROUP_CLUSTER_MIXED_FILL = "#7C3AED"
 
 type GroupClusterVariant =
   | { kind: "uniform"; status: keyof typeof STATUS_MARKERS }
-  | { kind: "mixed" }
+  | {
+      kind: "mixed"
+      statuses: Array<keyof typeof STATUS_MARKERS>
+    }
   | { kind: "unknown_uniform" }
 
 const resolveGroupClusterVariant = (
   groupMarkers: MapMarkerData[],
 ): GroupClusterVariant => {
   if (groupMarkers.length < 2) return { kind: "unknown_uniform" }
-  const first = normalizeVisitStatus(groupMarkers[0].status)
-  for (let i = 1; i < groupMarkers.length; i++) {
-    if (normalizeVisitStatus(groupMarkers[i].status) !== first) {
-      return { kind: "mixed" }
+  const normalized = groupMarkers.map((m) => normalizeVisitStatus(m.status))
+  const unique = [...new Set(normalized)]
+  if (unique.length === 1) {
+    const first = unique[0]
+    if (first in STATUS_MARKERS) {
+      return { kind: "uniform", status: first as keyof typeof STATUS_MARKERS }
     }
+
+    return { kind: "unknown_uniform" }
   }
-  if (first in STATUS_MARKERS) {
-    return { kind: "uniform", status: first as keyof typeof STATUS_MARKERS }
+  const knownStatuses = unique.filter(
+    (s): s is keyof typeof STATUS_MARKERS => s in STATUS_MARKERS,
+  )
+  if (knownStatuses.length >= 2) {
+    return { kind: "mixed", statuses: knownStatuses }
   }
 
   return { kind: "unknown_uniform" }
 }
 
 const getGroupMarkerImage = (count: number, variant: GroupClusterVariant) => {
-  let fill: string
+  let fill = GROUP_CLUSTER_FILL["미방문"]
+  let defs = ""
   if (variant.kind === "uniform") {
     fill = GROUP_CLUSTER_FILL[variant.status]
   } else if (variant.kind === "mixed") {
-    fill = GROUP_CLUSTER_MIXED_FILL
-  } else {
-    fill = GROUP_CLUSTER_FILL["미방문"]
+    const colors = variant.statuses.map((status) => GROUP_CLUSTER_FILL[status])
+    const gradientId = "cluster-mixed-gradient"
+    const step = 100 / colors.length
+    const stops = colors
+      .map((color, index) => {
+        const start = (index * step).toFixed(2)
+        const end = ((index + 1) * step).toFixed(2)
+
+        return `<stop offset="${start}%" stop-color="${color}" /><stop offset="${end}%" stop-color="${color}" />`
+      })
+      .join("")
+    defs = `<defs><linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="100%">${stops}</linearGradient></defs>`
+    fill = `url(#${gradientId})`
   }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path fill="${fill}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"/><circle cx="12" cy="12" r="5.5" fill="white"/><text x="12" y="15" text-anchor="middle" font-size="9" font-weight="bold" fill="#1f2937" font-family="Arial,sans-serif">${count}</text></svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36">${defs}<path fill="${fill}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"/><circle cx="12" cy="12" r="5.5" fill="white"/><text x="12" y="15" text-anchor="middle" font-size="9" font-weight="bold" fill="#1f2937" font-family="Arial,sans-serif">${count}</text></svg>`
 
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
