@@ -364,6 +364,7 @@ const DetailTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8125rem;
+  table-layout: auto;
 
   tbody tr:nth-of-type(odd) {
     background: ${COLORS.gray[50]};
@@ -376,7 +377,7 @@ const DetailTable = styled.table`
 
 const DetailTh = styled.th`
   text-align: left;
-  padding: 0.5rem 0.65rem;
+  padding: 0.625rem 0.9rem;
   background: ${COLORS.gray[50]};
   color: ${COLORS.gray[600]};
   font-weight: 600;
@@ -384,10 +385,11 @@ const DetailTh = styled.th`
   position: sticky;
   top: 0;
   z-index: 1;
+  white-space: nowrap;
 `
 
 const DetailTd = styled.td`
-  padding: 0.45rem 0.65rem;
+  padding: 0.55rem 0.9rem;
   border-bottom: 1px solid ${COLORS.gray[50]};
   color: ${COLORS.gray[800]};
   vertical-align: top;
@@ -431,51 +433,6 @@ const DetailTdFoot = styled.td`
   text-align: right;
   font-variant-numeric: tabular-nums;
 `
-
-const CompanyStatusCell = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 15rem;
-`
-
-const CompanyStatusRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-`
-
-const CompanyStatusName = styled.span`
-  font-weight: 700;
-  color: ${COLORS.gray[800]};
-`
-
-const CompanyStatusChip = styled.span<{ $color: string }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.12rem 0.4rem;
-  border-radius: 9999px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: ${(p) => p.$color};
-  background: color-mix(in srgb, ${(p) => p.$color} 14%, white);
-  border: 1px solid color-mix(in srgb, ${(p) => p.$color} 28%, white);
-`
-
-const CompanyStatusEmpty = styled.span`
-  font-size: 0.75rem;
-  color: ${COLORS.gray[500]};
-`
-
-const WORKLOAD_PRIMARY_STATUS_ORDER: PrimaryStatus[] = [
-  "완료",
-  "보류",
-  "실패",
-  "전자투표",
-  "주주총회",
-]
 
 const WORKLOAD_RECENT_DAY_OPTIONS = [0, 1, 2, 3, 5, 7, 14, 30] as const
 
@@ -657,6 +614,8 @@ export function WorkspaceDashboardBody() {
   const [filterCompany, setFilterCompany] = useState("")
   const [filterMaker, setFilterMaker] = useState("")
   const [workloadRecentDays, setWorkloadRecentDays] = useState<number>(0)
+  const [selectedWorkloadCompany, setSelectedWorkloadCompany] =
+    useState<string>("__all__")
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
 
   const effectiveListId = (selectedListId || lists[0]?.id) ?? null
@@ -745,10 +704,23 @@ export function WorkspaceDashboardBody() {
   const workspaceListIds = useMemo(() => lists.map((l) => l.id), [lists])
   const { data: makerSummaryRows = [], isLoading: makerSummaryLoading } =
     useShareholdersMakerSummaryRows(workspaceListIds)
+  const workloadCompanyOptions = useMemo(() => {
+    const companies = new Set<string>()
+    for (const row of makerSummaryRows) {
+      const company = row.company?.trim() || "회사 미지정"
+      companies.add(company)
+    }
+
+    return [...companies].sort((a, b) => a.localeCompare(b, "ko"))
+  }, [makerSummaryRows])
   const {
     data: changeHistorySummary = { byUserId: {} },
     isLoading: changeHistorySummaryLoading,
-  } = useWorkspaceChangeHistorySummary(workspaceListIds, workloadRecentDays)
+  } = useWorkspaceChangeHistorySummary(workspaceListIds, {
+    recentDays: workloadRecentDays,
+    company:
+      selectedWorkloadCompany === "__all__" ? null : selectedWorkloadCompany,
+  })
 
   const fieldAgentProjectRows = useMemo(() => {
     type Row = {
@@ -808,19 +780,16 @@ export function WorkspaceDashboardBody() {
   }, [workspaceMembersWithUsers, lists, makerSummaryRows])
 
   const fieldAgentWorkRows = useMemo(() => {
-    type CompanyPrimaryCount = {
-      company: string
-      counts: Record<PrimaryStatus, number>
-    }
     type AgentWorkRow = {
       userId: string
       agentLabel: string
       assignedCount: number
       totalChangeCount: number
       completedChangeCount: number
+      eVotingChangeCount: number
+      generalMeetingChangeCount: number
       onHoldChangeCount: number
       failedChangeCount: number
-      companyPrimary: CompanyPrimaryCount[]
     }
     const agents = workspaceMembersWithUsers.filter(
       (m) => m.role === "field_agent",
@@ -829,30 +798,26 @@ export function WorkspaceDashboardBody() {
 
     for (const agent of agents) {
       const scope = new Set(listIdsInScopeForFieldAgent(agent, lists))
-      const companyMap = new Map<string, Record<PrimaryStatus, number>>()
       let assignedCount = 0
       for (const r of makerSummaryRows) {
         if (!scope.has(r.list_id)) continue
         if (!makerMatchesFieldAgent(r.maker, agent)) continue
-        assignedCount += 1
         const company = r.company?.trim() || "회사 미지정"
-        const p = getPrimaryStatusCategory(r.status)
-        const prev = companyMap.get(company) ?? {
-          미방문: 0,
-          완료: 0,
-          보류: 0,
-          실패: 0,
-          전자투표: 0,
-          주주총회: 0,
+        if (
+          selectedWorkloadCompany !== "__all__" &&
+          company !== selectedWorkloadCompany
+        ) {
+          continue
         }
-        prev[p] += 1
-        companyMap.set(company, prev)
+        assignedCount += 1
       }
       const agentLabel =
         agent.name?.trim() || agent.email?.trim() || agent.user_id
       const changeBy = changeHistorySummary.byUserId[agent.user_id] ?? {
         totalChangeCount: 0,
         completedChangeCount: 0,
+        eVotingChangeCount: 0,
+        generalMeetingChangeCount: 0,
         onHoldChangeCount: 0,
         failedChangeCount: 0,
       }
@@ -862,18 +827,23 @@ export function WorkspaceDashboardBody() {
         assignedCount,
         totalChangeCount: changeBy.totalChangeCount,
         completedChangeCount: changeBy.completedChangeCount,
+        eVotingChangeCount: changeBy.eVotingChangeCount,
+        generalMeetingChangeCount: changeBy.generalMeetingChangeCount,
         onHoldChangeCount: changeBy.onHoldChangeCount,
         failedChangeCount: changeBy.failedChangeCount,
-        companyPrimary: [...companyMap.entries()]
-          .sort((a, b) => a[0].localeCompare(b[0], "ko"))
-          .map(([company, counts]) => ({ company, counts })),
       })
     }
 
     rows.sort((a, b) => a.agentLabel.localeCompare(b.agentLabel, "ko"))
 
     return rows
-  }, [workspaceMembersWithUsers, lists, makerSummaryRows, changeHistorySummary])
+  }, [
+    workspaceMembersWithUsers,
+    lists,
+    makerSummaryRows,
+    changeHistorySummary,
+    selectedWorkloadCompany,
+  ])
 
   const statusCardColor = (p: PrimaryStatus): string => {
     switch (p) {
@@ -1237,56 +1207,113 @@ export function WorkspaceDashboardBody() {
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: "0.4rem",
+                          gap: "0.75rem",
+                          flexWrap: "wrap",
                         }}>
-                        <ListSelectLabel style={{ margin: 0 }}>
-                          최근 기간
-                        </ListSelectLabel>
-                        <ListSelect
-                          value={String(workloadRecentDays)}
-                          onChange={(e) =>
-                            setWorkloadRecentDays(Number(e.target.value))
-                          }
-                          style={{ minWidth: "6.5rem" }}>
-                          {WORKLOAD_RECENT_DAY_OPTIONS.map((d) => (
-                            <option key={d} value={String(d)}>
-                              {d === 0 ? "전체 기간" : `최근 ${d}일`}
-                            </option>
-                          ))}
-                        </ListSelect>
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                          }}>
+                          <ListSelectLabel style={{ margin: 0 }}>
+                            최근 기간
+                          </ListSelectLabel>
+                          <ListSelect
+                            value={String(workloadRecentDays)}
+                            onChange={(e) =>
+                              setWorkloadRecentDays(Number(e.target.value))
+                            }
+                            style={{ minWidth: "6.5rem" }}>
+                            {WORKLOAD_RECENT_DAY_OPTIONS.map((d) => (
+                              <option key={d} value={String(d)}>
+                                {d === 0 ? "전체 기간" : `최근 ${d}일`}
+                              </option>
+                            ))}
+                          </ListSelect>
+                        </div>
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                          }}>
+                          <ListSelectLabel style={{ margin: 0 }}>
+                            회사
+                          </ListSelectLabel>
+                          <ListSelect
+                            value={selectedWorkloadCompany}
+                            onChange={(e) =>
+                              setSelectedWorkloadCompany(e.target.value)
+                            }
+                            style={{ minWidth: "10rem" }}>
+                            <option value="__all__">전체 회사</option>
+                            {workloadCompanyOptions.map((company) => (
+                              <option key={company} value={company}>
+                                {company}
+                              </option>
+                            ))}
+                          </ListSelect>
+                        </div>
                       </div>
                     </WorkloadHeader>
                     <DetailTableScroll style={{ marginTop: "0.5rem" }}>
                       <DetailTable>
                         <thead>
                           <tr>
-                            <DetailTh scope="col">현장요원</DetailTh>
-                            <DetailTh
-                              scope="col"
-                              style={{ textAlign: "right" }}>
-                              총 변경 횟수
+                            <DetailTh scope="col" style={{ minWidth: "9rem" }}>
+                              현장요원
                             </DetailTh>
                             <DetailTh
                               scope="col"
-                              style={{ textAlign: "right" }}>
-                              완료 변경
+                              style={{ textAlign: "right", minWidth: "7rem" }}>
+                              총 변경
                             </DetailTh>
                             <DetailTh
                               scope="col"
-                              style={{ textAlign: "right" }}>
-                              보류 변경
+                              style={{
+                                textAlign: "right",
+                                minWidth: "6.5rem",
+                              }}>
+                              완료
                             </DetailTh>
                             <DetailTh
                               scope="col"
-                              style={{ textAlign: "right" }}>
-                              실패 변경 횟수
+                              style={{
+                                textAlign: "right",
+                                minWidth: "6.5rem",
+                              }}>
+                              전자투표
                             </DetailTh>
                             <DetailTh
                               scope="col"
-                              style={{ textAlign: "right" }}>
+                              style={{
+                                textAlign: "right",
+                                minWidth: "6.5rem",
+                              }}>
+                              주주총회
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{
+                                textAlign: "right",
+                                minWidth: "6.5rem",
+                              }}>
+                              보류
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{
+                                textAlign: "right",
+                                minWidth: "6.5rem",
+                              }}>
+                              실패
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right", minWidth: "7rem" }}>
                               담당 주주
                             </DetailTh>
-                            <DetailTh scope="col">회사별 1차 상태</DetailTh>
                           </tr>
                         </thead>
                         <tbody>
@@ -1300,6 +1327,13 @@ export function WorkspaceDashboardBody() {
                                 {row.completedChangeCount.toLocaleString()}건
                               </DetailTdNum>
                               <DetailTdNum>
+                                {row.eVotingChangeCount.toLocaleString()}건
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.generalMeetingChangeCount.toLocaleString()}
+                                건
+                              </DetailTdNum>
+                              <DetailTdNum>
                                 {row.onHoldChangeCount.toLocaleString()}건
                               </DetailTdNum>
                               <DetailTdNum>
@@ -1308,34 +1342,6 @@ export function WorkspaceDashboardBody() {
                               <DetailTdNum>
                                 {row.assignedCount.toLocaleString()}명
                               </DetailTdNum>
-                              <DetailTd>
-                                <CompanyStatusCell>
-                                  {row.companyPrimary.length === 0 ? (
-                                    <CompanyStatusEmpty>
-                                      담당 주주 없음
-                                    </CompanyStatusEmpty>
-                                  ) : (
-                                    row.companyPrimary.map((c) => (
-                                      <CompanyStatusRow
-                                        key={`${row.userId}\t${c.company}`}>
-                                        <CompanyStatusName>
-                                          {c.company}
-                                        </CompanyStatusName>
-                                        {WORKLOAD_PRIMARY_STATUS_ORDER.map(
-                                          (p) =>
-                                            c.counts[p] > 0 ? (
-                                              <CompanyStatusChip
-                                                key={`${row.userId}\t${c.company}\t${p}`}
-                                                $color={statusCardColor(p)}>
-                                                {p} {c.counts[p]}건
-                                              </CompanyStatusChip>
-                                            ) : null,
-                                        )}
-                                      </CompanyStatusRow>
-                                    ))
-                                  )}
-                                </CompanyStatusCell>
-                              </DetailTd>
                             </tr>
                           ))}
                         </tbody>

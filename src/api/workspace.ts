@@ -415,6 +415,8 @@ export type WorkspaceChangeHistorySummary = {
     {
       totalChangeCount: number
       completedChangeCount: number
+      eVotingChangeCount: number
+      generalMeetingChangeCount: number
       onHoldChangeCount: number
       failedChangeCount: number
     }
@@ -423,15 +425,25 @@ export type WorkspaceChangeHistorySummary = {
 
 async function getWorkspaceChangeHistorySummary(
   listIds: string[],
-  recentDays?: number,
+  options?: {
+    recentDays?: number
+    company?: string | null
+  },
 ): Promise<WorkspaceChangeHistorySummary> {
   if (listIds.length === 0) return { byUserId: {} }
   let query = supabase
     .from("shareholder_change_history")
-    .select("changed_by, field, new_value, shareholders!inner(list_id)")
+    .select(
+      "changed_by, field, new_value, shareholders!inner(list_id, company)",
+    )
     .in("shareholders.list_id", listIds)
-  if (recentDays && recentDays > 0) {
-    const since = new Date(Date.now() - recentDays * 24 * 60 * 60 * 1000)
+  if (options?.company && options.company.trim()) {
+    query = query.eq("shareholders.company", options.company.trim())
+  }
+  if (options?.recentDays && options.recentDays > 0) {
+    const since = new Date(
+      Date.now() - options.recentDays * 24 * 60 * 60 * 1000,
+    )
     query = query.gte("changed_at", since.toISOString())
   }
   const { data, error } = await query
@@ -445,6 +457,8 @@ async function getWorkspaceChangeHistorySummary(
     {
       totalChangeCount: number
       completedChangeCount: number
+      eVotingChangeCount: number
+      generalMeetingChangeCount: number
       onHoldChangeCount: number
       failedChangeCount: number
     }
@@ -461,11 +475,15 @@ async function getWorkspaceChangeHistorySummary(
     const counts = byUser.get(userId) ?? {
       totalChangeCount: 0,
       completedChangeCount: 0,
+      eVotingChangeCount: 0,
+      generalMeetingChangeCount: 0,
       onHoldChangeCount: 0,
       failedChangeCount: 0,
     }
     counts.totalChangeCount += 1
     if (primary === "완료") counts.completedChangeCount += 1
+    if (primary === "전자투표") counts.eVotingChangeCount += 1
+    if (primary === "주주총회") counts.generalMeetingChangeCount += 1
     if (primary === "보류") counts.onHoldChangeCount += 1
     if (primary === "실패") counts.failedChangeCount += 1
     byUser.set(userId, counts)
@@ -481,13 +499,22 @@ async function getWorkspaceChangeHistorySummary(
 
 export const useWorkspaceChangeHistorySummary = (
   listIds: string[],
-  recentDays?: number,
+  options?: {
+    recentDays?: number
+    company?: string | null
+  },
 ) => {
   const key = [...listIds].sort().join(",")
+  const companyKey = options?.company?.trim() ?? ""
+  const recentDays = options?.recentDays ?? 0
 
   return useQuery({
-    queryKey: ["workspaceChangeHistorySummary", key, recentDays ?? 0],
-    queryFn: () => getWorkspaceChangeHistorySummary(listIds, recentDays),
+    queryKey: ["workspaceChangeHistorySummary", key, recentDays, companyKey],
+    queryFn: () =>
+      getWorkspaceChangeHistorySummary(listIds, {
+        recentDays,
+        company: companyKey || null,
+      }),
     enabled: listIds.length > 0,
     staleTime: 60_000,
   })

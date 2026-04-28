@@ -56,6 +56,7 @@ const WorkspaceMapPage = () => {
     useMyWorkspaces()
   const { data: signupStatus, isLoading: signupStatusLoading } =
     useMySignupStatus()
+  const [workspace, setCurrentWorkspace] = useCurrentWorkspace()
   const hasWorkspace = Array.isArray(workspaces) && workspaces.length > 0
   const legacyAdmin = String(user?.user_metadata?.role).includes("admin")
   const { data: adminStatus } = useAdminStatus()
@@ -76,12 +77,12 @@ const WorkspaceMapPage = () => {
     signupStatus &&
     signupStatus.status === "revoked"
 
+  const workspaceFromState =
+    workspaceId && workspace?.id === workspaceId ? workspace : null
   const resolvedWorkspace =
     workspaceId && Array.isArray(workspaces)
-      ? (workspaces.find((w) => w.id === workspaceId) ?? null)
-      : null
-
-  const [, setCurrentWorkspace] = useCurrentWorkspace()
+      ? (workspaces.find((w) => w.id === workspaceId) ?? workspaceFromState)
+      : workspaceFromState
 
   useEffect(() => {
     if (!router.isReady || !workspaceId) return
@@ -136,8 +137,6 @@ const WorkspaceMapPage = () => {
     lng: 126.978,
   })
   const { mutate: logout } = usePostSignOut()
-
-  const [workspace] = useCurrentWorkspace()
 
   const userId = user?.id
   const mapWorkspaceId = resolvedWorkspace?.id ?? null
@@ -555,24 +554,6 @@ const WorkspaceMapPage = () => {
                 <FilterAlt />
                 필터 설정
               </MenuHighlightItem>
-              <StatsCard
-                statsParams={mapStatsParams}
-                listsLoading={shareholderListsLoading}
-              />
-              {hasWorkspace &&
-                !shareholderListsLoading &&
-                dashboardListIds.length === 0 && (
-                  <EmptyWorkspaceHint>
-                    이 워크스페이스에 연결된 주주명부가 없습니다. 관리자
-                    화면에서 명부를 추가해 주세요.
-                  </EmptyWorkspaceHint>
-                )}
-              <MenuItem
-                onClick={handleReset}
-                style={{ color: COLORS.red[600] }}>
-                <RestartAlt />
-                초기화
-              </MenuItem>
               <PublicDropRow>
                 <MenuHighlightItem
                   data-public-drop-item
@@ -604,6 +585,24 @@ const WorkspaceMapPage = () => {
                   공개 접수 QR
                 </MenuHighlightItem>
               </PublicDropRow>
+              <StatsCard
+                statsParams={mapStatsParams}
+                listsLoading={shareholderListsLoading}
+              />
+              {hasWorkspace &&
+                !shareholderListsLoading &&
+                dashboardListIds.length === 0 && (
+                  <EmptyWorkspaceHint>
+                    이 워크스페이스에 연결된 주주명부가 없습니다. 관리자
+                    화면에서 명부를 추가해 주세요.
+                  </EmptyWorkspaceHint>
+                )}
+              <MenuItem
+                onClick={handleReset}
+                style={{ color: COLORS.red[600] }}>
+                <RestartAlt />
+                초기화
+              </MenuItem>
               <MenuItem
                 onClick={() => {
                   if (wsId) leaveMapTo(`/workspaces/${wsId}/activity`)

@@ -9,13 +9,13 @@ import { useAdminStatus } from "@/api/auth"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import styled from "@emotion/styled"
 import { COLORS } from "@/styles/global-style"
-import { useState } from "react"
 import type { AccountType } from "@/types/db"
-import { toast } from "react-toastify"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import GlobalSpinner from "@/components/ui/global-spinner"
 import Select from "@/components/ui/select"
+import { useState } from "react"
+import { toast } from "react-toastify"
 
 const Container = styled.div`
   display: flex;
@@ -27,6 +27,7 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   padding: 2rem;
   background: linear-gradient(135deg, white, #f8fafc);
   border-radius: 1rem;
@@ -43,24 +44,26 @@ const Title = styled.h1`
   -webkit-text-fill-color: transparent;
 `
 
+const HeaderHint = styled.p`
+  margin: 0;
+  color: ${COLORS.gray[600]};
+  font-size: 0.9375rem;
+`
+
 const AddButton = styled.button`
   background: linear-gradient(135deg, ${COLORS.blue[500]}, ${COLORS.blue[600]});
   color: ${COLORS.background.white};
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 0.75rem;
   font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  white-space: nowrap;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 10px 15px -3px rgba(0, 0, 0, 0.1),
-      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
 
   &:disabled {
@@ -240,7 +243,7 @@ export default function AdminWorkspacesPage() {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) {
-      toast.error("워크스페이스 이름을 입력해 주세요.")
+      toast.error("회사 이름을 입력해 주세요.")
 
       return
     }
@@ -261,9 +264,15 @@ export default function AdminWorkspacesPage() {
     <AdminLayout>
       <Container>
         <Header>
-          <Title>상장사 목록</Title>
+          <div>
+            <Title>상장사 목록</Title>
+            <HeaderHint>
+              가입 승인으로 자동 생성되며, 필요 시 상장사/의결권 대행사를 직접
+              추가할 수 있습니다.
+            </HeaderHint>
+          </div>
           <AddButton onClick={() => setIsModalOpen(true)}>
-            워크스페이스 만들기
+            상장사/대행사 직접 생성
           </AddButton>
         </Header>
 
@@ -279,8 +288,8 @@ export default function AdminWorkspacesPage() {
             </div>
           ) : workspaces.length === 0 ? (
             <EmptyMessage>
-              워크스페이스가 없습니다. &quot;워크스페이스 만들기&quot;로 새
-              워크스페이스를 추가하세요.
+              아직 생성된 상장사/의결권 대행사 워크스페이스가 없습니다. 가입
+              승인 후 자동 생성되거나 직접 생성할 수 있습니다.
             </EmptyMessage>
           ) : (
             <Table>
@@ -322,7 +331,9 @@ export default function AdminWorkspacesPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            void router.push(`/workspaces/${ws.id}/admin/users`)
+                            void router.push(
+                              `/workspaces/${ws.id}/admin/members`,
+                            )
                           }
                           style={{
                             padding: "0.35rem 0.65rem",
@@ -376,21 +387,20 @@ export default function AdminWorkspacesPage() {
             </Table>
           )}
         </TableWrapper>
-
         {isModalOpen && (
           <ModalOverlay
             onClick={() => !createWorkspace.isPending && setIsModalOpen(false)}>
             <ModalBox onClick={(e) => e.stopPropagation()}>
-              <ModalTitle>워크스페이스 만들기</ModalTitle>
+              <ModalTitle>상장사/의결권 대행사 생성</ModalTitle>
               <form onSubmit={handleCreate}>
                 <FormGroup>
-                  <Label htmlFor="ws-name">이름</Label>
+                  <Label htmlFor="ws-name">회사명</Label>
                   <Input
                     id="ws-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="워크스페이스 이름"
+                    placeholder="회사 이름"
                     autoFocus
                   />
                 </FormGroup>
