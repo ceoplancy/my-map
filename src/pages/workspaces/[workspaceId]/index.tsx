@@ -615,7 +615,7 @@ const WorkspaceMapPage = () => {
                 <ListIcon />
                 활동 기록
               </MenuItem>
-              {isWorkspaceAdmin && (
+              {isServiceAdmin && (
                 <MenuItem onClick={() => leaveMapTo(ROUTES.workspaces)}>
                   <ListIcon />
                   상장사 목록

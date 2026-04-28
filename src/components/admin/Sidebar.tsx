@@ -284,7 +284,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     <SidebarContainer>
       <LogoContainer>
         <LogoSection>
-          <LogoText>관리자 패널</LogoText>
+          <LogoText>{integrated ? "서비스 관리" : "관리자 패널"}</LogoText>
         </LogoSection>
       </LogoContainer>
       <Navigation>

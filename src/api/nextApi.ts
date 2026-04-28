@@ -45,6 +45,7 @@ export async function postAuthSignup(payload: {
   password: string
   account_type: "listed_company" | "proxy_company"
   user_name: string
+  company_name: string
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   const res = await apiClient.post("/api/auth/signup", payload)
 
@@ -106,6 +107,7 @@ export type AdminSignupRequestRow = {
   email: string
   account_type: string
   workspace_name: string
+  user_name?: string | null
   status: string
   created_at: string
   user_id?: string | null

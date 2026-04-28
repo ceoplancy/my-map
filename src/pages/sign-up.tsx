@@ -29,6 +29,7 @@ const SignUp = () => {
     "listed_company" | "proxy_company"
   >("listed_company")
   const [userName, setUserName] = useState("")
+  const [companyName, setCompanyName] = useState("")
   const [agreePrivacy, setAgreePrivacy] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -36,8 +37,8 @@ const SignUp = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password || !userName) {
-      toast.error("이메일, 비밀번호, 사용자명을 입력해 주세요.")
+    if (!email || !password || !userName || !companyName) {
+      toast.error("이메일, 비밀번호, 사용자명, 회사명을 입력해 주세요.")
 
       return
     }
@@ -53,6 +54,7 @@ const SignUp = () => {
         password,
         account_type: accountType,
         user_name: userName,
+        company_name: companyName,
       })
       if (!result.ok) {
         toast.error(result.message)
@@ -168,6 +170,12 @@ const SignUp = () => {
                 placeholder="사용자명"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
+              />
+              <StyledInput
+                type="text"
+                placeholder="회사명"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
               />
             </InputGroup>
 

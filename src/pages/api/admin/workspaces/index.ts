@@ -93,8 +93,17 @@ export default withApiHandler(async (req, res) => {
     if (!canCreate) {
       return res.status(401).json({ error: "Unauthorized" })
     }
-    const body = req.body as { name?: string; account_type?: AccountType }
-    const name = typeof body?.name === "string" ? body.name.trim() : ""
+    const body = req.body as {
+      name?: string
+      company_name?: string
+      account_type?: AccountType
+      email?: string
+      password?: string
+      user_name?: string
+    }
+    const nameRaw =
+      typeof body?.company_name === "string" ? body.company_name : body?.name
+    const name = typeof nameRaw === "string" ? nameRaw.trim() : ""
     const account_type = body?.account_type
     if (!name) {
       return res.status(400).json({ error: "name is required" })
@@ -108,6 +117,52 @@ export default withApiHandler(async (req, res) => {
         error: "account_type must be listed_company or proxy_company",
       })
     }
+    let ownerUserId = user.id
+    let ownerEmail: string | null = user.email ?? null
+    let ownerName: string | null =
+      typeof user.user_metadata?.name === "string"
+        ? user.user_metadata.name
+        : null
+
+    const requestedEmail =
+      typeof body?.email === "string" ? body.email.trim() : ""
+    const requestedPassword =
+      typeof body?.password === "string" ? body.password.trim() : ""
+    const requestedUserName =
+      typeof body?.user_name === "string" ? body.user_name.trim() : ""
+
+    if (requestedEmail || requestedPassword || requestedUserName) {
+      if (!requestedEmail || !requestedPassword || !requestedUserName) {
+        return res.status(400).json({
+          error: "email, password, user_name must be provided together",
+        })
+      }
+      if (requestedPassword.length < 6) {
+        return res
+          .status(400)
+          .json({ error: "password must be at least 6 characters" })
+      }
+      const { data: createdUser, error: createUserErr } =
+        await admin.auth.admin.createUser({
+          email: requestedEmail,
+          password: requestedPassword,
+          email_confirm: true,
+          user_metadata: {
+            account_type: accountType,
+            name: requestedUserName,
+            company_name: name,
+          },
+        })
+      if (createUserErr || !createdUser.user) {
+        return res.status(400).json({
+          error: createUserErr?.message ?? "Failed to create user",
+        })
+      }
+      ownerUserId = createdUser.user.id
+      ownerEmail = createdUser.user.email ?? requestedEmail
+      ownerName = requestedUserName
+    }
+
     const { data: workspace, error: wsErr } = await admin
       .from("workspaces")
       .insert({ name, account_type: accountType })
@@ -120,7 +175,7 @@ export default withApiHandler(async (req, res) => {
     }
     const { error: memberErr } = await admin.from("workspace_members").insert({
       workspace_id: workspace.id,
-      user_id: user.id,
+      user_id: ownerUserId,
       role: "top_admin",
     })
     if (memberErr) {
@@ -131,12 +186,9 @@ export default withApiHandler(async (req, res) => {
 
     return res.status(201).json({
       ...workspace,
-      created_by_user_id: user.id,
-      created_by_email: user.email ?? null,
-      created_by_name:
-        typeof user.user_metadata?.name === "string"
-          ? user.user_metadata.name
-          : null,
+      created_by_user_id: ownerUserId,
+      created_by_email: ownerEmail,
+      created_by_name: ownerName,
     })
   }
 

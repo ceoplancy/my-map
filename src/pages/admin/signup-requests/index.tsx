@@ -232,6 +232,7 @@ export function SignupRequestsContent({
                 <Th>이메일</Th>
                 <Th>유형</Th>
                 <Th>사용자명</Th>
+                <Th>회사명</Th>
                 <Th>상태</Th>
                 <Th>신청일</Th>
                 <Th>처리</Th>
@@ -240,7 +241,7 @@ export function SignupRequestsContent({
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <EmptyState>대기 중인 가입 신청이 없습니다.</EmptyState>
                   </td>
                 </tr>
@@ -249,6 +250,7 @@ export function SignupRequestsContent({
                   <Tr key={r.id}>
                     <Td>{r.email}</Td>
                     <Td>{accountTypeLabel(r.account_type)}</Td>
+                    <Td>{r.user_name || "-"}</Td>
                     <Td>{r.workspace_name || "-"}</Td>
                     <Td>
                       <Badge status={r.status}>

@@ -387,10 +387,22 @@ export const useAdminWorkspaces = () => {
   })
 }
 
-const createAdminWorkspace = async (payload: {
-  name: string
-  account_type: AccountType
-}): Promise<AdminWorkspaceItem> => {
+export type CreateAdminWorkspaceInput =
+  | {
+      name: string
+      account_type: AccountType
+    }
+  | {
+      company_name: string
+      account_type: AccountType
+      email: string
+      password: string
+      user_name: string
+    }
+
+const createAdminWorkspace = async (
+  payload: CreateAdminWorkspaceInput,
+): Promise<AdminWorkspaceItem> => {
   return adminJsonOrThrow(
     (headers) =>
       apiClient.post<AdminWorkspaceItem>("/api/admin/workspaces", payload, {
@@ -412,6 +424,38 @@ export const useCreateAdminWorkspace = () => {
     },
     onError: () => {
       toast.error("워크스페이스 생성에 실패했습니다.")
+    },
+  })
+}
+
+const updateAdminWorkspace = async (input: {
+  workspaceId: string
+  name: string
+  account_type: AccountType
+}): Promise<AdminWorkspaceItem> => {
+  return adminJsonOrThrow(
+    (headers) =>
+      apiClient.patch<AdminWorkspaceItem>(
+        `/api/admin/workspaces/${encodeURIComponent(input.workspaceId)}`,
+        { name: input.name, account_type: input.account_type },
+        { headers },
+      ),
+    "워크스페이스 수정에 실패했습니다.",
+  )
+}
+
+export const useUpdateAdminWorkspace = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: updateAdminWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminWorkspaces"] })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.myWorkspaces })
+      toast.success("상장사 정보를 수정했습니다.")
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "상장사 정보 수정에 실패했습니다.")
     },
   })
 }

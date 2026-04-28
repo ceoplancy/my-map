@@ -3,6 +3,7 @@ import {
   useAdminWorkspaces,
   useCreateAdminWorkspace,
   useDeleteAdminWorkspace,
+  useUpdateAdminWorkspace,
   type AdminWorkspaceItem,
 } from "@/api/supabase"
 import { useAdminStatus } from "@/api/auth"
@@ -205,10 +206,19 @@ export default function AdminWorkspacesPage() {
   const { data: workspaces = [], isLoading } = useAdminWorkspaces()
   const createWorkspace = useCreateAdminWorkspace()
   const deleteWorkspace = useDeleteAdminWorkspace()
+  const updateWorkspace = useUpdateAdminWorkspace()
   const [, setCurrentWorkspace] = useCurrentWorkspace()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [name, setName] = useState("")
+  const [companyName, setCompanyName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [userName, setUserName] = useState("")
   const [accountType, setAccountType] = useState<AccountType>("listed_company")
+  const [editingWorkspace, setEditingWorkspace] =
+    useState<AdminWorkspaceItem | null>(null)
+  const [editCompanyName, setEditCompanyName] = useState("")
+  const [editAccountType, setEditAccountType] =
+    useState<AccountType>("listed_company")
 
   const isServiceAdmin = adminStatus?.isServiceAdmin ?? false
   if (!adminStatusLoading && !isServiceAdmin) {
@@ -242,20 +252,66 @@ export default function AdminWorkspacesPage() {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) {
-      toast.error("회사 이름을 입력해 주세요.")
+    if (
+      !companyName.trim() ||
+      !email.trim() ||
+      !password.trim() ||
+      !userName.trim()
+    ) {
+      toast.error(
+        "이메일, 비밀번호, 계정유형, 사용자명, 회사명을 모두 입력해 주세요.",
+      )
+
+      return
+    }
+    if (password.trim().length < 6) {
+      toast.error("비밀번호는 6자 이상 입력해 주세요.")
 
       return
     }
     createWorkspace.mutate(
-      { name: name.trim(), account_type: accountType },
+      {
+        company_name: companyName.trim(),
+        account_type: accountType,
+        email: email.trim(),
+        password: password.trim(),
+        user_name: userName.trim(),
+      },
       {
         onSuccess: (created: AdminWorkspaceItem) => {
           setIsModalOpen(false)
-          setName("")
+          setCompanyName("")
+          setEmail("")
+          setPassword("")
+          setUserName("")
           setAccountType("listed_company")
           setCurrentWorkspace(created)
         },
+      },
+    )
+  }
+
+  const openEditModal = (ws: AdminWorkspaceItem) => {
+    setEditingWorkspace(ws)
+    setEditCompanyName(ws.name ?? "")
+    setEditAccountType(ws.account_type)
+  }
+
+  const handleUpdateWorkspace = () => {
+    if (!editingWorkspace) return
+    if (!editCompanyName.trim()) {
+      toast.error("회사명을 입력해 주세요.")
+
+      return
+    }
+    updateWorkspace.mutate(
+      {
+        workspaceId: editingWorkspace.id,
+        name: editCompanyName.trim(),
+        account_type: editAccountType,
+      },
+      {
+        onSuccess: () => setEditingWorkspace(null),
       },
     )
   }
@@ -295,9 +351,10 @@ export default function AdminWorkspacesPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>이름</Th>
+                  <Th>회사명</Th>
                   <Th>계정 유형</Th>
-                  <Th>생성 주체</Th>
+                  <Th>관리자 이메일</Th>
+                  <Th>사용자명</Th>
                   <Th>생성일</Th>
                   <Th style={{ minWidth: "11rem" }}>작업</Th>
                 </tr>
@@ -309,11 +366,9 @@ export default function AdminWorkspacesPage() {
                     <Td>
                       {ACCOUNT_TYPE_LABELS[ws.account_type] ?? ws.account_type}
                     </Td>
+                    <Td>{ws.created_by_email || "-"}</Td>
                     <Td>
-                      {ws.created_by_name ||
-                        ws.created_by_email ||
-                        ws.created_by_user_id ||
-                        "-"}
+                      {ws.created_by_name || ws.created_by_user_id || "-"}
                     </Td>
                     <Td>
                       {ws.created_at
@@ -331,9 +386,7 @@ export default function AdminWorkspacesPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            void router.push(
-                              `/workspaces/${ws.id}/admin/members`,
-                            )
+                            void router.push(`/workspaces/${ws.id}/admin/users`)
                           }
                           style={{
                             padding: "0.35rem 0.65rem",
@@ -346,6 +399,21 @@ export default function AdminWorkspacesPage() {
                             color: COLORS.purple[700],
                           }}>
                           사용자/비밀번호
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(ws)}
+                          style={{
+                            padding: "0.35rem 0.65rem",
+                            borderRadius: "0.5rem",
+                            border: `1px solid ${COLORS.blue[300]}`,
+                            background: COLORS.blue[50],
+                            cursor: "pointer",
+                            fontSize: "0.8125rem",
+                            fontWeight: 600,
+                            color: COLORS.blue[700],
+                          }}>
+                          정보 수정
                         </button>
                         <button
                           type="button"
@@ -394,14 +462,24 @@ export default function AdminWorkspacesPage() {
               <ModalTitle>상장사/의결권 대행사 생성</ModalTitle>
               <form onSubmit={handleCreate}>
                 <FormGroup>
-                  <Label htmlFor="ws-name">회사명</Label>
+                  <Label htmlFor="ws-email">이메일</Label>
                   <Input
-                    id="ws-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="회사 이름"
+                    id="ws-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="example@company.com"
                     autoFocus
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label htmlFor="ws-password">비밀번호</Label>
+                  <Input
+                    id="ws-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="6자 이상"
                   />
                 </FormGroup>
                 <FormGroup>
@@ -416,6 +494,26 @@ export default function AdminWorkspacesPage() {
                     <option value="proxy_company">의결권 대행사</option>
                   </ModalSelect>
                 </FormGroup>
+                <FormGroup>
+                  <Label htmlFor="ws-user-name">사용자명</Label>
+                  <Input
+                    id="ws-user-name"
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="담당자 이름"
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label htmlFor="ws-company-name">회사명</Label>
+                  <Input
+                    id="ws-company-name"
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="회사 이름"
+                  />
+                </FormGroup>
                 <ModalActions>
                   <SecondaryButton
                     type="button"
@@ -425,11 +523,62 @@ export default function AdminWorkspacesPage() {
                   </SecondaryButton>
                   <AddButton
                     type="submit"
-                    disabled={createWorkspace.isPending || !name.trim()}>
+                    disabled={
+                      createWorkspace.isPending ||
+                      !companyName.trim() ||
+                      !email.trim() ||
+                      !password.trim() ||
+                      !userName.trim()
+                    }>
                     {createWorkspace.isPending ? "생성 중..." : "생성"}
                   </AddButton>
                 </ModalActions>
               </form>
+            </ModalBox>
+          </ModalOverlay>
+        )}
+        {editingWorkspace && (
+          <ModalOverlay onClick={() => setEditingWorkspace(null)}>
+            <ModalBox onClick={(e) => e.stopPropagation()}>
+              <ModalTitle>상장사/의결권 대행사 정보 수정</ModalTitle>
+              <FormGroup>
+                <Label htmlFor="edit-company-name">회사명</Label>
+                <Input
+                  id="edit-company-name"
+                  type="text"
+                  value={editCompanyName}
+                  onChange={(e) => setEditCompanyName(e.target.value)}
+                  autoFocus
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label htmlFor="edit-account-type">계정 유형</Label>
+                <ModalSelect
+                  id="edit-account-type"
+                  value={editAccountType}
+                  onChange={(e) =>
+                    setEditAccountType(e.target.value as AccountType)
+                  }>
+                  <option value="listed_company">상장사</option>
+                  <option value="proxy_company">의결권 대행사</option>
+                </ModalSelect>
+              </FormGroup>
+              <ModalActions>
+                <SecondaryButton
+                  type="button"
+                  onClick={() => setEditingWorkspace(null)}
+                  disabled={updateWorkspace.isPending}>
+                  취소
+                </SecondaryButton>
+                <AddButton
+                  type="button"
+                  onClick={handleUpdateWorkspace}
+                  disabled={
+                    updateWorkspace.isPending || !editCompanyName.trim()
+                  }>
+                  {updateWorkspace.isPending ? "수정 중..." : "수정"}
+                </AddButton>
+              </ModalActions>
             </ModalBox>
           </ModalOverlay>
         )}

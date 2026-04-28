@@ -61,7 +61,30 @@ export default withApiHandler(async (req, res) => {
       .order("created_at", { ascending: false })
     if (error) return res.status(500).json({ error: error.message })
 
-    return res.status(200).json(data ?? [])
+    const rows = data ?? []
+    const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))]
+    const userNameById = new Map<string, string>()
+    if (userIds.length > 0) {
+      const { data: listedUsers } = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      })
+      for (const u of listedUsers?.users ?? []) {
+        if (!userIds.includes(u.id)) continue
+        const name =
+          typeof u.user_metadata?.name === "string"
+            ? u.user_metadata.name.trim()
+            : ""
+        userNameById.set(u.id, name)
+      }
+    }
+
+    return res.status(200).json(
+      rows.map((r) => ({
+        ...r,
+        user_name: r.user_id ? (userNameById.get(r.user_id) ?? null) : null,
+      })),
+    )
   }
 
   if (!(await isServiceAdmin(token))) {
@@ -74,6 +97,28 @@ export default withApiHandler(async (req, res) => {
     .select("*")
     .order("created_at", { ascending: false })
   if (error) return res.status(500).json({ error: error.message })
+  const rows = data ?? []
+  const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))]
+  const userNameById = new Map<string, string>()
+  if (userIds.length > 0) {
+    const { data: listedUsers } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    })
+    for (const u of listedUsers?.users ?? []) {
+      if (!userIds.includes(u.id)) continue
+      const name =
+        typeof u.user_metadata?.name === "string"
+          ? u.user_metadata.name.trim()
+          : ""
+      userNameById.set(u.id, name)
+    }
+  }
 
-  return res.status(200).json(data ?? [])
+  return res.status(200).json(
+    rows.map((r) => ({
+      ...r,
+      user_name: r.user_id ? (userNameById.get(r.user_id) ?? null) : null,
+    })),
+  )
 })
