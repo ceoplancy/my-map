@@ -102,9 +102,6 @@ const GROUP_CLUSTER_FILL: Record<keyof typeof STATUS_MARKERS, string> = {
   주주총회: STATUS_MARKER_COLORS.주주총회,
 }
 
-/** 같은 좌표에 보류·실패·완료 등 상태가 섞인 경우 — 단일 상태 색과 구분 */
-const GROUP_CLUSTER_MIXED_FILL = "#7C3AED"
-
 type GroupClusterVariant =
   | { kind: "uniform"; status: keyof typeof STATUS_MARKERS }
   | {
