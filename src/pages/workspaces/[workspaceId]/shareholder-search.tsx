@@ -7,6 +7,7 @@ import { Search as SearchIcon } from "@mui/icons-material"
 import { useAuth, useMyWorkspaces } from "@/api/auth"
 import { useCurrentWorkspace } from "@/store/workspaceState"
 import {
+  useDashboardListIds,
   useVisibleListIds,
   useShareholders,
   type ShareholdersParams,
@@ -213,19 +214,28 @@ export default function WorkspaceShareholderSearchPage() {
   const userId = user?.id
   const mapWorkspaceId = resolvedWorkspace?.id ?? null
   const visibleListIds = useVisibleListIds(mapWorkspaceId, userId)
+  const dashboardListIds = useDashboardListIds(mapWorkspaceId, userId)
+  const searchableListIds = useMemo(
+    () => (visibleListIds.length > 0 ? visibleListIds : dashboardListIds),
+    [visibleListIds, dashboardListIds],
+  )
   const [searchInput, setSearchInput] = useState("")
   const [committedSearch, setCommittedSearch] = useState("")
 
   const shareholderParams = useMemo((): ShareholdersParams => {
     return {
-      listIds: visibleListIds.length > 0 ? visibleListIds : null,
+      listIds: searchableListIds.length > 0 ? searchableListIds : null,
       search: committedSearch || undefined,
       requireSearchToFetch: true,
     }
-  }, [visibleListIds, committedSearch])
+  }, [searchableListIds, committedSearch])
 
-  const { data: shareholderRows, isPending: shareholdersPending } =
-    useShareholders(shareholderParams)
+  const {
+    data: shareholderRows,
+    isPending: shareholdersPending,
+    isError: shareholdersError,
+    error: shareholdersErrorObj,
+  } = useShareholders(shareholderParams)
 
   const hits = useMemo((): MapMarkerData[] => {
     if (!committedSearch) return []
@@ -296,19 +306,19 @@ export default function WorkspaceShareholderSearchPage() {
         </SearchField>
         <SearchSubmit
           type="button"
-          disabled={visibleListIds.length === 0}
+          disabled={searchableListIds.length === 0}
           onClick={() => runSearch()}>
           검색
         </SearchSubmit>
       </SearchRow>
       <Hint>
-        노출된 주주명부 안에서 이름·주소 등으로 찾습니다. 항목을 누르면 지도로
-        이동하며 해당 주주 위치로 맞춥니다. (최대 200건까지 표시)
+        접근 가능한 주주명부 안에서 이름·주소 등으로 찾습니다. 항목을 누르면
+        지도로 이동하며 해당 주주 위치로 맞춥니다. (최대 200건까지 표시)
       </Hint>
-      {visibleListIds.length === 0 ? (
+      {searchableListIds.length === 0 ? (
         <Empty>
-          지도에 노출된 주주명부가 없어 검색할 수 없습니다. 관리자에게 명부
-          노출을 요청하거나 지도 화면에서 워크스페이스를 확인해 주세요.
+          검색 가능한 주주명부가 없습니다. 관리자에게 명부 접근 권한/상태를
+          확인해 주세요.
         </Empty>
       ) : !committedSearch ? (
         <Empty>
@@ -318,6 +328,13 @@ export default function WorkspaceShareholderSearchPage() {
         <SpinnerWrap>
           <GlobalSpinner width={22} height={22} dotColor="#8536FF" />
         </SpinnerWrap>
+      ) : shareholdersError ? (
+        <Empty>
+          검색 중 오류가 발생했습니다.{" "}
+          {shareholdersErrorObj instanceof Error
+            ? shareholdersErrorObj.message
+            : "잠시 후 다시 시도해 주세요."}
+        </Empty>
       ) : hits.length === 0 ? (
         <Empty>검색 결과가 없습니다.</Empty>
       ) : (

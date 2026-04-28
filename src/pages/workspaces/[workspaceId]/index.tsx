@@ -577,7 +577,7 @@ const WorkspaceMapPage = () => {
                 초기화
               </MenuItem>
               <PublicDropRow>
-                <MenuItem
+                <MenuHighlightItem
                   data-public-drop-item
                   onClick={() => {
                     if (wsId) leaveMapTo(`/workspaces/${wsId}/photo-drop-inbox`)
@@ -589,7 +589,7 @@ const WorkspaceMapPage = () => {
                   }>
                   <ListIcon />
                   공개 접수함
-                </MenuItem>
+                </MenuHighlightItem>
                 <MenuHighlightItem
                   data-public-drop-item
                   onClick={() => {

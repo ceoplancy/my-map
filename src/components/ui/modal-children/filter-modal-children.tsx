@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react"
-import isEqual from "lodash/isEqual"
 import { useGetFilterMenu } from "@/api/supabase"
 import {
   useCompanyStockStatsForLists,
@@ -11,7 +10,6 @@ import { Clear as ClearIcon } from "@mui/icons-material"
 import { Alert } from "@mui/material"
 import { useGetUserData } from "@/api/auth"
 import { getMapStorageKeys } from "@/constants/map-storage"
-import { getFilterSummaryChips } from "@/lib/filterSummaryChips"
 import {
   PRIMARY_STATUS_OPTIONS,
   getPrimaryStatusCategory,
@@ -30,7 +28,7 @@ interface FilterModalChildrenProps {
   handleClose: () => void
   handleApplyFilters: () => void
 
-  /** 열릴 때마다 스토어에서 draft 로드 (미리보기). 적용하기 전까지 지도·스토어 미반영 */
+  /** 열릴 때마다 스토어에서 draft 로드. 적용하기 전까지 지도·스토어 미반영 */
   modalOpen: boolean
 
   /** 워크스페이스 지도: 해당 명부 기준 회사/상태 옵션 사용 */
@@ -201,7 +199,6 @@ const FilterModalChildren = ({
   const [draft, setDraft] = useState<FilterPersistableFields>(() =>
     getDefaultFilterPersistable(),
   )
-  const [baseline, setBaseline] = useState<FilterPersistableFields | null>(null)
 
   const [activeMainTab, setActiveMainTab] = useState<string>(MAIN_TAB_ALL)
   const [manualMin, setManualMin] = useState("")
@@ -243,44 +240,12 @@ const FilterModalChildren = ({
       useFilterStore.getState(),
     )
     setDraft(snap)
-    setBaseline(snap)
     setActiveMainTab(MAIN_TAB_ALL)
     setManualMin("")
     setManualMax("")
     setProfileManualMin("")
     setProfileManualMax("")
   }, [modalOpen])
-
-  const draftChips = useMemo(
-    () =>
-      getFilterSummaryChips({
-        cityFilter: draft.cityFilter,
-        statusPrimaryFilter: draft.statusPrimaryFilter,
-        companyFilter: draft.companyFilter,
-        companyFilterProfiles: draft.companyFilterProfiles,
-        stocks: draft.stocks,
-        companyStockFilterMap: draft.companyStockFilterMap,
-      }),
-    [draft],
-  )
-
-  const savedChips = useMemo(() => {
-    if (!baseline) return []
-
-    return getFilterSummaryChips({
-      cityFilter: baseline.cityFilter,
-      statusPrimaryFilter: baseline.statusPrimaryFilter,
-      companyFilter: baseline.companyFilter,
-      companyFilterProfiles: baseline.companyFilterProfiles,
-      stocks: baseline.stocks,
-      companyStockFilterMap: baseline.companyStockFilterMap,
-    })
-  }, [baseline])
-
-  const isDirty = useMemo(
-    () => baseline !== null && !isEqual(draft, baseline),
-    [draft, baseline],
-  )
 
   const statusMenu = useMemo(
     () =>
@@ -589,39 +554,6 @@ const FilterModalChildren = ({
           </CloseButton>
         </ModalHeader>
 
-        <SummarySection>
-          <SummaryRow>
-            <SummaryLabel>미리보기 (대시보드와 동일 칩)</SummaryLabel>
-            {draftChips.length > 0 ? (
-              <SummaryChips aria-label="편집 중 필터 요약">
-                {draftChips.map((text, i) => (
-                  <SummaryChip key={`${text}-${i}`}>{text}</SummaryChip>
-                ))}
-              </SummaryChips>
-            ) : (
-              <SummaryMuted>조건 없음 · 전체 명부</SummaryMuted>
-            )}
-          </SummaryRow>
-          {isDirty && baseline && (
-            <SavedCompareRow>
-              <SavedCompareLabel>지도에 적용 중 (저장됨)</SavedCompareLabel>
-              {savedChips.length > 0 ? (
-                <SummaryChips>
-                  {savedChips.map((text, i) => (
-                    <SavedChip key={`${text}-${i}`}>{text}</SavedChip>
-                  ))}
-                </SummaryChips>
-              ) : (
-                <SummaryMuted>조건 없음 · 전체 명부</SummaryMuted>
-              )}
-            </SavedCompareRow>
-          )}
-          <SummaryHint>
-            적용하기를 눌러야 지도·대시보드에 반영됩니다. 닫기 시 편집 내용은
-            저장되지 않습니다.
-          </SummaryHint>
-        </SummarySection>
-
         <MainTabRow>
           {mainTabs.map((tab) => (
             <MainTabButton
@@ -638,9 +570,6 @@ const FilterModalChildren = ({
           <>
             <FilterSection>
               <SectionTitle>회사 범위 (지도에 표시할 회사)</SectionTitle>
-              <HintText>
-                선택하지 않으면 명부에 있는 모든 회사가 대상입니다.
-              </HintText>
               <ChipsWrapper>
                 {availableCompany.map((company) => (
                   <FilterChip
@@ -683,10 +612,6 @@ const FilterModalChildren = ({
 
             <FilterSection>
               <SectionTitle>상태 (1차)</SectionTitle>
-              <HintText>
-                상세 상태 대신 미방문·완료·전자투표·주주총회 등 묶음으로
-                고릅니다. 회사별로 다르게 쓰려면 아래 회사 탭에서 설정하세요.
-              </HintText>
               <ChipsWrapper>
                 {availablePrimary.map((p) => (
                   <FilterChip
@@ -969,92 +894,6 @@ const FilterModalChildren = ({
     </FilterRoot>
   )
 }
-
-const SummarySection = styled.div`
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid ${COLORS.gray[100]};
-`
-
-const SummaryRow = styled.div`
-  margin-bottom: 8px;
-
-  &:last-of-type {
-    margin-bottom: 0;
-  }
-`
-
-const SummaryLabel = styled.div`
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: ${COLORS.gray[600]};
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 6px;
-`
-
-const SummaryChips = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-`
-
-const SummaryChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding: 0.5rem 0.875rem;
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: ${COLORS.blue[800]};
-  background: #fff;
-  border: 1px solid ${COLORS.blue[200]};
-`
-
-const SavedChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding: 0.5rem 0.875rem;
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: ${COLORS.gray[700]};
-  background: #fff;
-  border: 1px solid ${COLORS.gray[200]};
-`
-
-const SummaryMuted = styled.div`
-  font-size: 0.75rem;
-  color: ${COLORS.gray[500]};
-`
-
-const SavedCompareRow = styled.div`
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed ${COLORS.gray[200]};
-`
-
-const SavedCompareLabel = styled.div`
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: ${COLORS.gray[500]};
-  margin-bottom: 6px;
-`
-
-const SummaryHint = styled.p`
-  margin: 10px 0 0;
-  font-size: 0.6875rem;
-  color: ${COLORS.gray[500]};
-  line-height: 1.45;
-`
 
 const FilterRoot = styled.div`
   display: flex;

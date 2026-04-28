@@ -816,8 +816,10 @@ export function WorkspaceDashboardBody() {
       userId: string
       agentLabel: string
       assignedCount: number
-      completedDistinctCount: number
-      onHoldDistinctCount: number
+      totalChangeCount: number
+      completedChangeCount: number
+      onHoldChangeCount: number
+      failedChangeCount: number
       companyPrimary: CompanyPrimaryCount[]
     }
     const agents = workspaceMembersWithUsers.filter(
@@ -849,15 +851,19 @@ export function WorkspaceDashboardBody() {
       const agentLabel =
         agent.name?.trim() || agent.email?.trim() || agent.user_id
       const changeBy = changeHistorySummary.byUserId[agent.user_id] ?? {
-        completedDistinctCount: 0,
-        onHoldDistinctCount: 0,
+        totalChangeCount: 0,
+        completedChangeCount: 0,
+        onHoldChangeCount: 0,
+        failedChangeCount: 0,
       }
       rows.push({
         userId: agent.user_id,
         agentLabel,
         assignedCount,
-        completedDistinctCount: changeBy.completedDistinctCount,
-        onHoldDistinctCount: changeBy.onHoldDistinctCount,
+        totalChangeCount: changeBy.totalChangeCount,
+        completedChangeCount: changeBy.completedChangeCount,
+        onHoldChangeCount: changeBy.onHoldChangeCount,
+        failedChangeCount: changeBy.failedChangeCount,
         companyPrimary: [...companyMap.entries()]
           .sort((a, b) => a[0].localeCompare(b[0], "ko"))
           .map(([company, counts]) => ({ company, counts })),
@@ -1258,12 +1264,22 @@ export function WorkspaceDashboardBody() {
                             <DetailTh
                               scope="col"
                               style={{ textAlign: "right" }}>
+                              총 변경 횟수
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
                               완료 변경
                             </DetailTh>
                             <DetailTh
                               scope="col"
                               style={{ textAlign: "right" }}>
                               보류 변경
+                            </DetailTh>
+                            <DetailTh
+                              scope="col"
+                              style={{ textAlign: "right" }}>
+                              실패 변경 횟수
                             </DetailTh>
                             <DetailTh
                               scope="col"
@@ -1278,10 +1294,16 @@ export function WorkspaceDashboardBody() {
                             <tr key={row.userId}>
                               <DetailTd>{row.agentLabel}</DetailTd>
                               <DetailTdNum>
-                                {row.completedDistinctCount.toLocaleString()}건
+                                {row.totalChangeCount.toLocaleString()}건
                               </DetailTdNum>
                               <DetailTdNum>
-                                {row.onHoldDistinctCount.toLocaleString()}건
+                                {row.completedChangeCount.toLocaleString()}건
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.onHoldChangeCount.toLocaleString()}건
+                              </DetailTdNum>
+                              <DetailTdNum>
+                                {row.failedChangeCount.toLocaleString()}건
                               </DetailTdNum>
                               <DetailTdNum>
                                 {row.assignedCount.toLocaleString()}명

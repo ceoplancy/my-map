@@ -79,11 +79,6 @@ const StatsCard = ({
     <Container>
       <HeaderSection>
         <Title>의결권 현황</Title>
-        <InfoText>
-          워크스페이스에 연결된 주주명부 전체를 집계합니다(지도 &apos;노출&apos;
-          여부·위치·줌·필터·검색과 무관). 회사별 표는 1차 상태(미방문·완료 등)
-          인원·주식수입니다.
-        </InfoText>
       </HeaderSection>
 
       {shareholderStatsError && (
@@ -220,13 +215,6 @@ const Title = styled.h3`
   color: ${COLORS.gray[900]};
   font-weight: 700;
   margin: 0 0 6px;
-`
-
-const InfoText = styled.p`
-  margin: 0;
-  font-size: 0.8125rem;
-  color: ${COLORS.gray[600]};
-  line-height: 1.45;
 `
 
 const ErrorBanner = styled.div`
