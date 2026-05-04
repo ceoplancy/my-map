@@ -17,6 +17,11 @@ const SignInAnimation = dynamic(
   { ssr: false },
 )
 
+const PwaInstallActions = dynamic(
+  () => import("@/components/pwa/pwa-install-actions"),
+  { ssr: false },
+)
+
 const SignIn = () => {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -89,6 +94,7 @@ const SignIn = () => {
               style={{ marginTop: "0.25rem" }}>
               신청 조회
             </SignUpLink>
+            <PwaInstallActions />
           </LoginForm>
         </LoginContainer>
 
